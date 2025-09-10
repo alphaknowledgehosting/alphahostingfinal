@@ -86,48 +86,48 @@ router.post('/', authenticateUser, requireRole(['admin']), async (req, res) => {
     let emailMessage = '';
 
     // CRITICAL: Send emails ONLY for urgent announcements
-    if (announcement.type === 'urgent') {
-      // console.log('🚨 URGENT announcement created - sending emails to all users...');
+    // if (announcement.type === 'urgent') {
+    //   // console.log('🚨 URGENT announcement created - sending emails to all users...');
       
-      try {
-        // FIXED: Proper User model instantiation and usage
-        const User = require('../models/User');
-        const userModel = new User();
-        const users = await userModel.getUsersWithEmails();
+    //   try {
+    //     // FIXED: Proper User model instantiation and usage
+    //     const User = require('../models/User');
+    //     const userModel = new User();
+    //     const users = await userModel.getUsersWithEmails();
         
-        // console.log(`📧 Found ${users.length} users in database`);
+    //     // console.log(`📧 Found ${users.length} users in database`);
         
-        if (users.length > 0) {
-          // Send emails in background (non-blocking)
-          setImmediate(async () => {
-            try {
-              const { sendEmailToAllUsers } = require('../services/emailService');
-              const emailResult = await sendEmailToAllUsers(announcement, users, 'urgent');
+    //     if (users.length > 0) {
+    //       // Send emails in background (non-blocking)
+    //       setImmediate(async () => {
+    //         try {
+    //           const { sendEmailToAllUsers } = require('../services/emailService');
+    //           const emailResult = await sendEmailToAllUsers(announcement, users, 'urgent');
               
-              if (emailResult.success) {
-                // console.log(`🎉 URGENT announcement emails sent: ${emailResult.count}/${emailResult.total} delivered`);
-              } else if (emailResult.skipped) {
-                // console.log(`⏭️ Email sending skipped: ${emailResult.reason}`);
-              } else {
-                // console.error(`❌ URGENT announcement email sending failed:`, emailResult.error);
-              }
-            } catch (emailError) {
-              // console.error('❌ Error in background email sending:', emailError);
-            }
-          });
+    //           if (emailResult.success) {
+    //             // console.log(`🎉 URGENT announcement emails sent: ${emailResult.count}/${emailResult.total} delivered`);
+    //           } else if (emailResult.skipped) {
+    //             // console.log(`⏭️ Email sending skipped: ${emailResult.reason}`);
+    //           } else {
+    //             // console.error(`❌ URGENT announcement email sending failed:`, emailResult.error);
+    //           }
+    //         } catch (emailError) {
+    //           // console.error('❌ Error in background email sending:', emailError);
+    //         }
+    //       });
           
-          emailMessage = ` 🚨 URGENT email notifications are being sent to ${users.length} users.`;
-        } else {
-          emailMessage = ` ⚠️ No users found with email addresses.`;
-        }
-      } catch (userFetchError) {
-        console.error('❌ Error fetching users for email notification:', userFetchError);
-        emailMessage = ` ❌ Error fetching user emails: ${userFetchError.message}`;
-      }
-    } else {
-      // console.log(`📢 ${(req.body.type || 'info').toUpperCase()} announcement created - no emails sent (only URGENT announcements trigger emails)`);
-      emailMessage = ` 📧 No emails sent (only URGENT announcements trigger email notifications).`;
-    }
+    //       emailMessage = ` 🚨 URGENT email notifications are being sent to ${users.length} users.`;
+    //     } else {
+    //       emailMessage = ` ⚠️ No users found with email addresses.`;
+    //     }
+    //   } catch (userFetchError) {
+    //     console.error('❌ Error fetching users for email notification:', userFetchError);
+    //     emailMessage = ` ❌ Error fetching user emails: ${userFetchError.message}`;
+    //   }
+    // } else {
+    //   // console.log(`📢 ${(req.body.type || 'info').toUpperCase()} announcement created - no emails sent (only URGENT announcements trigger emails)`);
+    //   emailMessage = ` 📧 No emails sent (only URGENT announcements trigger email notifications).`;
+    // }
 
     // Send success response
     res.status(201).json({ 

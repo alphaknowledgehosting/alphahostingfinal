@@ -57,31 +57,31 @@ exports.createAnnouncement = async (req, res) => {
 
     // Send emails ONLY for urgent announcements
     let emailMessage = '';
-    if (type === 'urgent') {
-      try {
-        const users = await User.find({ email: { $exists: true, $ne: null } });
+    // if (type === 'urgent') {
+    //   try {
+    //     const users = await User.find({ email: { $exists: true, $ne: null } });
         
-        if (users.length > 0) {
-          // Send emails in the background - don't block the response
-          setImmediate(async () => {
-            try {
-              const emailResult = await sendEmailToAllUsers(announcement, users, type);
-              // console.log(`🚨 URGENT announcement email notification sent:`, emailResult);
-            } catch (emailError) {
-              console.error('❌ Error sending urgent announcement emails:', emailError);
-            }
-          });
+    //     if (users.length > 0) {
+    //       // Send emails in the background - don't block the response
+    //       setImmediate(async () => {
+    //         try {
+    //           const emailResult = await sendEmailToAllUsers(announcement, users, type);
+    //           // console.log(`🚨 URGENT announcement email notification sent:`, emailResult);
+    //         } catch (emailError) {
+    //           console.error('❌ Error sending urgent announcement emails:', emailError);
+    //         }
+    //       });
           
-          // console.log(`🚨 Sending URGENT announcement emails to ${users.length} users`);
-          emailMessage = ` Email notifications are being sent to all users due to urgent priority.`;
-        }
-      } catch (error) {
-        // console.error('Error fetching users for urgent email notification:', error);
-      }
-    } else {
-      // console.log(`📢 ${type.toUpperCase()} announcement created - no email notifications sent (only urgent announcements trigger emails)`);
-      emailMessage = ` No email notifications sent (only urgent announcements trigger emails).`;
-    }
+    //       // console.log(`🚨 Sending URGENT announcement emails to ${users.length} users`);
+    //       emailMessage = ` Email notifications are being sent to all users due to urgent priority.`;
+    //     }
+    //   } catch (error) {
+    //     // console.error('Error fetching users for urgent email notification:', error);
+    //   }
+    // } else {
+    //   // console.log(`📢 ${type.toUpperCase()} announcement created - no email notifications sent (only urgent announcements trigger emails)`);
+    //   emailMessage = ` No email notifications sent (only urgent announcements trigger emails).`;
+    // }
 
     res.status(201).json({ 
       announcement, 
@@ -133,27 +133,27 @@ exports.updateAnnouncement = async (req, res) => {
 
     // Send emails if announcement is updated to urgent (and wasn't urgent before)
     let emailMessage = '';
-    if (type === 'urgent' && previousType !== 'urgent') {
-      try {
-        const users = await User.find({ email: { $exists: true, $ne: null } });
+    // if (type === 'urgent' && previousType !== 'urgent') {
+    //   try {
+    //     const users = await User.find({ email: { $exists: true, $ne: null } });
         
-        if (users.length > 0) {
-          setImmediate(async () => {
-            try {
-              const emailResult = await sendEmailToAllUsers(announcement, users, type);
-              // console.log(`🚨 URGENT announcement update email notification sent:`, emailResult);
-            } catch (emailError) {
-              // console.error('❌ Error sending urgent announcement update emails:', emailError);
-            }
-          });
+    //     if (users.length > 0) {
+    //       setImmediate(async () => {
+    //         try {
+    //           const emailResult = await sendEmailToAllUsers(announcement, users, type);
+    //           // console.log(`🚨 URGENT announcement update email notification sent:`, emailResult);
+    //         } catch (emailError) {
+    //           // console.error('❌ Error sending urgent announcement update emails:', emailError);
+    //         }
+    //       });
           
-          // console.log(`🚨 Sending URGENT announcement update emails to ${users.length} users`);
-          emailMessage = ` Email notifications sent due to urgent priority.`;
-        }
-      } catch (error) {
-        console.error('Error fetching users for urgent email notification:', error);
-      }
-    }
+    //       // console.log(`🚨 Sending URGENT announcement update emails to ${users.length} users`);
+    //       emailMessage = ` Email notifications sent due to urgent priority.`;
+    //     }
+    //   } catch (error) {
+    //     console.error('Error fetching users for urgent email notification:', error);
+    //   }
+    // }
 
     res.json({ 
       announcement, 
