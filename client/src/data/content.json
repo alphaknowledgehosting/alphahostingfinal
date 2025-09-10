@@ -1,0 +1,383 @@
+{
+  "sheets": [
+    {
+      "id": "array-strings",
+      "name": "Array & Strings",
+      "description": "Fundamental array and string operations",
+      "sections": [
+        {
+          "id": "basic-operations",
+          "name": "Basic Operations",
+          "subsections": [
+            {
+              "id": "traversal-search-1",
+              "name": "Traversal & Search",
+              "problems": [
+                {
+                  "id": "linear-search-1",
+                  "title": "Linear Search",
+                  "practiceLink": "https://leetcode.com/problems/search-insert-position/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "",
+                  "editorialLink": "https://github.com/relamegt/dsaeditorials/blob/main/editorial.md.md",
+                  "notesLink": "https://drive.google.com/file/d/example1",
+                  "difficulty": "Easy"
+                },
+                {
+                  "id": "linear-search-1",
+                  "title": "Linear Search",
+                  "practiceLink": "https://leetcode.com/problems/search-insert-position/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=EhMoCH_bDbE",
+                  "editorialLink": "https://github.com/relamegt/dsaeditorials/blob/main/linearsearch.md",
+                  "notesLink": "https://drive.google.com/file/d/example1",
+                  "difficulty": "Easy"
+                },
+                {
+                  "id": "binary-search-1",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "editorialLink": "https://github.com/relamegt/dsaeditorials/blob/main/linearsearch.md",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-2",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-3",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-4",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-5",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-6",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-7",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-8",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                }
+              ]
+            },
+            {
+              "id": "traversal-search-2",
+              "name": "Traversal & Search",
+              "problems": [
+                {
+                  "id": "linear-search-2",
+                  "title": "Linear Search",
+                  "practiceLink": "https://leetcode.com/problems/search-insert-position/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=EhMoCH_bDbE",
+                  "notesLink": "https://drive.google.com/file/d/example1",
+                  "difficulty": "Easy"
+                },
+                {
+                  "id": "binary-search-9",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-10",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-11",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-12",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-13",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-14",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-15",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-16",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "basic-operations",
+          "name": "Basic Operations",
+          "subsections": [
+            {
+              "id": "traversal-search-1",
+              "name": "Traversal & Search",
+              "problems": [
+                {
+                  "id": "linear-search-1",
+                  "title": "Linear Search",
+                  "practiceLink": "https://leetcode.com/problems/search-insert-position/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=EhMoCH_bDbE",
+                  "notesLink": "https://drive.google.com/file/d/example1",
+                  "difficulty": "Easy"
+                },
+                {
+                  "id": "binary-search-1",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-2",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-3",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-4",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-5",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-6",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-7",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-8",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                }
+              ]
+            },
+            {
+              "id": "traversal-search-2",
+              "name": "Traversal & Search",
+              "problems": [
+                {
+                  "id": "linear-search-2",
+                  "title": "Linear Search",
+                  "practiceLink": "https://leetcode.com/problems/search-insert-position/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=EhMoCH_bDbE",
+                  "notesLink": "https://drive.google.com/file/d/example1",
+                  "difficulty": "Easy"
+                },
+                {
+                  "id": "binary-search-9",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-10",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-11",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-12",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-13",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-14",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-15",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                },
+                {
+                  "id": "binary-search-16",
+                  "title": "Binary Search",
+                  "practiceLink": "https://leetcode.com/problems/binary-search/",
+                  "platform": "LeetCode",
+                  "youtubeLink": "https://www.youtube.com/watch?v=s4DPM8ct1pI",
+                  "notesLink": "https://drive.google.com/file/d/example2",
+                  "difficulty": "Medium"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
