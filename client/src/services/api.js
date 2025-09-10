@@ -1,10 +1,9 @@
 import axios from 'axios';
 
-// Multi-service API configuration for load distribution
+// Two Render backends API configuration for load distribution
 const API_DOMAINS = {
-  AUTH: process.env.REACT_APP_RENDER_API || 'https://alphaknowledgefinal-1.onrender.com',
-  CORE: process.env.REACT_APP_VERCEL_API || 'https://your-vercel-app.vercel.app',
-  ADMIN: process.env.REACT_APP_RAILWAY_API || 'https://your-railway-app.railway.app'
+  AUTH: process.env.REACT_APP_RENDER_AUTH_API || 'https://alphaknowledgefinal-1.onrender.com',
+  CORE: process.env.REACT_APP_RENDER_CORE_API || 'https://alphaknowledgefinal-2.onrender.com'
 };
 
 // Create API instances for each service
@@ -76,11 +75,10 @@ const createAPIInstance = (baseURL, service) => {
 };
 
 // Create service-specific API instances
-const authApi = createAPIInstance(API_DOMAINS.AUTH, 'AUTH');     // Render
-const coreApi = createAPIInstance(API_DOMAINS.CORE, 'CORE');     // Vercel
-const adminApi = createAPIInstance(API_DOMAINS.ADMIN, 'ADMIN');  // Railway
+const authApi = createAPIInstance(API_DOMAINS.AUTH, 'AUTH');     // Render Backend 1
+const coreApi = createAPIInstance(API_DOMAINS.CORE, 'CORE');     // Render Backend 2
 
-// AUTH API - Hosted on Render (Persistent Auth Services)
+// AUTH API - Hosted on Render Backend 1 (Persistent Auth Services)
 export const authAPI = {
   getCurrentUser: async () => {
     try {
@@ -131,7 +129,28 @@ export const authAPI = {
   },
 };
 
-// CORE APIs - Hosted on Vercel (Scalable CRUD Operations)
+// Debug functions - Using AUTH service
+export const testAPI = {
+  healthCheck: async () => {
+    try {
+      const response = await authApi.get('/health');
+      // console.log('✅ Backend is reachable:', response.data);
+      return response.data;
+    } catch (error) {
+      // console.error('❌ Backend test failed:', error);
+      throw error;
+    }
+  },
+
+  checkToken: () => {
+    const token = localStorage.getItem('authToken');
+    // console.log('🔐 Token in storage:', token ? 'Present' : 'Missing');
+    // if (token) console.log('Token preview:', token.substring(0, 20) + '...');
+    return !!token;
+  }
+};
+
+// CORE APIs - Hosted on Render Backend 2 (All CRUD Operations & Admin Functions)
 export const progressAPI = {
   getUserProgress: (userId) => coreApi.get(`/progress/${userId}`),
   toggleProblem: (problemData) => coreApi.post('/progress/toggle', problemData),
@@ -192,77 +211,55 @@ export const searchAPI = {
   globalSearch: (query) => coreApi.get(`/search/global?q=${encodeURIComponent(query)}`)
 };
 
-// ADMIN APIs - Hosted on Railway (Heavy Operations & Analytics)
 export const announcementAPI = {
-  getAll: () => adminApi.get('/announcements'),
-  create: (data) => adminApi.post('/announcements', data),
-  update: (id, data) => adminApi.put(`/announcements/${id}`, data),
-  delete: (id) => adminApi.delete(`/announcements/${id}`),
-  markAsRead: (id) => adminApi.post(`/announcements/${id}/read`),
-  getReadStatus: (id) => adminApi.get(`/announcements/${id}/read-status`),
-  getUnreadCount: () => adminApi.get('/announcements/unread-count'),
+  getAll: () => coreApi.get('/announcements'),
+  create: (data) => coreApi.post('/announcements', data),
+  update: (id, data) => coreApi.put(`/announcements/${id}`, data),
+  delete: (id) => coreApi.delete(`/announcements/${id}`),
+  markAsRead: (id) => coreApi.post(`/announcements/${id}/read`),
+  getReadStatus: (id) => coreApi.get(`/announcements/${id}/read-status`),
+  getUnreadCount: () => coreApi.get('/announcements/unread-count'),
 };
 
 export const adminAPI = {
   // User management
-  getUsers: () => adminApi.get('/admin/users'),
-  updateUserRole: (userId, role) => adminApi.put(`/admin/users/${userId}/role`, { role }),
-  deleteUser: (userId) => adminApi.delete(`/admin/users/${userId}`),
-  createUser: (userData) => adminApi.post('/admin/users', userData),
-  getUserDetails: (userId) => adminApi.get(`/admin/users/${userId}`),
+  getUsers: () => coreApi.get('/admin/users'),
+  updateUserRole: (userId, role) => coreApi.put(`/admin/users/${userId}/role`, { role }),
+  deleteUser: (userId) => coreApi.delete(`/admin/users/${userId}`),
+  createUser: (userData) => coreApi.post('/admin/users', userData),
+  getUserDetails: (userId) => coreApi.get(`/admin/users/${userId}`),
 
   // System management
-  getSystemStats: () => adminApi.get('/admin/stats'),
-  getAuditLogs: (page = 1, limit = 50) => adminApi.get(`/admin/audit-logs?page=${page}&limit=${limit}`),
+  getSystemStats: () => coreApi.get('/admin/stats'),
+  getAuditLogs: (page = 1, limit = 50) => coreApi.get(`/admin/audit-logs?page=${page}&limit=${limit}`),
 
   // Bulk operations
-  bulkUpdateUsers: (userUpdates) => adminApi.put('/admin/users/bulk', { updates: userUpdates }),
-  bulkDeleteUsers: (userIds) => adminApi.delete('/admin/users/bulk', { data: { userIds } }),
+  bulkUpdateUsers: (userUpdates) => coreApi.put('/admin/users/bulk', { updates: userUpdates }),
+  bulkDeleteUsers: (userIds) => coreApi.delete('/admin/users/bulk', { data: { userIds } }),
 
   // Settings management
-  getSettings: () => adminApi.get('/admin/settings'),
-  updateSettings: (settings) => adminApi.put('/admin/settings', settings)
+  getSettings: () => coreApi.get('/admin/settings'),
+  updateSettings: (settings) => coreApi.put('/admin/settings', settings)
 };
 
 export const analyticsAPI = {
-  getUserProgress: (userId, dateRange) => adminApi.get(`/analytics/users/${userId}/progress?${dateRange}`),
-  getSheetAnalytics: (sheetId, dateRange) => adminApi.get(`/analytics/sheets/${sheetId}?${dateRange}`),
-  getOverallStats: (dateRange) => adminApi.get(`/analytics/overview?${dateRange}`),
-  getProblemStats: (problemId) => adminApi.get(`/analytics/problems/${problemId}`),
-  getLeaderboard: (type = 'all', limit = 100) => adminApi.get(`/analytics/leaderboard?type=${type}&limit=${limit}`),
-  exportAnalytics: (type, filters) => adminApi.post(`/analytics/export`, { type, filters })
+  getUserProgress: (userId, dateRange) => coreApi.get(`/analytics/users/${userId}/progress?${dateRange}`),
+  getSheetAnalytics: (sheetId, dateRange) => coreApi.get(`/analytics/sheets/${sheetId}?${dateRange}`),
+  getOverallStats: (dateRange) => coreApi.get(`/analytics/overview?${dateRange}`),
+  getProblemStats: (problemId) => coreApi.get(`/analytics/problems/${problemId}`),
+  getLeaderboard: (type = 'all', limit = 100) => coreApi.get(`/analytics/leaderboard?type=${type}&limit=${limit}`),
+  exportAnalytics: (type, filters) => coreApi.post(`/analytics/export`, { type, filters })
 };
 
 export const notificationAPI = {
-  getNotifications: (userId) => adminApi.get(`/notifications/${userId}`),
-  markAsRead: (notificationId) => adminApi.put(`/notifications/${notificationId}/read`),
-  markAllAsRead: (userId) => adminApi.put(`/notifications/${userId}/read-all`),
-  deleteNotification: (notificationId) => adminApi.delete(`/notifications/${notificationId}`),
+  getNotifications: (userId) => coreApi.get(`/notifications/${userId}`),
+  markAsRead: (notificationId) => coreApi.put(`/notifications/${notificationId}/read`),
+  markAllAsRead: (userId) => coreApi.put(`/notifications/${userId}/read-all`),
+  deleteNotification: (notificationId) => coreApi.delete(`/notifications/${notificationId}`),
 
   // Admin notifications
-  createNotification: (data) => adminApi.post('/notifications', data),
-  broadcastNotification: (data) => adminApi.post('/notifications/broadcast', data)
-};
-
-// Debug functions - Using AUTH service
-export const testAPI = {
-  healthCheck: async () => {
-    try {
-      const response = await authApi.get('/health');
-      // console.log('✅ Backend is reachable:', response.data);
-      return response.data;
-    } catch (error) {
-      // console.error('❌ Backend test failed:', error);
-      throw error;
-    }
-  },
-
-  checkToken: () => {
-    const token = localStorage.getItem('authToken');
-    // console.log('🔐 Token in storage:', token ? 'Present' : 'Missing');
-    // if (token) console.log('Token preview:', token.substring(0, 20) + '...');
-    return !!token;
-  }
+  createNotification: (data) => coreApi.post('/notifications', data),
+  broadcastNotification: (data) => coreApi.post('/notifications/broadcast', data)
 };
 
 // Keep legacy export for backward compatibility
