@@ -289,7 +289,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
       }
 
       // Parse code blocks
-      if (line.startsWith('```')) {
+      if (line.startsWith('```')){
         if (!inCodeBlock) {
           // Starting code block
           inCodeBlock = true;
@@ -422,7 +422,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
             const [property, value] = style.split(':').map(s => s.trim());
             if (property && value) {
               // Convert CSS property to camelCase for React
-              const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+              const camelProperty = property.replace(/-([a-z])/g, (g) => g.toUpperCase());[1]
               inlineStyles[camelProperty] = value;
             }
           });
@@ -464,7 +464,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
   const getYouTubeVideoId = (url) => {
     if (!url) return null;
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-    return match ? match[1] : null;
+    return match ? match : null;[1]
   };
 
   // Render Special Thanks section
@@ -656,7 +656,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex items-center space-x-1 sm:space-x-2 bg-slate-100/60 dark:bg-slate-800/60 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 backdrop-blur-sm w-full sm:w-auto">
+                                <div className="flex items-center space-x-1 sm:space-x-2 bg-slate-100/60 dark:bg-slate-800/60 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 backdrop-blur-sm w-full sm:w-auto">
               <button
                 onClick={() => setActiveTab('editorial')}
                 className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial ${
@@ -713,10 +713,10 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
               </div>
             )}
 
-            {/* Render Editorial Content (Simple Markdown) */}
+            {/* Render Editorial Content (GitHub-style Markdown) */}
             {contentType === 'editorial' && editorial && !loading && !error && (
               <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-                <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5">
+                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5">
                   {isEditing ? (
                     <div className="space-y-4">
                       <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
@@ -745,46 +745,169 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
                       </div>
                     </div>
                   ) : (
-                    <div className="prose prose-lg dark:prose-invert max-w-none">
+                    <div className="github-markdown-body prose prose-slate dark:prose-invert prose-lg max-w-none">
                       <ReactMarkdown
                         components={{
-                          code({ node, inline, className, children, ...props }) {
+                          // Headings with proper sizing and theming
+                          h1: ({ children }) => (
+                            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
+                              {children}
+                            </h1>
+                          ),
+                          h2: ({ children }) => (
+                            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white mt-6 mb-3">
+                              {children}
+                            </h3>
+                          ),
+                          h4: ({ children }) => (
+                            <h4 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-white mt-4 mb-2">
+                              {children}
+                            </h4>
+                          ),
+                          h5: ({ children }) => (
+                            <h5 className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-white mt-3 mb-2">
+                              {children}
+                            </h5>
+                          ),
+                          h6: ({ children }) => (
+                            <h6 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-700 dark:text-slate-300 mt-2 mb-1">
+                              {children}
+                            </h6>
+                          ),
+                          // Paragraphs with proper spacing and theming
+                          p: ({ children }) => (
+                            <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
+                              {children}
+                            </p>
+                          ),
+                          // Lists with proper theming
+                          ul: ({ children }) => (
+                            <ul className="text-slate-700 dark:text-slate-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="text-slate-700 dark:text-slate-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-slate-700 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
+                              {children}
+                            </li>
+                          ),
+                          // Blockquotes
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400 my-4 lg:my-6 bg-slate-50 dark:bg-slate-800/50 py-2 rounded-r">
+                              {children}
+                            </blockquote>
+                          ),
+                          // Strong and emphasis
+                          strong: ({ children }) => (
+                            <strong className="font-bold text-slate-900 dark:text-white">
+                              {children}
+                            </strong>
+                          ),
+                          em: ({ children }) => (
+                            <em className="italic text-slate-800 dark:text-slate-200">
+                              {children}
+                            </em>
+                          ),
+                          // Links
+                          a: ({ href, children }) => (
+                            <a
+                              href={href}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline decoration-2 underline-offset-2 transition-colors duration-200"
+                            >
+                              {children}
+                            </a>
+                          ),
+                          // Inline code
+                          code: ({ node, inline, className, children, ...props }) => {
                             const match = /language-(\w+)/.exec(className || '');
-                            return !inline && match ? (
-                              <SyntaxHighlighter
-                                style={tomorrow}
-                                language={match && match[1]}
-                                PreTag={'div'}
-                                {...props}
-                              >
-                                {String(children).replace(/\n$/, '')}
-                              </SyntaxHighlighter>
-                            ) : (
-                              <code className={className} {...props}>
+                            
+                            if (!inline && match) {
+                              return (
+                                <div className="my-4 lg:my-6">
+                                  <SyntaxHighlighter
+                                    style={tomorrow}
+                                    language={match[1]}
+                                    PreTag="div"
+                                    className="rounded-xl shadow-lg border border-slate-200 dark:border-slate-700"
+                                    {...props}
+                                  >
+                                    {String(children).replace(/\n$/, '')}
+                                  </SyntaxHighlighter>
+                                </div>
+                              );
+                            }
+                            
+                            return (
+                              <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono border border-slate-200 dark:border-slate-600" {...props}>
                                 {children}
                               </code>
                             );
                           },
-                          img({ src, alt, ...props }) {
-                            return (
-                              <div className="my-6 flex justify-center">
-                                <div className="relative inline-block">
-                                  <img
-                                    src={src}
-                                    alt={alt || "Editorial illustration"}
-                                    style={{
-                                      maxWidth: '100%',
-                                      height: 'auto',
-                                      borderRadius: '12px',
-                                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                                    }}
-                                    className="border border-slate-200 dark:border-slate-600"
-                                    {...props}
-                                  />
-                                </div>
+                          // Images
+                          img: ({ src, alt, ...props }) => (
+                            <div className="my-6 lg:my-8 flex justify-center">
+                              <div className="relative inline-block max-w-full">
+                                <img
+                                  src={src}
+                                  alt={alt || "Editorial illustration"}
+                                  className="max-w-full h-auto rounded-xl shadow-lg border border-slate-200 dark:border-slate-600"
+                                  style={{
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                                  }}
+                                  {...props}
+                                />
                               </div>
-                            );
-                          },
+                            </div>
+                          ),
+                          // Tables
+                          table: ({ children }) => (
+                            <div className="my-4 lg:my-6 overflow-x-auto">
+                              <table className="min-w-full border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          thead: ({ children }) => (
+                            <thead className="bg-slate-50 dark:bg-slate-800">
+                              {children}
+                            </thead>
+                          ),
+                          tbody: ({ children }) => (
+                            <tbody className="bg-white dark:bg-slate-900">
+                              {children}
+                            </tbody>
+                          ),
+                          tr: ({ children }) => (
+                            <tr className="border-b border-slate-200 dark:border-slate-700">
+                              {children}
+                            </tr>
+                          ),
+                          th: ({ children }) => (
+                            <th className="px-4 py-3 text-left font-semibold text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700 last:border-r-0">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="px-4 py-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 last:border-r-0">
+                              {children}
+                            </td>
+                          ),
+                          // Horizontal rule
+                          hr: () => (
+                            <hr className="my-6 lg:my-8 border-t-2 border-slate-200 dark:border-slate-700" />
+                          ),
                         }}
                       >
                         {editorial}
@@ -1099,6 +1222,12 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
           border-color: rgba(165, 180, 252, 0.3);
         }
 
+        /* GitHub-style markdown styling */
+        .github-markdown-body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
+          line-height: 1.6;
+        }
+
         /* Responsive video adjustments */
         @media (max-width: 767px) {
           .video-responsive {
@@ -1146,3 +1275,4 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
 };
 
 export default EditorialPage;
+
