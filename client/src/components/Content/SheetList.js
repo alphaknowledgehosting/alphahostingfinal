@@ -508,20 +508,17 @@ const SheetList = ({ onSheetSelect }) => {
                         <FaArrowRight className="w-5 h-5 text-gray-400 dark:text-gray-500 group-hover:text-[#6366f1] group-hover:translate-x-1 transition-all duration-300" />
                       </div>
                       
-                      {canManageSheets ? (
-                        <InlineEditableText
-                          value={sheet.description}
-                          onSave={(value) => handleUpdateSheet(sheet.id, 'description', value)}
-                          placeholder="Add description..."
-                          multiline={true}
-                          isEditable={canManageSheets && !isDeleting}
-                          className="text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2"
-                        />
-                      ) : (
-                        <p className="text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2">
-                          {/* {sheet.description || `Master data structures and algorithms with ${progress.total} carefully curated problems`} */}
-                        </p>
-                      )}
+                      {canManageSheets && (
+  <InlineEditableText
+    value={sheet.description}
+    onSave={(value) => handleUpdateSheet(sheet.id, 'description', value)}
+    placeholder="Add description..."
+    multiline={true}
+    isEditable={canManageSheets && !isDeleting}
+    className="text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2"
+  />
+)}
+
                     </div>
 
                     {/* Statistics Grid */}

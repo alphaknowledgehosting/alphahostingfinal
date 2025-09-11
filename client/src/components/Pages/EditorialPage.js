@@ -95,10 +95,24 @@ const EditorialPage = () => {
 
       setProblem(foundProblem);
 
-      // Determine content type based on problem title or ID
-      const isEditorialContent = (foundProblem.title && foundProblem.title.toLowerCase().endsWith('-editorial')) ||
-                                 (problemId && problemId.toLowerCase().endsWith('-editorial'));
-      const isSolutionContent = (foundProblem.title && foundProblem.title.toLowerCase().endsWith('-solution')) ||
+      // Determine content type based on editorialLink filename, problem title, or ID
+      let fileName = '';
+      if (foundProblem.editorialLink) {
+        try {
+          const url = foundProblem.editorialLink.trim();
+          const urlParts = url.split('?')[0].split('#')[0].split('/');
+          fileName = urlParts[urlParts.length - 1].toLowerCase();
+        } catch {
+          fileName = '';
+        }
+      }
+
+      const isEditorialContent = fileName.includes('-editorial') ||
+                                 (foundProblem.title && foundProblem.title.toLowerCase().includes('-editorial')) ||
+                                 (problemId && problemId.toLowerCase().includes('-editorial'));
+      
+      const isSolutionContent = fileName.endsWith('-solution.md') ||
+                                (foundProblem.title && foundProblem.title.toLowerCase().endsWith('-solution')) ||
                                 (problemId && problemId.toLowerCase().endsWith('-solution'));
       
       if (isEditorialContent) {
@@ -131,6 +145,7 @@ const EditorialPage = () => {
             setEditorial(content);
             setEditorialContent(content);
             
+            // Only parse for solution content
             if (contentType === 'solution') {
               const parsedData = parseMarkdown(content);
               setEditorialData(parsedData);
@@ -190,9 +205,9 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  // Enhanced markdown parser - for solution content
+  // Enhanced markdown parser - for solution content only
   const parseMarkdown = (markdown) => {
     const lines = markdown.split('\n');
     const result = {
@@ -739,7 +754,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
                               <SyntaxHighlighter
                                 style={tomorrow}
                                 language={match && match[1]}
-                                PreTag="div"
+                                PreTag={'div'}
                                 {...props}
                               >
                                 {String(children).replace(/\n$/, '')}
