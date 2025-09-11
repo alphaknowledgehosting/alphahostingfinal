@@ -407,7 +407,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
             const [property, value] = style.split(':').map(s => s.trim());
             if (property && value) {
               // Convert CSS property to camelCase for React
-              const camelProperty = property.replace(/-([a-z])/g, (g) => g.toUpperCase());[1]
+              const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
               inlineStyles[camelProperty] = value;
             }
           });
@@ -449,7 +449,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
   const getYouTubeVideoId = (url) => {
     if (!url) return null;
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-    return match ? match : null;[1]
+    return match ? match[1] : null;
   };
 
   // Render Special Thanks section
