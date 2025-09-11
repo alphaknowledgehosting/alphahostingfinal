@@ -55,6 +55,11 @@ const EditorialPage = () => {
   const [imageLoadErrors, setImageLoadErrors] = useState({});
   const [editorialData, setEditorialData] = useState(null);
   const [contentType, setContentType] = useState('solution'); // 'editorial' or 'solution'
+  
+  // For editorial code snippets multi-language support
+  const [editorialCodeBlocks, setEditorialCodeBlocks] = useState([]);
+  const [selectedEditorialLanguages, setSelectedEditorialLanguages] = useState({});
+  const [copiedEditorialCode, setCopiedEditorialCode] = useState({});
 
   useEffect(() => {
     if (problemId) {
@@ -145,8 +150,11 @@ const EditorialPage = () => {
             setEditorial(content);
             setEditorialContent(content);
             
-            // Only parse for solution content
-            if (contentType === 'solution') {
+            // Parse editorial content for code blocks if it's editorial type
+            if (contentType === 'editorial') {
+              parseEditorialCodeBlocks(content);
+            } else {
+              // Only parse for solution content
               const parsedData = parseMarkdown(content);
               setEditorialData(parsedData);
               
@@ -205,6 +213,88 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
     } finally {
       setLoading(false);
     }
+  };
+
+  // Parse editorial content for code blocks with multiple languages
+  const parseEditorialCodeBlocks = (markdown) => {
+    const lines = markdown.split('\n');
+    const codeBlocks = [];
+    let currentCodeGroup = null;
+    let inCodeBlock = false;
+    let currentCode = '';
+    let currentLanguage = '';
+    let blockIndex = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (line.startsWith('```')){
+        if (!inCodeBlock) {
+          // Starting code block
+          inCodeBlock = true;
+          currentLanguage = line.substring(3).trim() || 'javascript';
+          currentCode = '';
+          
+          // Check if this is part of a multi-language group
+          if (!currentCodeGroup) {
+            currentCodeGroup = {
+              id: `code-group-${blockIndex}`,
+              codes: [],
+              selectedLanguage: currentLanguage
+            };
+          }
+        } else {
+          // Ending code block
+          inCodeBlock = false;
+          
+          if (currentCodeGroup) {
+            currentCodeGroup.codes.push({
+              language: currentLanguage,
+              code: currentCode.trim()
+            });
+            
+            // Check if next few lines contain another code block
+            let hasNextCode = false;
+            for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+              if (lines[j].startsWith('```')) {
+                hasNextCode = true;
+                break;
+              }
+              if (lines[j].trim() && !lines[j].match(/^\s*$/)) {
+                break;
+              }
+            }
+            
+            if (!hasNextCode) {
+              // No more code blocks, finalize this group
+              codeBlocks.push(currentCodeGroup);
+              setSelectedEditorialLanguages(prev => ({
+                ...prev,
+                [currentCodeGroup.id]: currentCodeGroup.selectedLanguage
+              }));
+              currentCodeGroup = null;
+              blockIndex++;
+            }
+          }
+        }
+        continue;
+      }
+
+      if (inCodeBlock) {
+        currentCode += line + '\n';
+      }
+    }
+
+    // Handle case where markdown ends with a code block
+    if (currentCodeGroup) {
+      codeBlocks.push(currentCodeGroup);
+      setSelectedEditorialLanguages(prev => ({
+        ...prev,
+        [currentCodeGroup.id]: currentCodeGroup.selectedLanguage
+      }));
+    }
+
+    setEditorialCodeBlocks(codeBlocks);
   };
 
   // Enhanced markdown parser - for solution content only
@@ -507,6 +597,27 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
     }));
   };
 
+  // Functions for editorial code blocks
+  const changeEditorialLanguage = (codeGroupId, language) => {
+    setSelectedEditorialLanguages(prev => ({
+      ...prev,
+      [codeGroupId]: language
+    }));
+  };
+
+  const copyEditorialCode = async (code, codeGroupId, language) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      const key = `${codeGroupId}-${language}`;
+      setCopiedEditorialCode(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => {
+        setCopiedEditorialCode(prev => ({ ...prev, [key]: false }));
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
+  };
+
   const copyCode = async (code, approachId, language) => {
     try {
       await navigator.clipboard.writeText(code);
@@ -555,6 +666,74 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
   const handleCancelEdit = () => {
     setEditorialContent(editorial);
     setIsEditing(false);
+  };
+
+  // Render multi-language code block for editorial
+  const renderEditorialCodeBlock = (codeGroup) => {
+    const selectedLang = selectedEditorialLanguages[codeGroup.id] || codeGroup.codes?.language;
+    const selectedCode = codeGroup.codes.find(c => c.language === selectedLang);
+
+    if (!selectedCode) return null;
+
+    return (
+      <div key={codeGroup.id} className="my-6 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/80 dark:to-gray-800/80 rounded-xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden shadow-lg">
+        {/* Language Tabs */}
+        {codeGroup.codes.length > 1 && (
+          <div className="flex items-center justify-between p-4 bg-slate-100/80 dark:bg-slate-700/50 border-b border-slate-200/30 dark:border-slate-600/30">
+            <div className="flex items-center space-x-2">
+              <Code className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Implementation</span>
+            </div>
+            <div className="flex flex-wrap gap-1 bg-white/80 dark:bg-slate-800/80 rounded-lg p-1">
+              {codeGroup.codes.map((codeItem) => (
+                <button
+                  key={codeItem.language}
+                  onClick={() => changeEditorialLanguage(codeGroup.id, codeItem.language)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ${
+                    selectedLang === codeItem.language
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/70 dark:hover:bg-slate-700/70'
+                  }`}
+                >
+                  {codeItem.language}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Code Display */}
+        <div className="relative">
+          <SyntaxHighlighter
+            style={tomorrow}
+            language={selectedCode.language.toLowerCase()}
+            PreTag="div"
+            className="!bg-slate-900 dark:!bg-black/90 !m-0 !rounded-none"
+            customStyle={{
+              padding: '1.5rem',
+              fontSize: '0.875rem',
+              lineHeight: '1.5',
+              fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace"
+            }}
+          >
+            {selectedCode.code}
+          </SyntaxHighlighter>
+          
+          {/* Copy Button */}
+          <button
+            onClick={() => copyEditorialCode(selectedCode.code, codeGroup.id, selectedCode.language)}
+            className="absolute top-3 right-3 p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10"
+            title="Copy code"
+          >
+            {copiedEditorialCode[`${codeGroup.id}-${selectedCode.language}`] ? (
+              <FaCheck className="w-4 h-4 text-green-400" />
+            ) : (
+              <FaCopy className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -656,7 +835,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
             </div>
 
             {/* Navigation Tabs */}
-                                <div className="flex items-center space-x-1 sm:space-x-2 bg-slate-100/60 dark:bg-slate-800/60 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 backdrop-blur-sm w-full sm:w-auto">
+            <div className="flex items-center space-x-1 sm:space-x-2 bg-slate-100/60 dark:bg-slate-800/60 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 backdrop-blur-sm w-full sm:w-auto">
               <button
                 onClick={() => setActiveTab('editorial')}
                 className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial ${
@@ -713,7 +892,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
               </div>
             )}
 
-            {/* Render Editorial Content (GitHub-style Markdown) */}
+            {/* Render Editorial Content (GitHub-style Markdown with Enhanced Code Blocks) */}
             {contentType === 'editorial' && editorial && !loading && !error && (
               <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                 <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5">
@@ -829,24 +1008,11 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
                               {children}
                             </a>
                           ),
-                          // Inline code
+                          // Enhanced code handling - DO NOT RENDER HERE, we'll handle it separately
                           code: ({ node, inline, className, children, ...props }) => {
-                            const match = /language-(\w+)/.exec(className || '');
-                            
-                            if (!inline && match) {
-                              return (
-                                <div className="my-4 lg:my-6">
-                                  <SyntaxHighlighter
-                                    style={tomorrow}
-                                    language={match[1]}
-                                    PreTag="div"
-                                    className="rounded-xl shadow-lg border border-slate-200 dark:border-slate-700"
-                                    {...props}
-                                  >
-                                    {String(children).replace(/\n$/, '')}
-                                  </SyntaxHighlighter>
-                                </div>
-                              );
+                            if (!inline) {
+                              // Block code will be handled by our custom rendering
+                              return null;
                             }
                             
                             return (
@@ -855,7 +1021,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
                               </code>
                             );
                           },
-                          // Images
+                          // Images with proper handling
                           img: ({ src, alt, ...props }) => (
                             <div className="my-6 lg:my-8 flex justify-center">
                               <div className="relative inline-block max-w-full">
@@ -912,6 +1078,9 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
                       >
                         {editorial}
                       </ReactMarkdown>
+
+                      {/* Render custom code blocks with language tabs */}
+                      {editorialCodeBlocks.map(codeGroup => renderEditorialCodeBlock(codeGroup))}
                     </div>
                   )}
                 </div>
@@ -1275,4 +1444,3 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
 };
 
 export default EditorialPage;
-
