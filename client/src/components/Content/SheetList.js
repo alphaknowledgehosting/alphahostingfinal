@@ -519,7 +519,7 @@ const SheetList = ({ onSheetSelect }) => {
                         />
                       ) : (
                         <p className="text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-2">
-                          {sheet.description || `Master data structures and algorithms with ${progress.total} carefully curated problems`}
+                          {/* {sheet.description || `Master data structures and algorithms with ${progress.total} carefully curated problems`} */}
                         </p>
                       )}
                     </div>

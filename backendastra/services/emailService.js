@@ -50,7 +50,7 @@ const getWelcomeEmailTemplate = (user) => {
                         <tr>
                             <td style="padding: 40px 30px; background: rgba(255, 255, 255, 0.97); border-left: 1px solid #e5e7eb; border-right: 1px solid #e5e7eb;">
                                 <div style="text-align: center; margin-bottom: 30px;">
-                                    <img src="https://alphaknowledge.in/alphalogo.png" alt="AlphaKnowledge Logo" style="width: 80px; height: 80px; margin-bottom: 20px;">
+                                    <img src="https://alphaknowledge.in/alphalogo.png" alt="AlphaKnowledge Logo" style="width: 100px; height: 80px; margin-bottom: 20px;">
                                 </div>
                                 
                                 <h2 style="color: #1f2937; margin-bottom: 20px; font-size: 24px; line-height: 1.3; text-align: center;">
@@ -58,14 +58,14 @@ const getWelcomeEmailTemplate = (user) => {
                                 </h2>
                                 
                                 <p style="color: #4b5563; font-size: 16px; line-height: 1.6; margin-bottom: 25px; text-align: center;">
-                                    Welcome to <strong>AlphaKnowledge</strong> - your gateway to mastering algorithms, data structures, and competitive programming! We're thrilled to have you join our community of learners and achievers.
+                                    Welcome to <strong>AlphaKnowledge</strong> - your gateway to mastering Data Structures and Algorithms! We're thrilled to have you join our community of learners.
                                 </p>
                                 
                                 <div style="background: #f8fafc; border-radius: 10px; padding: 25px; margin: 25px 0;">
                                     <h3 style="color: #1f2937; margin-bottom: 15px; font-size: 18px;">🚀 What You Can Do:</h3>
                                     <ul style="color: #4b5563; line-height: 1.8; margin: 0; padding-left: 20px;">
                                         <li>📚 Access comprehensive study sheets and practice problems</li>
-                                        <li>🎯 Track your learning progress and achievements</li>
+                                        <li>🎯 Track your learning progress</li>
                                         <li>📢 Stay updated with the latest announcements and features</li>
                                         <li>💡 Get editorial solutions and video explanations</li>
                                         <li>🏆 Challenge yourself with curated problem sets</li>

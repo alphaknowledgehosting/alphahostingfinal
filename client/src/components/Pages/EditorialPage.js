@@ -32,7 +32,8 @@ import {
   Lightbulb,
   Timer,
   Database,
-  ArrowLeft
+  ArrowLeft,
+  GraduationCap
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -53,6 +54,7 @@ const EditorialPage = () => {
   const [copiedCode, setCopiedCode] = useState({});
   const [imageLoadErrors, setImageLoadErrors] = useState({});
   const [editorialData, setEditorialData] = useState(null);
+  const [contentType, setContentType] = useState('solution'); // 'editorial' or 'solution'
 
   useEffect(() => {
     if (problemId) {
@@ -65,16 +67,12 @@ const EditorialPage = () => {
       setLoading(true);
       setError(null);
 
-      // console.log('Loading problem:', problemId);
-
       // Try to find the problem in all sheets
       const sheetsResponse = await sheetAPI.getAll();
       const sheets = sheetsResponse.data?.sheets || [];
       
       let foundProblem = null;
       let foundSheet = null;
-      
-      // console.log('Searching through', sheets.length, 'sheets');
       
       for (const sheet of sheets) {
         for (const section of sheet.sections || []) {
@@ -83,7 +81,6 @@ const EditorialPage = () => {
             if (problem) {
               foundProblem = problem;
               foundSheet = sheet;
-              // console.log('Found problem:', problem.title, 'in sheet:', sheet.name);
               break;
             }
           }
@@ -98,12 +95,24 @@ const EditorialPage = () => {
 
       setProblem(foundProblem);
 
+      // Determine content type based on problem title or ID
+      const isEditorialContent = (foundProblem.title && foundProblem.title.toLowerCase().endsWith('-editorial')) ||
+                                 (problemId && problemId.toLowerCase().endsWith('-editorial'));
+      const isSolutionContent = (foundProblem.title && foundProblem.title.toLowerCase().endsWith('-solution')) ||
+                                (problemId && problemId.toLowerCase().endsWith('-solution'));
+      
+      if (isEditorialContent) {
+        setContentType('editorial');
+      } else if (isSolutionContent) {
+        setContentType('solution');
+      } else {
+        // Default to solution for backward compatibility
+        setContentType('solution');
+      }
+
       // Load editorial content
       if (foundProblem.editorialLink && foundProblem.editorialLink.trim()) {
         try {
-          // console.log('Loading editorial from:', foundProblem.editorialLink);
-          
-          // If it's a GitHub markdown link, fetch the raw content
           let editorialUrl = foundProblem.editorialLink.trim();
           
           // Convert GitHub URLs to raw content URLs
@@ -115,39 +124,37 @@ const EditorialPage = () => {
             }
           }
 
-          // console.log('Fetching from URL:', editorialUrl);
-
           const response = await fetch(editorialUrl);
           
           if (response.ok) {
             const content = await response.text();
-            // console.log('Editorial content loaded, length:', content.length);
             setEditorial(content);
             setEditorialContent(content);
-            const parsedData = parseMarkdown(content);
-            setEditorialData(parsedData);
             
-            // Initialize expanded sections (all collapsed by default)
-            const initialExpanded = {};
-            parsedData.approaches.forEach(approach => {
-              initialExpanded[approach.id] = false;
-            });
-            setExpandedSections(initialExpanded);
-            
-            // Initialize selected languages
-            const initialLanguages = {};
-            parsedData.approaches.forEach(approach => {
-              if (approach.code && approach.code.length > 0) {
-                initialLanguages[approach.id] = approach.code[0].language;
-              }
-            });
-            setSelectedLanguages(initialLanguages);
+            if (contentType === 'solution') {
+              const parsedData = parseMarkdown(content);
+              setEditorialData(parsedData);
+              
+              // Initialize expanded sections (all collapsed by default)
+              const initialExpanded = {};
+              parsedData.approaches.forEach(approach => {
+                initialExpanded[approach.id] = false;
+              });
+              setExpandedSections(initialExpanded);
+              
+              // Initialize selected languages
+              const initialLanguages = {};
+              parsedData.approaches.forEach(approach => {
+                if (approach.code && approach.code.length > 0) {
+                  initialLanguages[approach.id] = approach.code[0].language;
+                }
+              });
+              setSelectedLanguages(initialLanguages);
+            }
           } else {
-            // console.error('Failed to fetch editorial, status:', response.status);
             throw new Error(`Failed to fetch editorial content (${response.status})`);
           }
         } catch (fetchError) {
-          // console.error('Error fetching editorial:', fetchError);
           const errorContent = `# Editorial Content Error
 
 **Error loading editorial from:** ${foundProblem.editorialLink}
@@ -166,28 +173,26 @@ Please check the editorial link and try again.`;
           setEditorialContent(errorContent);
         }
       } else {
-        // console.log('No editorial link found for problem');
-        const noEditorialContent = `# No Editorial Available
+        const noEditorialContent = `# No ${contentType === 'editorial' ? 'Editorial' : 'Solution'} Available
 
-This problem **"${foundProblem.title}"** does not have an editorial yet.
+This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.title}"** does not have ${contentType === 'editorial' ? 'an editorial' : 'a solution'} yet.
 
-**Problem ID:** ${problemId}
+**${contentType === 'editorial' ? 'Concept' : 'Problem'} ID:** ${problemId}
 **Sheet:** ${foundSheet?.name || 'Unknown'}
 
-If you're an admin or mentor, you can add an editorial link from the problem management interface.`;
+If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an editorial' : 'a solution'} link from the ${contentType === 'editorial' ? 'concept' : 'problem'} management interface.`;
         
         setEditorial(noEditorialContent);
         setEditorialContent(noEditorialContent);
       }
     } catch (error) {
-      // console.error('Error loading problem and editorial:', error);
       setError(error.message);
     } finally {
       setLoading(false);
     }
   }
 
-  // Enhanced markdown parser - extracts special thanks
+  // Enhanced markdown parser - for solution content
   const parseMarkdown = (markdown) => {
     const lines = markdown.split('\n');
     const result = {
@@ -196,7 +201,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
       approaches: [],
       videoExplanation: '',
       specialThanks: null
-    }
+    };
 
     let currentApproach = null;
     let currentSection = null;
@@ -220,7 +225,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
           name: name,
           url: url,
           additionalText: restOfText.trim()
-        }
+        };
         continue;
       }
 
@@ -245,7 +250,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
             time: '',
             space: ''
           }
-        }
+        };
         currentSection = 'explanation';
         continue;
       }
@@ -402,7 +407,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
             const [property, value] = style.split(':').map(s => s.trim());
             if (property && value) {
               // Convert CSS property to camelCase for React
-              const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+              const camelProperty = property.replace(/-([a-z])/g, (g) => g.toUpperCase());[1]
               inlineStyles[camelProperty] = value;
             }
           });
@@ -444,10 +449,10 @@ If you're an admin or mentor, you can add an editorial link from the problem man
   const getYouTubeVideoId = (url) => {
     if (!url) return null;
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-    return match ? match[1] : null;
+    return match ? match : null;[1]
   };
 
-  // Render Special Thanks section matching the image design
+  // Render Special Thanks section
   const renderSpecialThanks = () => {
     if (!editorialData?.specialThanks) return null;
 
@@ -496,7 +501,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
         setCopiedCode(prev => ({ ...prev, [key]: false }));
       }, 2000);
     } catch (err) {
-      // console.error('Failed to copy code:', err);
+      console.error('Failed to copy code:', err);
     }
   };
 
@@ -518,14 +523,14 @@ If you're an admin or mentor, you can add an editorial link from the problem man
 
   const handleSaveEditorial = async () => {
     if (!problem) return;
-
+    
     setSaving(true);
     try {
       setEditorial(editorialContent);
       setIsEditing(false);
       alert('Editorial saved successfully!');
     } catch (error) {
-      // console.error('Error saving editorial:', error);
+      console.error('Error saving editorial:', error);
       alert('Failed to save editorial: ' + error.message);
     } finally {
       setSaving(false);
@@ -548,10 +553,11 @@ If you're an admin or mentor, you can add an editorial link from the problem man
           </div>
           <div>
             <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white mb-2">
-              Loading Editorial
+              Loading {contentType === 'editorial' ? 'Editorial' : 'Solution'}
             </h3>
-            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">Please wait while we fetch the solution...</p>
-            {/* <p className="text-sm text-slate-500 dark:text-slate-500 mt-2">Problem ID: {problemId}</p> */}
+            <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">
+              Please wait while we fetch the {contentType === 'editorial' ? 'concept explanation' : 'solution'}...
+            </p>
           </div>
         </div>
       </div>
@@ -567,13 +573,13 @@ If you're an admin or mentor, you can add an editorial link from the problem man
               <FaExclamationTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white mb-4">
-              Editorial Not Found
+              {contentType === 'editorial' ? 'Editorial' : 'Solution'} Not Found
             </h2>
             <p className="text-slate-600 dark:text-slate-400 mb-4 leading-relaxed">
               {error}
             </p>
             <p className="text-sm text-slate-500 dark:text-slate-500 mb-8">
-              Problem ID: {problemId}
+              {contentType === 'editorial' ? 'Concept' : 'Problem'} ID: {problemId}
             </p>
             <button 
               onClick={() => window.close()}
@@ -607,15 +613,28 @@ If you're an admin or mentor, you can add an editorial link from the problem man
               </button>
               
               <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25 shrink-0">
-                  <FaBook className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+                <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 ${
+                  contentType === 'editorial' 
+                    ? 'bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500' 
+                    : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500'
+                  } rounded-2xl flex items-center justify-center shadow-lg ${
+                  contentType === 'editorial' ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'
+                  } shrink-0`}>
+                  {contentType === 'editorial' ? (
+                    <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+                  ) : (
+                    <FaBook className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+                  )}
                 </div>
                 <div className="min-w-0">
                   <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-slate-900 via-indigo-700 to-purple-600 bg-clip-text text-transparent dark:from-white dark:via-indigo-300 dark:to-purple-300 truncate">
-                    {editorialData?.title || problem?.title || 'Problem Editorial'}
+                    {editorialData?.title || problem?.title || `${contentType === 'editorial' ? 'Concept Editorial' : 'Problem Solution'}`}
                   </h1>
                   <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium hidden sm:block">
-                    Comprehensive solution guide with multiple approaches
+                    {contentType === 'editorial' 
+                      ? 'Comprehensive concept explanation and theory' 
+                      : 'Comprehensive solution guide with multiple approaches'
+                    }
                   </p>
                 </div>
               </div>
@@ -627,12 +646,18 @@ If you're an admin or mentor, you can add an editorial link from the problem man
                 onClick={() => setActiveTab('editorial')}
                 className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial ${
                   activeTab === 'editorial'
-                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-lg shadow-indigo-500/10'
+                    ? contentType === 'editorial'
+                      ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-500/10'
+                      : 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-lg shadow-indigo-500/10'
                     : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-700/50'
                 }`}
               >
-                <BookOpen className="w-3 h-3 sm:w-4 sm:h-4 inline-block mr-1 sm:mr-2" />
-                Editorial
+                {contentType === 'editorial' ? (
+                  <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4 inline-block mr-1 sm:mr-2" />
+                ) : (
+                  <BookOpen className="w-3 h-3 sm:w-4 sm:h-4 inline-block mr-1 sm:mr-2" />
+                )}
+                {contentType === 'editorial' ? 'Editorial' : 'Solution'}
               </button>
               
               <button
@@ -663,17 +688,100 @@ If you're an admin or mentor, you can add an editorial link from the problem man
                   </div>
                   <div>
                     <h3 className="text-lg sm:text-xl font-semibold text-slate-900 dark:text-white mb-2">
-                      No Editorial Available
+                      No {contentType === 'editorial' ? 'Editorial' : 'Solution'} Available
                     </h3>
                     <p className="text-slate-600 dark:text-slate-400 max-w-md mx-auto text-sm sm:text-base px-4">
-                      The editorial for this problem is not available at the moment.
+                      The {contentType === 'editorial' ? 'editorial' : 'solution'} for this {contentType === 'editorial' ? 'concept' : 'problem'} is not available at the moment.
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            {editorialData && !loading && !error && (
+            {/* Render Editorial Content (Simple Markdown) */}
+            {contentType === 'editorial' && editorial && !loading && !error && (
+              <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+                <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5">
+                  {isEditing ? (
+                    <div className="space-y-4">
+                      <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+                        Edit Editorial Content
+                      </h2>
+                      <textarea
+                        value={editorialContent}
+                        onChange={(e) => setEditorialContent(e.target.value)}
+                        className="w-full h-96 p-4 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white font-mono text-sm resize-vertical"
+                        placeholder="Enter editorial content in Markdown format..."
+                      />
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={handleCancelEdit}
+                          className="px-4 py-2 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveEditorial}
+                          disabled={saving}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {saving ? 'Saving...' : 'Save Changes'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="prose prose-lg dark:prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          code({ node, inline, className, children, ...props }) {
+                            const match = /language-(\w+)/.exec(className || '');
+                            return !inline && match ? (
+                              <SyntaxHighlighter
+                                style={tomorrow}
+                                language={match && match[1]}
+                                PreTag="div"
+                                {...props}
+                              >
+                                {String(children).replace(/\n$/, '')}
+                              </SyntaxHighlighter>
+                            ) : (
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            );
+                          },
+                          img({ src, alt, ...props }) {
+                            return (
+                              <div className="my-6 flex justify-center">
+                                <div className="relative inline-block">
+                                  <img
+                                    src={src}
+                                    alt={alt || "Editorial illustration"}
+                                    style={{
+                                      maxWidth: '100%',
+                                      height: 'auto',
+                                      borderRadius: '12px',
+                                      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                                    }}
+                                    className="border border-slate-200 dark:border-slate-600"
+                                    {...props}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          },
+                        }}
+                      >
+                        {editorial}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Render Solution Content (Structured with Approaches) */}
+            {contentType === 'solution' && editorialData && !loading && !error && (
               <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                 {/* Problem Description with Images */}
                 {editorialData.description && (
@@ -835,24 +943,24 @@ If you're an admin or mentor, you can add an editorial link from the problem man
                   ))}
                 </div>
 
-                {/* Special Thanks Section - Simple text matching the image */}
+                {/* Special Thanks Section */}
                 {renderSpecialThanks()}
               </div>
             )}
 
-            {/* Fallback to simple markdown if structured data is not available */}
-            {editorial && !editorialData && !loading && !error && (
+            {/* Fallback to simple markdown if structured data is not available but it's solution type */}
+            {contentType === 'solution' && editorial && !editorialData && !loading && !error && (
               <div className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-6 border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5">
                 {isEditing ? (
                   <div className="space-y-4">
                     <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                      Edit Editorial Content
+                      Edit Solution Content
                     </h2>
                     <textarea
                       value={editorialContent}
                       onChange={(e) => setEditorialContent(e.target.value)}
                       className="w-full h-96 p-4 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white font-mono text-sm resize-vertical"
-                      placeholder="Enter editorial content in Markdown format..."
+                      placeholder="Enter solution content in Markdown format..."
                     />
                     <div className="flex justify-end space-x-2">
                       <button
@@ -879,7 +987,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
                           return !inline && match ? (
                             <SyntaxHighlighter
                               style={tomorrow}
-                              language={match[1]}
+                              language={match && match[1]}
                               PreTag="div"
                               {...props}
                             >
@@ -914,7 +1022,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
                   <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-900 dark:text-white">Video Tutorial</h2>
                 </div>
                 
-                {/* Embedded YouTube Video - Fixed height for large screens */}
+                {/* Embedded YouTube Video */}
                 <div 
                   className="video-responsive relative w-full rounded-xl sm:rounded-2xl overflow-hidden shadow-lg"
                   style={{ 
@@ -934,7 +1042,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
                 
                 <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl sm:rounded-2xl border border-blue-200/30 dark:border-blue-500/20">
                   <p className="text-slate-600 dark:text-slate-400 text-center text-sm sm:text-base">
-                    Watch the comprehensive video explanation with step-by-step walkthrough of the solution approaches.
+                    Watch the comprehensive video explanation with step-by-step walkthrough of the {contentType === 'editorial' ? 'concept' : 'solution approaches'}.
                   </p>
                 </div>
               </div>
@@ -948,7 +1056,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
                     Video Not Available
                   </h2>
                   <p className="text-slate-600 dark:text-slate-400 max-w-2xl mx-auto text-base sm:text-lg px-4">
-                    A video explanation for this problem is not currently available.
+                    A video explanation for this {contentType === 'editorial' ? 'concept' : 'problem'} is not currently available.
                   </p>
                 </div>
               </div>
@@ -976,7 +1084,7 @@ If you're an admin or mentor, you can add an editorial link from the problem man
           border-color: rgba(165, 180, 252, 0.3);
         }
 
-        /* Responsive video adjustments - Fixed overflow on large screens */
+        /* Responsive video adjustments */
         @media (max-width: 767px) {
           .video-responsive {
             padding-bottom: 56.25% !important;
