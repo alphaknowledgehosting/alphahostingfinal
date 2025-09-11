@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Heart, Code, MessageCircle, Send, Instagram } from 'lucide-react';
+import { FaDiscord } from "react-icons/fa6";
 import { 
   FaEnvelope, 
   FaGithub, 
@@ -110,22 +112,10 @@ const ContactUs = () => {
   ];
 
   const socialLinks = [
-    {
-      icon: FaGithub,
-      name: 'GitHub',
-      url: 'https://github.com/alphaknowledge'
-    },
-    {
-      icon: FaLinkedin,
-      name: 'LinkedIn',
-      url: 'https://linkedin.com/company/alphaknowledge'
-    },
-    {
-      icon: FaTwitter,
-      name: 'Twitter',
-      url: 'https://twitter.com/alphaknowledge'
-    }
-  ];
+      { icon: FaDiscord, url: 'https://discord.gg/wyjUnERg6q', label: 'Discord' },
+      { icon: Send, url: 'https://t.me/+mm_twbxHZns5ZjA1', label: 'Telegram' },
+      { icon: Instagram, url: 'https://instagram.com/alphaknowledgeofficial', label: 'Instagram' }
+    ];
 
   return (
   <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-[#030014] dark:via-slate-900 dark:to-purple-900 py-12 px-4 sm:px-6 lg:px-8">
@@ -158,7 +148,7 @@ const ContactUs = () => {
           data-aos-duration="1100"
           className="text-gray-600 dark:text-slate-400 max-w-3xl mx-auto text-lg sm:text-xl leading-relaxed"
         >
-          Have questions, suggestions, or need help? We'd love to hear from you and help you on your coding journey!
+          Have questions, suggestions, or need help? We'd love to hear from you and help you!
         </p>
       </div>
 

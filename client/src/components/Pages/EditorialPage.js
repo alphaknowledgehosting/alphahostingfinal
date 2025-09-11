@@ -55,17 +55,33 @@ const EditorialPage = () => {
   const [imageLoadErrors, setImageLoadErrors] = useState({});
   const [editorialData, setEditorialData] = useState(null);
   const [contentType, setContentType] = useState('solution'); // 'editorial' or 'solution'
-  
-  // For editorial code snippets multi-language support
-  const [editorialCodeBlocks, setEditorialCodeBlocks] = useState([]);
-  const [selectedEditorialLanguages, setSelectedEditorialLanguages] = useState({});
-  const [copiedEditorialCode, setCopiedEditorialCode] = useState({});
 
   useEffect(() => {
     if (problemId) {
       loadProblemAndEditorial();
     }
   }, [problemId]);
+
+  // Add this useEffect for editorial code block language initialization
+  useEffect(() => {
+    if (contentType === 'editorial' && editorial) {
+      const parsedEditorial = parseEditorialMarkdown(editorial);
+      
+      // Initialize selected languages for code blocks
+      const initialLanguages = {};
+      parsedEditorial.content.forEach(block => {
+        if (block.type === 'code' && block.code && block.code.length > 0) {
+          if (!selectedLanguages[block.id]) {
+            initialLanguages[block.id] = block.code[0].language;
+          }
+        }
+      });
+      
+      if (Object.keys(initialLanguages).length > 0) {
+        setSelectedLanguages(prev => ({ ...prev, ...initialLanguages }));
+      }
+    }
+  }, [editorial, contentType]);
 
   const loadProblemAndEditorial = async () => {
     try {
@@ -150,11 +166,8 @@ const EditorialPage = () => {
             setEditorial(content);
             setEditorialContent(content);
             
-            // Parse editorial content for code blocks if it's editorial type
-            if (contentType === 'editorial') {
-              parseEditorialCodeBlocks(content);
-            } else {
-              // Only parse for solution content
+            // Only parse for solution content (not editorial)
+            if (contentType === 'solution') {
               const parsedData = parseMarkdown(content);
               setEditorialData(parsedData);
               
@@ -214,89 +227,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
       setLoading(false);
     }
   };
-
-  // Parse editorial content for code blocks with multiple languages
-  const parseEditorialCodeBlocks = (markdown) => {
-    const lines = markdown.split('\n');
-    const codeBlocks = [];
-    let currentCodeGroup = null;
-    let inCodeBlock = false;
-    let currentCode = '';
-    let currentLanguage = '';
-    let blockIndex = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      if (line.startsWith('```')){
-        if (!inCodeBlock) {
-          // Starting code block
-          inCodeBlock = true;
-          currentLanguage = line.substring(3).trim() || 'javascript';
-          currentCode = '';
-          
-          // Check if this is part of a multi-language group
-          if (!currentCodeGroup) {
-            currentCodeGroup = {
-              id: `code-group-${blockIndex}`,
-              codes: [],
-              selectedLanguage: currentLanguage
-            };
-          }
-        } else {
-          // Ending code block
-          inCodeBlock = false;
-          
-          if (currentCodeGroup) {
-            currentCodeGroup.codes.push({
-              language: currentLanguage,
-              code: currentCode.trim()
-            });
-            
-            // Check if next few lines contain another code block
-            let hasNextCode = false;
-            for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-              if (lines[j].startsWith('```')) {
-                hasNextCode = true;
-                break;
-              }
-              if (lines[j].trim() && !lines[j].match(/^\s*$/)) {
-                break;
-              }
-            }
-            
-            if (!hasNextCode) {
-              // No more code blocks, finalize this group
-              codeBlocks.push(currentCodeGroup);
-              setSelectedEditorialLanguages(prev => ({
-                ...prev,
-                [currentCodeGroup.id]: currentCodeGroup.selectedLanguage
-              }));
-              currentCodeGroup = null;
-              blockIndex++;
-            }
-          }
-        }
-        continue;
-      }
-
-      if (inCodeBlock) {
-        currentCode += line + '\n';
-      }
-    }
-
-    // Handle case where markdown ends with a code block
-    if (currentCodeGroup) {
-      codeBlocks.push(currentCodeGroup);
-      setSelectedEditorialLanguages(prev => ({
-        ...prev,
-        [currentCodeGroup.id]: currentCodeGroup.selectedLanguage
-      }));
-    }
-
-    setEditorialCodeBlocks(codeBlocks);
-  };
-
+  
   // Enhanced markdown parser - for solution content only
   const parseMarkdown = (markdown) => {
     const lines = markdown.split('\n');
@@ -419,6 +350,380 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
     }
 
     return result;
+  };
+
+  // Enhanced markdown parser for editorial content - UPDATED
+  const parseEditorialMarkdown = (markdown) => {
+    const lines = markdown.split('\n');
+    const result = {
+      title: '',
+      content: [], // Array of content blocks (text, code, image)
+    };
+
+    let currentTextBlock = '';
+    let codeBlock = null;
+    let inCodeBlock = false;
+    let codeBlocksFound = {};
+    let currentLanguages = {}; // Track multiple languages for same code block
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Parse title (# Title)
+      if (line.startsWith('# ') && !result.title) {
+        result.title = line.substring(2).trim();
+        continue;
+      }
+
+      // Parse code blocks
+      if (line.startsWith('```')) {
+        if (!inCodeBlock) {
+          // Starting code block
+          if (currentTextBlock.trim()) {
+            result.content.push({
+              type: 'text',
+              content: currentTextBlock.trim(),
+              id: `text-${result.content.length}`
+            });
+            currentTextBlock = '';
+          }
+
+          inCodeBlock = true;
+          const language = line.substring(3).trim() || 'javascript';
+          const blockId = `code-block-${Object.keys(codeBlocksFound).length}`;
+          
+          // Check if this is a continuation of previous code block with different language
+          const prevBlock = result.content[result.content.length - 1];
+          if (prevBlock && prevBlock.type === 'code' && !currentTextBlock.trim()) {
+            // This is likely a multi-language code block
+            codeBlock = prevBlock;
+            codeBlock.code.push({ language: language, code: '' });
+            codeBlock.languages.push(language);
+          } else {
+            // New code block
+            codeBlock = {
+              type: 'code',
+              id: blockId,
+              languages: [language],
+              code: [{ language: language, code: '' }]
+            };
+            codeBlocksFound[blockId] = true;
+          }
+        } else {
+          // Ending code block
+          inCodeBlock = false;
+          if (codeBlock && !result.content.includes(codeBlock)) {
+            result.content.push(codeBlock);
+          }
+          codeBlock = null;
+        }
+        continue;
+      }
+
+      // Add content to current section
+      if (inCodeBlock && codeBlock) {
+        const currentCodeItem = codeBlock.code[codeBlock.code.length - 1];
+        currentCodeItem.code += line + '\n';
+      } else {
+        // Check for HTML img tags
+        const imgMatch = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
+        
+        if (imgMatch) {
+          // Add any accumulated text before the image
+          if (currentTextBlock.trim()) {
+            result.content.push({
+              type: 'text',
+              content: currentTextBlock.trim(),
+              id: `text-${result.content.length}`
+            });
+            currentTextBlock = '';
+          }
+
+          // Add the image
+          const [, src, style] = imgMatch;
+          result.content.push({
+            type: 'image',
+            src: src,
+            style: style || '',
+            id: `image-${result.content.length}`
+          });
+        } else {
+          currentTextBlock += line + '\n';
+        }
+      }
+    }
+
+    // Add any remaining text
+    if (currentTextBlock.trim()) {
+      result.content.push({
+        type: 'text',
+        content: currentTextBlock.trim(),
+        id: `text-${result.content.length}`
+      });
+    }
+
+    return result;
+  };
+
+  // Enhanced content renderer for editorial - UPDATED
+  const renderEditorialContentBlock = (block) => {
+    switch (block.type) {
+      case 'text':
+        return (
+          <div key={block.id} className="prose prose-slate dark:prose-invert prose-lg max-w-none mb-6">
+            <ReactMarkdown
+              components={{
+                // Headings
+                h1: ({ children }) => (
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
+                    {children}
+                  </h1>
+                ),
+                h2: ({ children }) => (
+                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
+                    {children}
+                  </h2>
+                ),
+                h3: ({ children }) => (
+                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white mt-6 mb-3">
+                    {children}
+                  </h3>
+                ),
+                h4: ({ children }) => (
+                  <h4 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-white mt-4 mb-2">
+                    {children}
+                  </h4>
+                ),
+                h5: ({ children }) => (
+                  <h5 className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-white mt-3 mb-2">
+                    {children}
+                  </h5>
+                ),
+                h6: ({ children }) => (
+                  <h6 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-700 dark:text-slate-300 mt-2 mb-1">
+                    {children}
+                  </h6>
+                ),
+                // Paragraphs
+                p: ({ children }) => (
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
+                    {children}
+                  </p>
+                ),
+                // Lists
+                ul: ({ children }) => (
+                  <ul className="text-slate-700 dark:text-slate-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
+                    {children}
+                  </ul>
+                ),
+                ol: ({ children }) => (
+                  <ol className="text-slate-700 dark:text-slate-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
+                    {children}
+                  </ol>
+                ),
+                li: ({ children }) => (
+                  <li className="text-slate-700 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
+                    {children}
+                  </li>
+                ),
+                // Blockquotes
+                blockquote: ({ children }) => (
+                  <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400 my-4 lg:my-6 bg-slate-50 dark:bg-slate-800/50 py-2 rounded-r">
+                    {children}
+                  </blockquote>
+                ),
+                // Strong and emphasis
+                strong: ({ children }) => (
+                  <strong className="font-bold text-slate-900 dark:text-white">
+                    {children}
+                  </strong>
+                ),
+                em: ({ children }) => (
+                  <em className="italic text-slate-800 dark:text-slate-200">
+                    {children}
+                  </em>
+                ),
+                // Links
+                a: ({ href, children }) => (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline decoration-2 underline-offset-2 transition-colors duration-200"
+                  >
+                    {children}
+                  </a>
+                ),
+                // Inline code
+                code: ({ children, ...props }) => (
+                  <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono border border-slate-200 dark:border-slate-600" {...props}>
+                    {children}
+                  </code>
+                ),
+                // Tables
+                table: ({ children }) => (
+                  <div className="my-4 lg:my-6 overflow-x-auto">
+                    <table className="min-w-full border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden">
+                      {children}
+                    </table>
+                  </div>
+                ),
+                thead: ({ children }) => (
+                  <thead className="bg-slate-50 dark:bg-slate-800">
+                    {children}
+                  </thead>
+                ),
+                tbody: ({ children }) => (
+                  <tbody className="bg-white dark:bg-slate-900">
+                    {children}
+                  </tbody>
+                ),
+                tr: ({ children }) => (
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
+                    {children}
+                  </tr>
+                ),
+                th: ({ children }) => (
+                  <th className="px-4 py-3 text-left font-semibold text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700 last:border-r-0">
+                    {children}
+                  </th>
+                ),
+                td: ({ children }) => (
+                  <td className="px-4 py-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 last:border-r-0">
+                    {children}
+                  </td>
+                ),
+                // Horizontal rule
+                hr: () => (
+                  <hr className="my-6 lg:my-8 border-t-2 border-slate-200 dark:border-slate-700" />
+                ),
+              }}
+            >
+              {block.content}
+            </ReactMarkdown>
+          </div>
+        );
+
+      case 'code':
+        return (
+          <div key={block.id} className="my-6 lg:my-8">
+            <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden">
+              {/* Code Header - Exactly matching solution style */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 bg-slate-100/60 dark:bg-slate-700/30 border-b border-slate-200/30 dark:border-slate-600/30 space-y-3 sm:space-y-0">
+                <h4 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 dark:text-white flex items-center">
+                  <Code className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mr-2 sm:mr-3 text-purple-600 dark:text-purple-400" />
+                  Code Example
+                </h4>
+                
+                {/* Language Tabs - Exactly matching solution style */}
+                {block.code.length > 1 && (
+                  <div className="flex flex-wrap gap-1 bg-white/70 dark:bg-slate-800/70 rounded-lg sm:rounded-xl p-1">
+                    {block.code.map((codeItem) => (
+                      <button
+                        key={codeItem.language}
+                        onClick={() => changeLanguage(block.id, codeItem.language)}
+                        className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                          selectedLanguages[block.id] === codeItem.language
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                        }`}
+                      >
+                        {codeItem.language}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Code Block - Exactly matching solution style */}
+              {block.code
+                .filter(codeItem => codeItem.language === (selectedLanguages[block.id] || block.code[0].language))
+                .map((codeItem, codeIndex) => (
+                <div key={codeIndex} className="relative">
+                  <div className="bg-slate-900 dark:bg-black/80">
+                    <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
+                      <span className="text-slate-300 text-sm font-medium">
+                        {codeItem.language.toUpperCase()}
+                      </span>
+                      <button
+                        onClick={() => copyCode(codeItem.code, `${block.id}-${codeItem.language}`)}
+                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10"
+                      >
+                        {copiedCode[`${block.id}-${codeItem.language}`] ? (
+                          <FaCheck className="w-3 h-3 text-green-400" />
+                        ) : (
+                          <FaCopy className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
+                    <SyntaxHighlighter
+                      style={tomorrow}
+                      language={codeItem.language.toLowerCase()}
+                      PreTag="div"
+                      className="text-sm"
+                      customStyle={{
+                        margin: 0,
+                        padding: '1rem',
+                        background: 'transparent'
+                      }}
+                    >
+                      {codeItem.code.trim()}
+                    </SyntaxHighlighter>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'image':
+        const imageKey = `editorial-${block.src}-${block.id}`;
+        const hasError = imageLoadErrors[imageKey];
+
+        if (hasError) {
+          return (
+            <div key={block.id} className="my-6 lg:my-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl flex items-center space-x-3">
+              <FaImage className="w-5 h-5 text-red-500" />
+              <div>
+                <p className="text-red-700 dark:text-red-400 font-medium">Failed to load image</p>
+                <p className="text-red-600 dark:text-red-500 text-sm break-all">{block.src}</p>
+              </div>
+            </div>
+          );
+        }
+
+        // Parse inline styles
+        const inlineStyles = {};
+        if (block.style) {
+          block.style.split(';').forEach(style => {
+            const [property, value] = style.split(':').map(s => s.trim());
+            if (property && value) {
+              const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+              inlineStyles[camelProperty] = value;
+            }
+          });
+        }
+
+        return (
+          <div key={block.id} className="my-6 lg:my-8 flex justify-center">
+            <div className="relative inline-block max-w-full">
+              <img
+                src={block.src}
+                alt="Editorial illustration"
+                className="max-w-full h-auto rounded-xl shadow-lg border border-slate-200 dark:border-slate-600"
+                style={{
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                  ...inlineStyles
+                }}
+                onError={() => handleImageError(imageKey)}
+              />
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
   };
 
   // Parse and render content with images
@@ -550,6 +855,19 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
     });
   };
 
+  // Copy code function
+  const copyCode = async (code, key) => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => {
+        setCopiedCode(prev => ({ ...prev, [key]: false }));
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
+  };
+
   // Extract YouTube video ID from URL
   const getYouTubeVideoId = (url) => {
     if (!url) return null;
@@ -597,40 +915,6 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
     }));
   };
 
-  // Functions for editorial code blocks
-  const changeEditorialLanguage = (codeGroupId, language) => {
-    setSelectedEditorialLanguages(prev => ({
-      ...prev,
-      [codeGroupId]: language
-    }));
-  };
-
-  const copyEditorialCode = async (code, codeGroupId, language) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      const key = `${codeGroupId}-${language}`;
-      setCopiedEditorialCode(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => {
-        setCopiedEditorialCode(prev => ({ ...prev, [key]: false }));
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to copy code:', err);
-    }
-  };
-
-  const copyCode = async (code, approachId, language) => {
-    try {
-      await navigator.clipboard.writeText(code);
-      const key = `${approachId}-${language}`;
-      setCopiedCode(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => {
-        setCopiedCode(prev => ({ ...prev, [key]: false }));
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to copy code:', err);
-    }
-  };
-
   const formatComplexity = (complexity) => {
     return complexity.replace(/O\$(.*?)\$/g, '<code class="complexity-code">O($1)</code>');
   };
@@ -666,74 +950,6 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
   const handleCancelEdit = () => {
     setEditorialContent(editorial);
     setIsEditing(false);
-  };
-
-  // Render multi-language code block for editorial
-  const renderEditorialCodeBlock = (codeGroup) => {
-    const selectedLang = selectedEditorialLanguages[codeGroup.id] || codeGroup.codes?.language;
-    const selectedCode = codeGroup.codes.find(c => c.language === selectedLang);
-
-    if (!selectedCode) return null;
-
-    return (
-      <div key={codeGroup.id} className="my-6 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/80 dark:to-gray-800/80 rounded-xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden shadow-lg">
-        {/* Language Tabs */}
-        {codeGroup.codes.length > 1 && (
-          <div className="flex items-center justify-between p-4 bg-slate-100/80 dark:bg-slate-700/50 border-b border-slate-200/30 dark:border-slate-600/30">
-            <div className="flex items-center space-x-2">
-              <Code className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Implementation</span>
-            </div>
-            <div className="flex flex-wrap gap-1 bg-white/80 dark:bg-slate-800/80 rounded-lg p-1">
-              {codeGroup.codes.map((codeItem) => (
-                <button
-                  key={codeItem.language}
-                  onClick={() => changeEditorialLanguage(codeGroup.id, codeItem.language)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ${
-                    selectedLang === codeItem.language
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/70 dark:hover:bg-slate-700/70'
-                  }`}
-                >
-                  {codeItem.language}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Code Display */}
-        <div className="relative">
-          <SyntaxHighlighter
-            style={tomorrow}
-            language={selectedCode.language.toLowerCase()}
-            PreTag="div"
-            className="!bg-slate-900 dark:!bg-black/90 !m-0 !rounded-none"
-            customStyle={{
-              padding: '1.5rem',
-              fontSize: '0.875rem',
-              lineHeight: '1.5',
-              fontFamily: "'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace"
-            }}
-          >
-            {selectedCode.code}
-          </SyntaxHighlighter>
-          
-          {/* Copy Button */}
-          <button
-            onClick={() => copyEditorialCode(selectedCode.code, codeGroup.id, selectedCode.language)}
-            className="absolute top-3 right-3 p-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10"
-            title="Copy code"
-          >
-            {copiedEditorialCode[`${codeGroup.id}-${selectedCode.language}`] ? (
-              <FaCheck className="w-4 h-4 text-green-400" />
-            ) : (
-              <FaCopy className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-      </div>
-    );
   };
 
   if (loading) {
@@ -792,83 +1008,107 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
     <div className="min-h-screen bg-[#a855f7]/10 dark:bg-slate-900">
       
       {/* Elegant Header */}
-      <div className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
-            
-            {/* Title Section with Back Button */}
-            <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
-              <button
-                onClick={() => window.close()}
-                className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0"
-                title="Close window"
-              >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 dark:text-slate-400" />
-              </button>
-              
-              <div className="flex items-center space-x-2 sm:space-x-4 min-w-0">
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 ${
-                  contentType === 'editorial' 
-                    ? 'bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500' 
-                    : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500'
-                  } rounded-2xl flex items-center justify-center shadow-lg ${
-                  contentType === 'editorial' ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'
-                  } shrink-0`}>
-                  {contentType === 'editorial' ? (
-                    <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
-                  ) : (
-                    <FaBook className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-slate-900 via-indigo-700 to-purple-600 bg-clip-text text-transparent dark:from-white dark:via-indigo-300 dark:to-purple-300 truncate">
-                    {editorialData?.title || problem?.title || `${contentType === 'editorial' ? 'Concept Editorial' : 'Problem Solution'}`}
-                  </h1>
-                  <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium hidden sm:block">
-                    {contentType === 'editorial' 
-                      ? 'Comprehensive concept explanation and theory' 
-                      : 'Comprehensive solution guide with multiple approaches'
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
+      {/* Elegant Header - UPDATED EDITORIAL RESPONSIVE SECTION */}
+<div className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50 shadow-sm">
+  <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
+      
+      {/* Title Section with Back Button - UPDATED FOR EDITORIAL RESPONSIVENESS */}
+      <div className="flex items-start sm:items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
+        <button
+          onClick={() => window.close()}
+          className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0 mt-1 sm:mt-0"
+          title="Close window"
+        >
+          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600 dark:text-slate-400" />
+        </button>
+        
+        <div className="flex items-start sm:items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
+          <div className={`w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 ${
+            contentType === 'editorial' 
+              ? 'bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500' 
+              : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500'
+            } rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg ${
+            contentType === 'editorial' ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'
+            } shrink-0 mt-1 sm:mt-0`}>
+            {contentType === 'editorial' ? (
+              <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" />
+            ) : (
+              <FaBook className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+            )}
+          </div>
+          
+          {/* UPDATED: Enhanced responsive title container for editorial */}
+          <div className="min-w-0 flex-1">
+            {contentType === 'editorial' ? (
+              // Editorial-specific responsive header
+              <>
+               <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold bg-gradient-to-r from-emerald-700 via-green-600 to-teal-600 bg-clip-text text-transparent dark:from-emerald-300 dark:via-green-300 dark:to-teal-300 leading-normal pb-1 break-words">
+                {editorialData?.title || problem?.title || 'Concept Editorial'}
+              </h1>
 
-            {/* Navigation Tabs */}
-            <div className="flex items-center space-x-1 sm:space-x-2 bg-slate-100/60 dark:bg-slate-800/60 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 backdrop-blur-sm w-full sm:w-auto">
-              <button
-                onClick={() => setActiveTab('editorial')}
-                className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial ${
-                  activeTab === 'editorial'
-                    ? contentType === 'editorial'
-                      ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-500/10'
-                      : 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-lg shadow-indigo-500/10'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-700/50'
-                }`}
-              >
-                {contentType === 'editorial' ? (
-                  <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4 inline-block mr-1 sm:mr-2" />
-                ) : (
-                  <BookOpen className="w-3 h-3 sm:w-4 sm:h-4 inline-block mr-1 sm:mr-2" />
-                )}
-                {contentType === 'editorial' ? 'Editorial' : 'Solution'}
-              </button>
-              
-              <button
-                onClick={() => setActiveTab('video')}
-                className={`px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial ${
-                  activeTab === 'video'
-                    ? 'bg-white dark:bg-slate-700 text-red-600 dark:text-red-400 shadow-lg shadow-red-500/10'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white/50 dark:hover:bg-slate-700/50'
-                }`}
-              >
-                <FaYoutube className="w-3 h-3 sm:w-4 sm:h-4 inline-block mr-1 sm:mr-2" />
-                Video
-              </button>
-            </div>
+                <p className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-slate-400 font-medium mt-1 sm:mt-2 break-words leading-relaxed">
+                  Comprehensive concept explanation and theory
+                </p>
+
+              </>
+            ) : (
+              // Solution header (unchanged)
+              <>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-slate-900 via-indigo-700 to-purple-600 bg-clip-text text-transparent dark:from-white dark:via-indigo-300 dark:to-purple-300 truncate">
+                  {editorialData?.title || problem?.title || 'Problem Solution'}
+                </h1>
+                <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium hidden sm:block">
+                  Comprehensive solution guide with multiple approaches
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Navigation Tabs - Enhanced responsiveness for editorial */}
+      <div className="flex items-center space-x-1 sm:space-x-2 bg-slate-100/60 dark:bg-slate-800/60 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 backdrop-blur-sm w-full sm:w-auto">
+        <button
+          onClick={() => setActiveTab('editorial')}
+          className={`px-2 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial flex items-center justify-center space-x-1 sm:space-x-2 ${
+            activeTab === 'editorial'
+              ? contentType === 'editorial'
+                ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-500/10'
+                : 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-lg shadow-indigo-500/10'
+              : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-700/50'
+          }`}
+        >
+          {contentType === 'editorial' ? (
+            <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4" />
+          ) : (
+            <BookOpen className="w-3 h-3 sm:w-4 sm:h-4" />
+          )}
+          <span className="hidden xs:inline sm:inline">
+            {contentType === 'editorial' ? 'Editorial' : 'Solution'}
+          </span>
+          <span className="inline xs:hidden sm:hidden">
+            {contentType === 'editorial' ? 'Editorial' : 'Solution'}
+          </span>
+        </button>
+        
+        <button
+          onClick={() => setActiveTab('video')}
+          className={`px-2 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial flex items-center justify-center space-x-1 sm:space-x-2 ${
+            activeTab === 'video'
+              ? 'bg-white dark:bg-slate-700 text-red-600 dark:text-red-400 shadow-lg shadow-red-500/10'
+              : 'text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white/50 dark:hover:bg-slate-700/50'
+          }`}
+        >
+          <FaYoutube className="w-3 h-3 sm:w-4 sm:h-4" />
+          <span className="hidden xs:inline sm:inline">Video</span>
+          <span className="inline xs:hidden sm:hidden">Video</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
@@ -892,202 +1132,59 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
               </div>
             )}
 
-            {/* Render Editorial Content (GitHub-style Markdown with Enhanced Code Blocks) */}
+            {/* Render Editorial Content as Single Page */}
             {contentType === 'editorial' && editorial && !loading && !error && (
-              <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-                <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5">
-                  {isEditing ? (
-                    <div className="space-y-4">
-                      <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                        Edit Editorial Content
-                      </h2>
-                      <textarea
-                        value={editorialContent}
-                        onChange={(e) => setEditorialContent(e.target.value)}
-                        className="w-full h-96 p-4 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white font-mono text-sm resize-vertical"
-                        placeholder="Enter editorial content in Markdown format..."
-                      />
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={handleCancelEdit}
-                          className="px-4 py-2 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={handleSaveEditorial}
-                          disabled={saving}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {saving ? 'Saving...' : 'Save Changes'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="github-markdown-body prose prose-slate dark:prose-invert prose-lg max-w-none">
-                      <ReactMarkdown
-                        components={{
-                          // Headings with proper sizing and theming
-                          h1: ({ children }) => (
-                            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
-                              {children}
-                            </h1>
-                          ),
-                          h2: ({ children }) => (
-                            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
-                              {children}
-                            </h2>
-                          ),
-                          h3: ({ children }) => (
-                            <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white mt-6 mb-3">
-                              {children}
-                            </h3>
-                          ),
-                          h4: ({ children }) => (
-                            <h4 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-white mt-4 mb-2">
-                              {children}
-                            </h4>
-                          ),
-                          h5: ({ children }) => (
-                            <h5 className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-white mt-3 mb-2">
-                              {children}
-                            </h5>
-                          ),
-                          h6: ({ children }) => (
-                            <h6 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-700 dark:text-slate-300 mt-2 mb-1">
-                              {children}
-                            </h6>
-                          ),
-                          // Paragraphs with proper spacing and theming
-                          p: ({ children }) => (
-                            <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
-                              {children}
-                            </p>
-                          ),
-                          // Lists with proper theming
-                          ul: ({ children }) => (
-                            <ul className="text-slate-700 dark:text-slate-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
-                              {children}
-                            </ul>
-                          ),
-                          ol: ({ children }) => (
-                            <ol className="text-slate-700 dark:text-slate-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
-                              {children}
-                            </ol>
-                          ),
-                          li: ({ children }) => (
-                            <li className="text-slate-700 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
-                              {children}
-                            </li>
-                          ),
-                          // Blockquotes
-                          blockquote: ({ children }) => (
-                            <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400 my-4 lg:my-6 bg-slate-50 dark:bg-slate-800/50 py-2 rounded-r">
-                              {children}
-                            </blockquote>
-                          ),
-                          // Strong and emphasis
-                          strong: ({ children }) => (
-                            <strong className="font-bold text-slate-900 dark:text-white">
-                              {children}
-                            </strong>
-                          ),
-                          em: ({ children }) => (
-                            <em className="italic text-slate-800 dark:text-slate-200">
-                              {children}
-                            </em>
-                          ),
-                          // Links
-                          a: ({ href, children }) => (
-                            <a
-                              href={href}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline decoration-2 underline-offset-2 transition-colors duration-200"
-                            >
-                              {children}
-                            </a>
-                          ),
-                          // Enhanced code handling - DO NOT RENDER HERE, we'll handle it separately
-                          code: ({ node, inline, className, children, ...props }) => {
-                            if (!inline) {
-                              // Block code will be handled by our custom rendering
-                              return null;
-                            }
-                            
-                            return (
-                              <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono border border-slate-200 dark:border-slate-600" {...props}>
-                                {children}
-                              </code>
-                            );
-                          },
-                          // Images with proper handling
-                          img: ({ src, alt, ...props }) => (
-                            <div className="my-6 lg:my-8 flex justify-center">
-                              <div className="relative inline-block max-w-full">
-                                <img
-                                  src={src}
-                                  alt={alt || "Editorial illustration"}
-                                  className="max-w-full h-auto rounded-xl shadow-lg border border-slate-200 dark:border-slate-600"
-                                  style={{
-                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                                  }}
-                                  {...props}
-                                />
-                              </div>
-                            </div>
-                          ),
-                          // Tables
-                          table: ({ children }) => (
-                            <div className="my-4 lg:my-6 overflow-x-auto">
-                              <table className="min-w-full border border-slate-300 dark:border-slate-600 rounded-lg overflow-hidden">
-                                {children}
-                              </table>
-                            </div>
-                          ),
-                          thead: ({ children }) => (
-                            <thead className="bg-slate-50 dark:bg-slate-800">
-                              {children}
-                            </thead>
-                          ),
-                          tbody: ({ children }) => (
-                            <tbody className="bg-white dark:bg-slate-900">
-                              {children}
-                            </tbody>
-                          ),
-                          tr: ({ children }) => (
-                            <tr className="border-b border-slate-200 dark:border-slate-700">
-                              {children}
-                            </tr>
-                          ),
-                          th: ({ children }) => (
-                            <th className="px-4 py-3 text-left font-semibold text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-700 last:border-r-0">
-                              {children}
-                            </th>
-                          ),
-                          td: ({ children }) => (
-                            <td className="px-4 py-3 text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 last:border-r-0">
-                              {children}
-                            </td>
-                          ),
-                          // Horizontal rule
-                          hr: () => (
-                            <hr className="my-6 lg:my-8 border-t-2 border-slate-200 dark:border-slate-700" />
-                          ),
-                        }}
+              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5">
+                {isEditing ? (
+                  <div className="space-y-4">
+                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
+                      Edit Editorial Content
+                    </h2>
+                    <textarea
+                      value={editorialContent}
+                      onChange={(e) => setEditorialContent(e.target.value)}
+                      className="w-full h-96 p-4 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white font-mono text-sm resize-vertical"
+                      placeholder="Enter editorial content in Markdown format..."
+                    />
+                    <div className="flex justify-end space-x-2">
+                      <button
+                        onClick={handleCancelEdit}
+                        className="px-4 py-2 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700"
                       >
-                        {editorial}
-                      </ReactMarkdown>
-
-                      {/* Render custom code blocks with language tabs */}
-                      {editorialCodeBlocks.map(codeGroup => renderEditorialCodeBlock(codeGroup))}
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveEditorial}
+                        disabled={saving}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                      >
+                        {saving ? 'Saving...' : 'Save Changes'}
+                      </button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  (() => {
+                    const parsedEditorial = parseEditorialMarkdown(editorial);
+                    
+                    return (
+                      <div className="space-y-6">
+                        {/* Editorial Title */}
+                        {parsedEditorial.title && (
+                          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
+                            {parsedEditorial.title}
+                          </h1>
+                        )}
+                        
+                        {/* Render all content blocks */}
+                        {parsedEditorial.content.map(block => renderEditorialContentBlock(block))}
+                      </div>
+                    );
+                  })()
+                )}
               </div>
             )}
 
-            {/* Render Solution Content (Structured with Approaches) */}
+            {/* Render Solution Content (Structured with Approaches) - UNCHANGED */}
             {contentType === 'solution' && editorialData && !loading && !error && (
               <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                 {/* Problem Description with Images */}
@@ -1196,7 +1293,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
                                   
                                   {/* Copy Button */}
                                   <button
-                                    onClick={() => copyCode(codeItem.code, approach.id, codeItem.language)}
+                                    onClick={() => copyCode(codeItem.code, `${approach.id}-${codeItem.language}`)}
                                     className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
                                   >
                                     {copiedCode[`${approach.id}-${codeItem.language}`] ? (
@@ -1389,12 +1486,6 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
         .dark .complexity-code {
           color: #a5b4fc;
           border-color: rgba(165, 180, 252, 0.3);
-        }
-
-        /* GitHub-style markdown styling */
-        .github-markdown-body {
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-          line-height: 1.6;
         }
 
         /* Responsive video adjustments */

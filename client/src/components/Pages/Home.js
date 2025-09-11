@@ -358,7 +358,7 @@ const Home = () => {
     {
       icon: FaChartLine,
       title: 'Progress Tracking',
-      description: 'Track your learning journey with detailed analytics and progress visualization across different difficulty levels.',
+      description: 'Track your learning journey with progress visualization across different difficulty levels.',
       color: 'from-green-500 to-green-600',
       bgColor: 'bg-green-50 dark:bg-green-900/20'
     },
@@ -586,7 +586,7 @@ const Home = () => {
           data-aos="zoom-in-up"
           data-aos-duration="600"
         >
-          About The Instructor
+          About Me
         </h2>
       </div>
       <p 
@@ -627,7 +627,7 @@ const Home = () => {
           data-aos="fade-right"
           data-aos-duration="1500"
         >
-          I am a passionate educator dedicated to making Data Structures and Algorithms 
+          I am a passionate and dedicated in making Data Structures and Algorithms 
           accessible to everyone. Our platform provides a structured approach to learning DSA through 
           carefully curated problems, detailed explanations, and comprehensive progress tracking.
         </p>
@@ -649,7 +649,7 @@ const Home = () => {
             </svg>
           </div>
           <blockquote className="text-gray-700 dark:text-white text-center lg:text-left italic font-medium pl-6">
-            "Making complex algorithms simple through structured learning and practical application."
+            "Making complex algorithms simple through structured learning"
           </blockquote>
         </div>
 

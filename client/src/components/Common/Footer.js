@@ -1,14 +1,14 @@
 import React from 'react';
-import { Heart, Code, Github, Linkedin, Instagram, Mail } from 'lucide-react';
+import { Heart, Code, MessageCircle, Send, Instagram } from 'lucide-react';
+import { FaDiscord } from "react-icons/fa6";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   const socialLinks = [
-    { icon: Github, url: 'https://github.com/alphaknowledge', label: 'GitHub' },
-    { icon: Linkedin, url: 'https://linkedin.com/company/alphaknowledge', label: 'LinkedIn' },
-    { icon: Instagram, url: 'https://instagram.com/alphaknowledge', label: 'Instagram' },
-    { icon: Mail, url: 'mailto:contact@alphaknowledge.com', label: 'Email' }
+    { icon: FaDiscord, url: 'https://discord.gg/wyjUnERg6q', label: 'Discord' },
+    { icon: Send, url: 'https://t.me/+mm_twbxHZns5ZjA1', label: 'Telegram' },
+    { icon: Instagram, url: 'https://instagram.com/alphaknowledgeofficial', label: 'Instagram' }
   ];
 
   return (

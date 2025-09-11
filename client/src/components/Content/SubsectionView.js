@@ -20,7 +20,7 @@ import {
   FaBookmark
 } from 'react-icons/fa';
 
-// Inline Editable Component
+// Fixed Inline Editable Component
 const InlineEditableText = ({ 
   value, 
   onSave, 
@@ -38,7 +38,10 @@ const InlineEditableText = ({
     setTempValue(value || '');
   }, [value]);
 
-  const startEdit = () => {
+  const startEdit = (e) => {
+    if (e) {
+      e.stopPropagation(); // Prevent parent click handlers
+    }
     if (isEditable && !disabled) {
       setTempValue(value || '');
       setIsEditing(true);
@@ -54,7 +57,7 @@ const InlineEditableText = ({
         toast.success('Subsection updated successfully!');
       } catch (error) {
         console.error('Save failed:', error);
-        toast.error('Failed to save changes. Please try again.');
+        toast.error(`Failed to save changes: ${error.response?.data?.message || error.message}`);
       } finally {
         setSaving(false);
       }
@@ -84,13 +87,13 @@ const InlineEditableText = ({
 
   if (isEditing) {
     return (
-      <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2" onClick={e => e.stopPropagation()}>
         {multiline ? (
           <textarea
             value={tempValue}
             onChange={(e) => setTempValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm resize-none min-w-0 disabled:opacity-50"
+            className="flex-1 px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm resize-none min-w-0 disabled:opacity-50 disabled:cursor-not-allowed w-full"
             placeholder={placeholder}
             autoFocus
             rows={2}
@@ -102,28 +105,32 @@ const InlineEditableText = ({
             value={tempValue}
             onChange={(e) => setTempValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm min-w-0 disabled:opacity-50"
+            className="flex-1 px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm min-w-0 disabled:opacity-50 disabled:cursor-not-allowed w-full"
             placeholder={placeholder}
             autoFocus
             disabled={saving}
           />
         )}
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center space-x-1"
-          title="Save"
-        >
-          {saving ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaSave className="w-3 h-3" />}
-        </button>
-        <button
-          onClick={handleCancel}
-          disabled={saving}
-          className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Cancel"
-        >
-          <FaTimes className="w-3 h-3" />
-        </button>
+        <div className="flex space-x-2 w-full sm:w-auto">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 sm:flex-none px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center space-x-1"
+            title="Save"
+          >
+            {saving ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaSave className="w-3 h-3" />}
+            <span>Save</span>
+          </button>
+          <button
+            onClick={handleCancel}
+            disabled={saving}
+            className="flex-1 sm:flex-none px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs flex items-center justify-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Cancel"
+          >
+            <FaTimes className="w-3 h-3" />
+            <span>Cancel</span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -144,7 +151,7 @@ const InlineEditableText = ({
   );
 };
 
-// Problem Form Component
+// Problem Form Component (unchanged)
 const ProblemForm = ({ onSubmit, onCancel, canManageSheets, canAddEditorials }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -357,6 +364,7 @@ const SubsectionView = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAddProblem, setShowAddProblem] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(false); // Track editing state
 
   if (!subsection) {
     console.error('SubsectionView: subsection is undefined');
@@ -407,6 +415,13 @@ const SubsectionView = ({
     }
   };
 
+  // Handle expansion - only expand if not editing
+  const handleExpansionClick = (e) => {
+    if (!editing && !deleting) {
+      setIsExpanded(!isExpanded);
+    }
+  };
+
   const progress = getSubsectionProgress();
   const percentage = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
 
@@ -451,14 +466,14 @@ const SubsectionView = ({
       {/* Subsection Header */}
       <div 
         className={`
-          cursor-pointer py-4 px-6 sm:px-12 lg:px-16 
+          py-4 px-6 sm:px-12 lg:px-16 
           flex justify-between items-center transition-all duration-300 
           hover:bg-blue-50/30 dark:hover:bg-[#6366f1]/10 
           group relative
           ${index === 0 ? 'pt-4' : 'pt-4'}
           ${deleting ? 'opacity-70 pointer-events-none' : ''}
+          ${editing ? '' : 'cursor-pointer'}
         `}
-        onClick={() => !deleting && setIsExpanded(!isExpanded)}
       >
         
         {/* Admin Controls */}
@@ -496,7 +511,7 @@ const SubsectionView = ({
         )}
         
         {/* Left Section */}
-        <div className="flex items-center space-x-3 sm:space-x-4">
+        <div className="flex items-center space-x-3 sm:space-x-4 flex-1" onClick={handleExpansionClick}>
           
           {/* Expand/Collapse Button */}
           <div className="flex items-center justify-center w-8 h-8 transition-all duration-300 ease-out group-hover:scale-110">
@@ -512,16 +527,18 @@ const SubsectionView = ({
           </div>
           
           {/* Subsection Info */}
-          <div>
+          <div className="flex-1">
             {canManageSheets ? (
-              <InlineEditableText
-                value={subsection.name}
-                onSave={(value) => handleUpdateSubsectionInternal('name', value)}
-                placeholder="Subsection name"
-                isEditable={canManageSheets}
-                disabled={deleting}
-                className="text-base sm:text-lg font-semibold leading-tight"
-              />
+              <div onClick={(e) => e.stopPropagation()}>
+                <InlineEditableText
+                  value={subsection.name}
+                  onSave={(value) => handleUpdateSubsectionInternal('name', value)}
+                  placeholder="Subsection name"
+                  isEditable={canManageSheets}
+                  disabled={deleting}
+                  className="text-base sm:text-lg font-semibold leading-tight"
+                />
+              </div>
             ) : (
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight">
                 {subsection.name}
@@ -537,7 +554,7 @@ const SubsectionView = ({
         </div>
         
         {/* Right Section */}
-        <div className="flex items-center space-x-3 sm:space-x-4">
+        <div className="flex items-center space-x-3 sm:space-x-4" onClick={handleExpansionClick}>
           
           {/* Circular Progress */}
           <div className="relative">
@@ -607,7 +624,7 @@ const SubsectionView = ({
         </div>
 
         {/* Hover Effect Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#6366f1]/0 via-[#6366f1]/2 to-[#6366f1]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#6366f1]/0 via-[#6366f1]/2 to-[#6366f1]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
 
       {/* Add Problem Form */}
