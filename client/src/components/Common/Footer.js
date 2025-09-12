@@ -43,7 +43,7 @@ const Footer = () => {
             <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
               Made with <Heart className="w-4 h-4 text-red-500 animate-pulse" /> by 
               <span className="font-semibold bg-gradient-to-r from-[#6366f1] to-[#a855f7] bg-clip-text text-transparent">
-                Alpha Knowledge
+                AlphaKnowledge
               </span>
             </p>
             <span className="hidden sm:inline text-gray-400 dark:text-gray-600">•</span>

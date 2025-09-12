@@ -16,7 +16,7 @@ const TypewriterEffect = ({ text }) => {
       } else {
         clearInterval(timer);
       }
-    }, 260);
+    }, 200);
     
     return () => clearInterval(timer);
   }, [text]);
@@ -60,7 +60,7 @@ const WelcomeScreen = ({ onLoadingComplete }) => {
       setTimeout(() => {
         onLoadingComplete?.();
       }, 1000);
-    }, 4000);
+    }, 5000);
     
     return () => clearTimeout(timer);
   }, [onLoadingComplete]);
@@ -116,32 +116,35 @@ const WelcomeScreen = ({ onLoadingComplete }) => {
                 ))}
               </motion.div>
               
-              {/* Welcome Text */}
+              {/* Welcome Text - Reduced spacing */}
               <motion.div 
-                className="text-center mb-6 sm:mb-8 md:mb-12"
+                className="text-center mb-4 sm:mb-6 md:mb-8"
                 variants={childVariants}
               >
-                <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold space-y-2 sm:space-y-4">
-                  <div className="mb-2 sm:mb-4">
-                    <span data-aos="fade-right" data-aos-delay="200" className="inline-block px-2 bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
-                      Welcome
-                    </span>{' '}
-                    <span data-aos="fade-right" data-aos-delay="400" className="inline-block px-2 bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
-                      To
-                    </span>
-                  </div>
-                  <div>
-                    <span data-aos="fade-up" data-aos-delay="800" className="inline-block px-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                      Alpha
-                    </span>{' '}
-                    <span data-aos="fade-up" data-aos-delay="1000" className="inline-block px-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                      Knowledge
-                    </span>
-                  </div>
+                <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold">
+                  <div className="mb-4 sm:mb-6 md:mb-8 leading-normal">
+  <span data-aos="fade-right" data-aos-delay="200" className="inline-block px-1 sm:px-2 bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
+    Welcome
+  </span>
+  <span data-aos="fade-right" data-aos-delay="400" className="inline-block px-1 sm:px-2 bg-gradient-to-r from-white via-blue-100 to-purple-200 bg-clip-text text-transparent">
+    To
+  </span>
+</div>
+
+                  {/* AlphaKnowledge as single word with minimal spacing */}
+                  <div className="leading-normal pb-4 sm:pb-6 md:pb-8" style={{ lineHeight: '1.4' }}>
+  <span data-aos="fade-up" data-aos-delay="800" className="inline-block bg-gradient-to-r from-[#6366f1] to-[#8b5cf6] bg-clip-text text-transparent group-hover:from-[#5855eb] group-hover:to-[#7c3aed] transition-all">
+    Alpha
+  </span>
+  <span data-aos="fade-up" data-aos-delay="1000" className="inline-block bg-gradient-to-r from-[#8b5cf6] to-[#a855f7] bg-clip-text text-transparent group-hover:from-[#7c3aed] group-hover:to-[#9333ea] transition-all">
+    Knowledge
+  </span>
+</div>
+
                 </h1>
               </motion.div>
               
-              {/* Website Link */}
+              {/* Website Link - Reduced gap from title */}
               <motion.div 
                 className="text-center"
                 variants={childVariants}
@@ -149,16 +152,16 @@ const WelcomeScreen = ({ onLoadingComplete }) => {
                 data-aos-delay="1200"
               >
                 <a
-                  href="https://alphaknowledge.dev"
+                  href="https://alphaknowledge.in"
                   className="inline-flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 rounded-full relative group hover:scale-105 transition-transform duration-300"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 to-purple-600/20 rounded-full blur-md group-hover:blur-lg transition-all duration-300" />
                   <div className="relative flex items-center gap-2 text-lg sm:text-xl md:text-2xl">
-                    <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+                    <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 flex-shrink-0" />
                     <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                      <TypewriterEffect text="alphaknowledge.dev" />
+                      <TypewriterEffect text="alphaknowledge.in" />
                     </span>
                   </div>
                 </a>

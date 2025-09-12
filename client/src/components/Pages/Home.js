@@ -64,7 +64,7 @@ const CODE_SNIPPETS = [
   },
   {
     language: 'Python',
-    code: `# Alpha Knowledge
+    code: `# AlphaKnowledge
 def greet():
     print("Hello Welcome Back to AlphaKnowledge!")
 greet()`
@@ -79,7 +79,7 @@ const StatusBadge = memo(() => (
       <div className="relative px-4 py-2 rounded-full bg-blue-50/90 dark:bg-black/40 backdrop-blur-xl border border-blue-200 dark:border-white/10">
         <span className="bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-transparent bg-clip-text text-sm font-medium flex items-center">
           <Sparkles className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400" />
-          Master DSA with Alpha Knowledge
+          Master DSA with AlphaKnowledge
         </span>
       </div>
     </div>
@@ -518,52 +518,52 @@ const Home = () => {
         </section>
 
         {/* Feature Section - Light/Dark Theme */}
-        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#030014]">
+        <section className="py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8 bg-white dark:bg-[#030014]">
   <div className="max-w-7xl mx-auto">
-    <div className="text-center mb-12">
-      <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6" data-aos="fade-up">
-        Why Choose Alpha Knowledge?
+    <div className="text-center mb-8 sm:mb-10 lg:mb-12">
+      <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-4 sm:mb-6" data-aos="fade-up">
+        Why Choose AlphaKnowledge?
       </h2>
-      <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-4xl mx-auto" data-aos="fade-up" data-aos-delay="200">
+      <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-4xl mx-auto px-2 sm:px-0" data-aos="fade-up" data-aos-delay="200">
         Everything you need to excel in data structures and algorithms
       </p>
     </div>
     
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
       {features.map((feature, index) => {
         const Icon = feature.icon;
         return (
           <div key={index} className="group" data-aos="fade-up" data-aos-delay={index * 100}>
-            <div className="bg-white/80 dark:bg-black/40 backdrop-blur-xl rounded-3xl p-6 shadow-xl border border-white/20 dark:border-white/10 transition-all duration-300 hover:shadow-2xl hover:scale-105 relative overflow-hidden h-48">
+            <div className="bg-white/80 dark:bg-black/40 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xl border border-white/20 dark:border-white/10 transition-all duration-300 hover:shadow-2xl hover:scale-105 relative overflow-hidden h-40 sm:h-44 md:h-48">
               
               {/* Card hover glow effect */}
               <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/5 to-[#a855f7]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               
-              {/* Enhanced Icon Container */}
-              <div className="relative w-12 h-12 mb-3 group-hover:scale-110 transition-transform duration-300">
+              {/* Enhanced Icon Container - Responsive sizing */}
+              <div className="relative w-10 h-10 sm:w-12 sm:h-12 mb-2 sm:mb-3 group-hover:scale-110 transition-transform duration-300">
                 {/* Multiple gradient layers for depth */}
-                <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-2xl opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
-                <div className="absolute inset-0 bg-gradient-to-tr from-[#a855f7] to-[#6366f1] rounded-2xl opacity-10 group-hover:opacity-20 transition-opacity duration-300 blur-sm"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-xl sm:rounded-2xl opacity-20 group-hover:opacity-30 transition-opacity duration-300"></div>
+                <div className="absolute inset-0 bg-gradient-to-tr from-[#a855f7] to-[#6366f1] rounded-xl sm:rounded-2xl opacity-10 group-hover:opacity-20 transition-opacity duration-300 blur-sm"></div>
                 
                 {/* Icon background */}
-                <div className="relative w-full h-full bg-white/50 dark:bg-black/30 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/30 dark:border-white/20 shadow-lg">
-                  <Icon className="w-6 h-6 text-[#6366f1] dark:text-[#a855f7] relative z-10 group-hover:scale-110 transition-transform duration-300" />
+                <div className="relative w-full h-full bg-white/50 dark:bg-black/30 backdrop-blur-sm rounded-xl sm:rounded-2xl flex items-center justify-center border border-white/30 dark:border-white/20 shadow-lg">
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-[#6366f1] dark:text-[#a855f7] relative z-10 group-hover:scale-110 transition-transform duration-300" />
                 </div>
                 
                 {/* Floating particles effect */}
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#6366f1] rounded-full opacity-0 group-hover:opacity-60 transition-all duration-300 group-hover:animate-pulse"></div>
-                <div className="absolute -bottom-1 -left-1 w-1.5 h-1.5 bg-[#a855f7] rounded-full opacity-0 group-hover:opacity-40 transition-all duration-300 group-hover:animate-bounce"></div>
+                <div className="absolute -top-1 -right-1 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-[#6366f1] rounded-full opacity-0 group-hover:opacity-60 transition-all duration-300 group-hover:animate-pulse"></div>
+                <div className="absolute -bottom-1 -left-1 w-1 h-1 sm:w-1.5 sm:h-1.5 bg-[#a855f7] rounded-full opacity-0 group-hover:opacity-40 transition-all duration-300 group-hover:animate-bounce"></div>
               </div>
               
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2 relative z-10">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white mb-1.5 sm:mb-2 relative z-10 leading-tight">
                 {feature.title}
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed relative z-10 line-clamp-3">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 leading-relaxed relative z-10 line-clamp-3 sm:line-clamp-4">
                 {feature.description}
               </p>
               
               {/* Bottom accent line */}
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-[#6366f1] to-[#a855f7] opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-b-3xl"></div>
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-[#6366f1] to-[#a855f7] opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-b-2xl sm:rounded-b-3xl"></div>
             </div>
           </div>
         );
@@ -571,6 +571,7 @@ const Home = () => {
     </div>
   </div>
 </section>
+
 
 
 

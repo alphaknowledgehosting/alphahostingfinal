@@ -415,7 +415,7 @@ const ProblemItem = ({
     setShowAuthModal(false);
   };
 
-  // Enhanced Authentication Modal with Problem Data Display
+  // RESPONSIVE Authentication Modal - UPDATED FOR MOBILE
   const AuthModal = () => {
     if (!showAuthModal) return null;
 
@@ -424,74 +424,78 @@ const ProblemItem = ({
     };
 
     return createPortal(
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6">
         {/* Enhanced Backdrop */}
         <div 
           className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300"
           onClick={closeModal}
         />
         
-        {/* Modal Container */}
-        <div className="relative w-full max-w-lg bg-white/90 dark:bg-black/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 animate-in zoom-in-95 fade-in slide-in-from-bottom-8 duration-300">
+        {/* RESPONSIVE Modal Container - Updated for mobile */}
+        <div className="relative w-full max-w-sm xs:max-w-md sm:max-w-lg bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-2xl sm:rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 animate-in zoom-in-95 fade-in slide-in-from-bottom-8 duration-300 max-h-[90vh] overflow-y-auto">
           
           {/* Background Pattern */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/5 via-[#a855f7]/3 to-[#6366f1]/5 dark:from-[#6366f1]/10 dark:via-[#a855f7]/5 dark:to-[#6366f1]/10 rounded-3xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/5 via-[#a855f7]/3 to-[#6366f1]/5 dark:from-[#6366f1]/10 dark:via-[#a855f7]/5 dark:to-[#6366f1]/10 rounded-2xl sm:rounded-3xl" />
           
-          {/* Close Button */}
+          {/* Close Button - Responsive */}
           <button
             onClick={closeModal}
-            className="absolute top-4 right-4 w-10 h-10 bg-white/80 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded-xl backdrop-blur-sm transition-all duration-200 flex items-center justify-center z-10 border border-white/30 dark:border-white/20"
+            className="absolute top-3 right-3 sm:top-4 sm:right-4 w-8 h-8 sm:w-10 sm:h-10 bg-white/80 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg sm:rounded-xl backdrop-blur-sm transition-all duration-200 flex items-center justify-center z-10 border border-white/30 dark:border-white/20"
           >
-            <FaTimes className="w-4 h-4" />
+            <FaTimes className="w-3 h-3 sm:w-4 sm:h-4" />
           </button>
 
-          {/* Modal Content */}
-          <div className="relative p-8 sm:p-12 text-center">
+          {/* Modal Content - Responsive padding and spacing */}
+          <div className="relative p-4 xs:p-5 sm:p-6 md:p-8 lg:p-10 text-center">
             
-            {/* Icon */}
-            <div className="relative w-20 h-20 mx-auto mb-6">
-              <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-2xl shadow-xl animate-pulse opacity-20"></div>
-              <div className="relative w-full h-full bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-2xl shadow-lg flex items-center justify-center">
-                <FaLock className="w-8 h-8 text-white" />
+            {/* Icon - Responsive sizing */}
+            <div className="relative w-16 h-16 sm:w-18 sm:h-18 md:w-20 md:h-20 mx-auto mb-4 sm:mb-6">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-xl sm:rounded-2xl shadow-xl animate-pulse opacity-20"></div>
+              <div className="relative w-full h-full bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-xl sm:rounded-2xl shadow-lg flex items-center justify-center">
+                <FaLock className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white" />
               </div>
             </div>
 
-            {/* Title */}
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-3">
+            {/* Title - Responsive text sizing */}
+            <h2 className="text-xl xs:text-2xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3">
               Sign In Required
             </h2>
             
-            {/* Subtitle */}
-            <p className="text-gray-600 dark:text-gray-400 text-lg mb-8 max-w-md mx-auto leading-relaxed">
+            {/* Subtitle - Responsive text sizing and spacing */}
+            <p className="text-gray-600 dark:text-gray-400 text-sm xs:text-base sm:text-lg mb-6 sm:mb-8 max-w-xs xs:max-w-sm sm:max-w-md mx-auto leading-relaxed px-2 sm:px-0">
               Sign in to mark problems as completed, add to revision list, and track your progress
             </p>
 
-            {/* Problem Info Display */}
-            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-sm rounded-2xl p-6 mb-8 border border-white/30 dark:border-white/10 shadow-lg">
-              <div className="flex items-center justify-center gap-3 mb-3 flex-wrap">
-                <div className="bg-white dark:bg-white/10 px-4 py-2 rounded-xl shadow-sm border border-gray-200 dark:border-white/20 backdrop-blur-sm">
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {isEmpty(localProblem.title) ? 'Untitled Problem' : localProblem.title}
+            {/* Problem Info Display - Responsive */}
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 border border-white/30 dark:border-white/10 shadow-lg">
+              <div className="flex items-center justify-center gap-2 sm:gap-3 mb-3 flex-wrap">
+                <div className="bg-white dark:bg-white/10 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl shadow-sm border border-gray-200 dark:border-white/20 backdrop-blur-sm">
+                  <span className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">
+                    {isEmpty(localProblem.title) ? 'Untitled Problem' : (
+                      localProblem.title.length > 25 ? 
+                        `${localProblem.title.substring(0, 25)}...` : 
+                        localProblem.title
+                    )}
                   </span>
                 </div>
                 
                 {!isEmpty(localProblem.difficulty) && (
                   <span className={`
-                    inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+                    inline-flex items-center gap-1 xs:gap-1.5 px-2 xs:px-3 py-1 rounded-full text-xs font-medium
                     ${getDifficultyStyle(localProblem.difficulty)}
                   `}>
-                    <span className={`w-2 h-2 rounded-full ${getDifficultyDotColor(localProblem.difficulty)}`}></span>
-                    {localProblem.difficulty}
+                    <span className={`w-1.5 h-1.5 xs:w-2 xs:h-2 rounded-full ${getDifficultyDotColor(localProblem.difficulty)}`}></span>
+                    <span className="hidden xs:inline">{localProblem.difficulty}</span>
                   </span>
                 )}
               </div>
-              <p className="text-gray-600 dark:text-gray-400">
+              <p className="text-gray-600 dark:text-gray-400 text-xs xs:text-sm sm:text-base leading-relaxed">
                 After signing in, you can mark this problem as completed or add it to your revision list!
               </p>
             </div>
 
-            {/* Centered Login Button */}
-            <div className="flex justify-center items-center mb-6 w-full">
+            {/* Centered Login Button - Responsive */}
+            <div className="flex justify-center items-center mb-4 sm:mb-6 w-full">
               <div className="flex justify-center w-full">
                 <LoginButton 
                   onLoginSuccess={handleLoginSuccess}
@@ -500,19 +504,19 @@ const ProblemItem = ({
               </div>
             </div>
 
-            {/* Skip Button */}
+            {/* Skip Button - Responsive text */}
             <button 
               onClick={closeModal}
-              className="text-gray-500 dark:text-gray-400 hover:text-[#6366f1] dark:hover:text-[#a855f7] font-medium transition-colors duration-200"
+              className="text-gray-500 dark:text-gray-400 hover:text-[#6366f1] dark:hover:text-[#a855f7] font-medium transition-colors duration-200 text-sm sm:text-base"
             >
               Maybe Later
             </button>
 
-            {/* Sign In Encouragement */}
-            <div className="mt-6 bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 dark:from-[#6366f1]/20 dark:to-[#a855f7]/20 rounded-2xl p-4 border border-[#6366f1]/20 dark:border-[#a855f7]/30 backdrop-blur-sm">
-              <p className="text-[#6366f1] dark:text-[#a855f7] font-semibold flex items-center justify-center gap-2 text-sm">
+            {/* Sign In Encouragement - Responsive */}
+            <div className="mt-4 sm:mt-6 bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 dark:from-[#6366f1]/20 dark:to-[#a855f7]/20 rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-[#6366f1]/20 dark:border-[#a855f7]/30 backdrop-blur-sm">
+              <p className="text-[#6366f1] dark:text-[#a855f7] font-semibold flex items-center justify-center gap-1 sm:gap-2 text-xs xs:text-sm sm:text-sm leading-relaxed">
                 <span>✨</span>
-                Sign in with Google in seconds and start tracking your progress!
+                <span className="text-center">Sign in with Google in seconds and start tracking your progress!</span>
                 <span>🚀</span>
               </p>
             </div>
