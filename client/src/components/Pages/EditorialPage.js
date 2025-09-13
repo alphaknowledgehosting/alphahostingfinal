@@ -1156,7 +1156,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
     key={block.id}
     src={block.src}
     alt="Editorial illustration"
-    className="w-full-bleed h-auto block"
+    className="w-full-bleed h-auto block lg:w-3/4 lg:h-3/4 lg:border-none lg:mx-auto"
     style={{
       ...inlineStyles
     }}
