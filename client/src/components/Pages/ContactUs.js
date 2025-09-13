@@ -112,7 +112,7 @@ const ContactUs = () => {
   ];
 
   const socialLinks = [
-      { icon: FaDiscord, url: 'https://discord.gg/wyjUnERg6q', label: 'Discord' },
+      { icon: FaDiscord, url: 'https://discord.gg/c8CYYz82fk', label: 'Discord' },
       { icon: Send, url: 'https://t.me/+mm_twbxHZns5ZjA1', label: 'Telegram' },
       { icon: Instagram, url: 'https://instagram.com/alphaknowledgeofficial', label: 'Instagram' }
     ];
