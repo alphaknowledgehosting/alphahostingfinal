@@ -1910,131 +1910,91 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
       </div>
 
       <style jsx>{`
-  .w-full-bleed {
-    width: calc(100% + 2rem);
-    height: auto;
-    display: block;
-    margin-left: -1rem;
-    margin-right: -1rem;
-    padding: 0;
-  }
+        .complexity-code {
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+          padding: 6px 12px;
+          border-radius: 10px;
+          font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+          font-size: 1.1em;
+          font-weight: 600;
+          border: 1px solid rgba(99, 102, 241, 0.2);
+          color: #6366f1;
+          display: inline-block;
+          margin: 2px;
+        }
+        
+        .dark .complexity-code {
+          color: #a5b4fc;
+          border-color: rgba(165, 180, 252, 0.3);
+        }
 
-  @media (min-width: 640px) {
-    .w-full-bleed {
-      width: calc(100% + 3rem);
-      margin-left: -1.5rem;
-      margin-right: -1.5rem;
-    }
-  }
+        /* Custom Scrollbar Styles for Code Blocks */
+        .scrollbar-thin {
+          scrollbar-width: thin;
+        }
+        
+        .scrollbar-thumb-slate-600::-webkit-scrollbar-thumb {
+          background-color: #475569;
+          border-radius: 4px;
+        }
+        
+        .scrollbar-track-slate-800::-webkit-scrollbar-track {
+          background-color: #1e293b;
+        }
+        
+        .hover\:scrollbar-thumb-slate-500:hover::-webkit-scrollbar-thumb {
+          background-color: #64748b;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        
+        /* For Firefox */
+        .scrollbar-thin {
+          scrollbar-width: thin;
+          scrollbar-color: #475569 #1e293b;
+        }
 
-  @media (min-width: 1024px) {
-    .w-full-bleed {
-      width: calc(100% + 4rem);
-      margin-left: -2rem;
-      margin-right: -2rem;
-    }
-  }
-
-  /* Custom Scrollbar Styles for Code Blocks */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-  }
-  
-  .scrollbar-thumb-slate-600::-webkit-scrollbar-thumb {
-    background-color: #475569;
-    border-radius: 4px;
-  }
-  
-  .scrollbar-track-slate-800::-webkit-scrollbar-track {
-    background-color: #1e293b;
-  }
-  
-  .hover\:scrollbar-thumb-slate-500:hover::-webkit-scrollbar-thumb {
-    background-color: #64748b;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  
-  /* For Firefox */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: #475569 #1e293b;
-  }
-
-  .complexity-code {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
-    padding: 6px 12px;
-    border-radius: 10px;
-    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-    font-size: 1.1em;
-    font-weight: 600;
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    color: #6366f1;
-    display: inline-block;
-    margin: 2px;
-  }
-  
-  .dark .complexity-code {
-    color: #a5b4fc;
-    border-color: rgba(165, 180, 252, 0.3);
-  }
-
-  /* Responsive video adjustments */
-  @media (max-width: 767px) {
-    .video-responsive {
-      padding-bottom: 56.25% !important;
-      height: 0 !important;
-    }
-  }
-
-  @media (min-width: 768px) {
-    .video-responsive {
-      max-height: 70vh !important;
-      height: 70vh !important;
-      padding-bottom: 0 !important;
-    }
-    
-    .video-responsive iframe {
-      height: 100% !important;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .video-responsive {
-      max-height: 65vh !important;
-      height: 65vh !important;
-    }
-  }
-
-  @media (min-width: 1440px) {
-    .video-responsive {
-      max-height: 60vh !important;
-      height: 60vh !important;
-    }
-  }
-
-  /* Responsive text scaling */
-  @media (max-width: 640px) {
-    .complexity-code {
-      font-size: 0.9em;
-      padding: 4px 8px;
-    }
-    
-    /* Smaller max height on mobile */
-    .max-h-96 {
-      max-height: 20rem;
-    }
-  }
-
-  @media (min-width: 768px) {
-    .max-h-96 {
-      max-height: 24rem;
-    }
-  }
-`}</style>
+        /* Responsive video adjustments */
+        @media (max-width: 767px) {
+          .video-responsive {
+            padding-bottom: 56.25% !important;
+            height: 0 !important;
+          }
+        }
+        @media (min-width: 768px) {
+          .video-responsive {
+            max-height: 70vh !important;
+            height: 70vh !important;
+            padding-bottom: 0 !important;
+          }
+          
+          .video-responsive iframe {
+            height: 100% !important;
+          }
+        }
+        @media (min-width: 1024px) {
+          .video-responsive {
+            max-height: 65vh !important;
+            height: 65vh !important;
+          }
+        }
+        @media (min-width: 1440px) {
+          .video-responsive {
+            max-height: 60vh !important;
+            height: 60vh !important;
+          }
+        }
+        /* Responsive text scaling */
+        @media (max-width: 640px) {
+          .complexity-code {
+            font-size: 0.9em;
+            padding: 4px 8px;
+          }
+        }
+      `}</style>
 
     </div>
   );
