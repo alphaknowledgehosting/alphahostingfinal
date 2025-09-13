@@ -82,6 +82,448 @@ const EditorialPage = () => {
       }
     }
   }, [editorial, contentType]);
+// Enhanced Google Drive URL converter
+const convertGoogleDriveUrl = (url) => {
+  if (!url) return url;
+  
+  // Handle different Google Drive URL formats
+  const drivePatterns = [
+    // https://drive.google.com/file/d/FILE_ID/view?usp=sharing
+    /https:\/\/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)\/view/,
+    // https://drive.google.com/file/d/FILE_ID/view (without parameters)
+    /https:\/\/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)\/view$/,
+    // https://drive.google.com/open?id=FILE_ID
+    /https:\/\/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
+    // Already converted format
+    /https:\/\/drive\.google\.com\/uc\?export=view&id=([a-zA-Z0-9_-]+)/,
+    // Direct file ID extraction
+    /https:\/\/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/
+  ];
+  
+  for (const pattern of drivePatterns) {
+    const match = url.match(pattern);
+    if (match) {
+      const fileId = match[1];
+      // Use the direct download format which works better for images
+      return `https://drive.google.com/uc?export=download&id=${fileId}`;
+    }
+  }
+  
+  return url;
+};
+
+
+// Enhanced image proxy function with CORS handling
+const createImageProxy = async (originalUrl) => {
+  try {
+    // Convert Google Drive URLs first
+    const convertedUrl = convertGoogleDriveUrl(originalUrl);
+    
+    // For Google Drive, try multiple approaches
+    if (originalUrl.includes('drive.google.com')) {
+      const fileId = originalUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1];
+      if (fileId) {
+        // Try different Google Drive access methods
+        const driveUrls = [
+          `https://drive.google.com/uc?export=download&id=${fileId}`,
+          `https://drive.google.com/uc?export=view&id=${fileId}`,
+          `https://lh3.googleusercontent.com/d/${fileId}`,
+          `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000-h2000`
+        ];
+        
+        for (const driveUrl of driveUrls) {
+          try {
+            const response = await fetch(driveUrl, {
+              mode: 'cors',
+              method: 'GET',
+            });
+            
+            if (response.ok) {
+              const blob = await response.blob();
+              if (blob.size > 0) {
+                const blobUrl = URL.createObjectURL(blob);
+                return blobUrl;
+              }
+            }
+          } catch (err) {
+            console.log(`Failed to fetch from ${driveUrl}:`, err.message);
+            continue;
+          }
+        }
+      }
+    }
+    
+    // Fallback for other URLs or if Drive methods fail
+    const response = await fetch(convertedUrl, {
+      mode: 'cors',
+      method: 'GET',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    
+    return blobUrl;
+  } catch (error) {
+    console.error('Error creating image proxy:', error);
+    // Return the converted URL as fallback
+    return convertGoogleDriveUrl(originalUrl);
+  }
+};
+
+
+// Universal secure image component for all image sources
+const SecureImage = ({ src, alt, className, style, onError, ...props }) => {
+  const [imageSrc, setImageSrc] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [loadingMethod, setLoadingMethod] = useState('');
+  
+  useEffect(() => {
+    let mounted = true;
+    let timeoutId = null;
+    
+    const loadImage = async () => {
+      try {
+        setIsLoading(true);
+        setHasError(false);
+        setLoadingMethod('Processing...');
+        
+        if (!src) {
+          throw new Error('No source provided');
+        }
+        
+        let processedSrc = src.trim();
+        
+        // Step 1: Convert various URL formats to direct access URLs
+        processedSrc = convertToDirectUrl(processedSrc);
+        setLoadingMethod('Converting URL...');
+        
+        // Step 2: Try multiple loading methods in order of security preference
+        const loadingMethods = [
+          () => loadAsDataUrl(processedSrc),
+          () => loadViaCanvas(processedSrc),
+          () => loadViaProxy(processedSrc),
+          () => loadDirect(processedSrc)
+        ];
+        
+        for (let i = 0; i < loadingMethods.length; i++) {
+          if (!mounted) break;
+          
+          try {
+            setLoadingMethod(`Method ${i + 1}/4...`);
+            const result = await Promise.race([
+              loadingMethods[i](),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Timeout')), 10000)
+              )
+            ]);
+            
+            if (result && mounted) {
+              setImageSrc(result);
+              setLoadingMethod('');
+              return;
+            }
+          } catch (methodError) {
+            console.log(`Loading method ${i + 1} failed:`, methodError.message);
+            continue;
+          }
+        }
+        
+        throw new Error('All loading methods failed');
+        
+      } catch (error) {
+        console.error('Error loading secure image:', error);
+        if (mounted) {
+          setHasError(true);
+          setLoadingMethod('');
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    // Convert various URL formats to direct access URLs
+    const convertToDirectUrl = (url) => {
+      // Google Drive URLs
+      if (url.includes('drive.google.com')) {
+        const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
+        if (fileIdMatch) {
+          const fileId = fileIdMatch[1] || fileIdMatch[2];
+          return `https://drive.google.com/uc?export=view&id=${fileId}`;
+        }
+      }
+      
+      // GitHub URLs - convert to raw format
+      if (url.includes('github.com') && !url.includes('raw.githubusercontent.com')) {
+        if (url.includes('/blob/')) {
+          return url
+            .replace('github.com', 'raw.githubusercontent.com')
+            .replace('/blob/', '/');
+        }
+      }
+      
+      // Dropbox URLs
+      if (url.includes('dropbox.com') && !url.includes('dl=1')) {
+        return url.replace('dl=0', 'dl=1').replace(/\?.*/, '') + '?dl=1';
+      }
+      
+      // OneDrive URLs
+      if (url.includes('1drv.ms') || url.includes('onedrive.live.com')) {
+        // Convert OneDrive share links to direct download
+        if (url.includes('1drv.ms')) {
+          // For short links, we'll use a proxy service
+          return `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        }
+      }
+      
+      return url;
+    };
+    
+    // Method 1: Load as Data URL (most secure)
+    const loadAsDataUrl = async (url) => {
+      const response = await fetch(url, {
+        mode: 'cors',
+        method: 'GET',
+        headers: {
+          'Accept': 'image/*,*/*;q=0.8',
+          'User-Agent': 'Mozilla/5.0 (compatible; SecureImageLoader/1.0)'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      if (blob.size === 0) {
+        throw new Error('Empty response');
+      }
+      
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('FileReader failed'));
+        reader.readAsDataURL(blob);
+      });
+    };
+    
+    // Method 2: Load via Canvas (secure, bypasses some CORS issues)
+    const loadViaCanvas = async (url) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            
+            ctx.drawImage(img, 0, 0);
+            const dataUrl = canvas.toDataURL('image/png', 0.9);
+            resolve(dataUrl);
+          } catch (canvasError) {
+            reject(canvasError);
+          }
+        };
+        
+        img.onerror = () => reject(new Error('Image load failed'));
+        
+        // Set a timeout
+        setTimeout(() => reject(new Error('Canvas load timeout')), 8000);
+        
+        img.src = url;
+      });
+    };
+    
+    // Method 3: Load via Proxy Services
+    const loadViaProxy = async (url) => {
+      const proxyServices = [
+        `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=2000&h=2000`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+        `https://cors-anywhere.herokuapp.com/${url}`,
+        `https://thingproxy.freeboard.io/fetch/${url}`
+      ];
+      
+      for (const proxyUrl of proxyServices) {
+        try {
+          const response = await fetch(proxyUrl, {
+            method: 'GET',
+            headers: { 'Accept': 'image/*' }
+          });
+          
+          if (response.ok) {
+            const blob = await response.blob();
+            if (blob.size > 0) {
+              return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('FileReader failed'));
+                reader.readAsDataURL(blob);
+              });
+            }
+          }
+        } catch (proxyError) {
+          continue;
+        }
+      }
+      
+      throw new Error('All proxy services failed');
+    };
+    
+    // Method 4: Load Direct (fallback, less secure)
+    const loadDirect = async (url) => {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        
+        img.onload = () => resolve(url);
+        img.onerror = () => reject(new Error('Direct load failed'));
+        
+        // Test if the URL actually loads
+        img.src = url;
+        
+        setTimeout(() => reject(new Error('Direct load timeout')), 5000);
+      });
+    };
+    
+    if (src) {
+      loadImage();
+    }
+    
+    // Cleanup timeout on unmount
+    return () => {
+      mounted = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [src]);
+  
+  const handleContextMenu = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  };
+  
+  const handleKeyDown = (e) => {
+    // Disable developer tools shortcuts
+    const blockedKeys = [
+      'F12',
+      { ctrl: true, shift: true, key: 'I' },
+      { ctrl: true, shift: true, key: 'C' },
+      { ctrl: true, shift: true, key: 'J' },
+      { ctrl: true, key: 'U' },
+      { ctrl: true, key: 'S' },
+      { meta: true, alt: true, key: 'I' }, // Mac
+      { meta: true, alt: true, key: 'C' }, // Mac
+    ];
+    
+    const isBlocked = blockedKeys.some(blocked => {
+      if (typeof blocked === 'string') {
+        return e.key === blocked;
+      }
+      return (
+        (!blocked.ctrl || e.ctrlKey) &&
+        (!blocked.shift || e.shiftKey) &&
+        (!blocked.meta || e.metaKey) &&
+        (!blocked.alt || e.altKey) &&
+        e.key === blocked.key
+      );
+    });
+    
+    if (isBlocked) {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    }
+  };
+  
+  const handleError = () => {
+    setHasError(true);
+    onError && onError();
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-600/30">
+        <div className="text-center max-w-xs">
+          <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-indigo-600 mx-auto mb-3"></div>
+          <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">
+            Loading secure image...
+          </p>
+          {loadingMethod && (
+            <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">
+              {loadingMethod}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+  
+  if (hasError || !imageSrc) {
+    return (
+      <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-500/30">
+        <div className="text-center max-w-xs">
+          <FaImage className="w-8 h-8 sm:w-10 sm:h-10 text-amber-600 dark:text-amber-400 mx-auto mb-3" />
+          <p className="text-amber-700 dark:text-amber-400 text-xs sm:text-sm font-medium mb-1">
+            Image temporarily unavailable
+          </p>
+          <p className="text-amber-600 dark:text-amber-500 text-xs leading-tight">
+            The image couldn't be loaded securely. Please try refreshing the page.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div
+      onKeyDown={handleKeyDown}
+      tabIndex={-1}
+      style={{ outline: 'none' }}
+      className="focus:outline-none"
+      onContextMenu={handleContextMenu}
+    >
+      <img
+        {...props}
+        src={imageSrc}
+        alt={alt}
+        className={className}
+        style={{
+          ...style,
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+          WebkitTouchCallout: 'none',
+          WebkitUserDrag: 'none',
+          KhtmlUserSelect: 'none',
+          pointerEvents: 'auto'
+        }}
+        onError={handleError}
+        onContextMenu={handleContextMenu}
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
+        onSelectStart={(e) => e.preventDefault()}
+        onMouseDown={(e) => {
+          if (e.detail > 1) {
+            e.preventDefault();
+          }
+        }}
+      />
+    </div>
+  );
+};
+
+
 
   const loadProblemAndEditorial = async () => {
     try {
@@ -677,50 +1119,45 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
         );
 
       case 'image':
-        const imageKey = `editorial-${block.src}-${block.id}`;
-        const hasError = imageLoadErrors[imageKey];
+  const imageKey = `editorial-${block.src}-${block.id}`;
+  const hasError = imageLoadErrors[imageKey];
 
-        if (hasError) {
-          return (
-            <div key={block.id} className="my-6 lg:my-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl flex items-center space-x-3">
-              <FaImage className="w-5 h-5 text-red-500" />
-              <div>
-                <p className="text-red-700 dark:text-red-400 font-medium">Failed to load image</p>
-                <p className="text-red-600 dark:text-red-500 text-sm break-all">{block.src}</p>
-              </div>
-            </div>
-          );
-        }
+  if (hasError) {
+    return (
+      <div key={block.id} className="my-6 lg:my-8 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl flex items-center space-x-3">
+        <FaImage className="w-5 h-5 text-red-500" />
+        <div>
+          <p className="text-red-700 dark:text-red-400 font-medium">Failed to load image</p>
+          <p className="text-red-600 dark:text-red-500 text-sm break-all">{block.src}</p>
+        </div>
+      </div>
+    );
+  }
 
-        // Parse inline styles
-        const inlineStyles = {};
-        if (block.style) {
-          block.style.split(';').forEach(style => {
-            const [property, value] = style.split(':').map(s => s.trim());
-            if (property && value) {
-              const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-              inlineStyles[camelProperty] = value;
-            }
-          });
-        }
+  // Parse inline styles
+  const inlineStyles = {};
+  if (block.style) {
+    block.style.split(';').forEach(style => {
+      const [property, value] = style.split(':').map(s => s.trim());
+      if (property && value) {
+        const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+        inlineStyles[camelProperty] = value;
+      }
+    });
+  }
 
-        return (
-          <div key={block.id} className="my-6 lg:my-8 flex justify-center">
-            <div className="relative inline-block max-w-full">
-              <img
-                src={block.src}
-                alt="Editorial illustration"
-                className="max-w-full h-auto rounded-xl shadow-lg border border-slate-200 dark:border-slate-600"
-                style={{
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                  ...inlineStyles
-                }}
-                onError={() => handleImageError(imageKey)}
-              />
-            </div>
-          </div>
-        );
-
+  return (
+  <SecureImage
+    key={block.id}
+    src={block.src}
+    alt="Editorial illustration"
+    className="w-full-bleed h-auto block"
+    style={{
+      ...inlineStyles
+    }}
+    onError={() => handleImageError(imageKey)}
+  />
+);
       default:
         return null;
     }
@@ -791,58 +1228,53 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
   // Render content elements (text + images)
   const renderContentElements = (elements) => {
     return elements.map(element => {
-      if (element.type === 'image') {
-        const imageKey = `${element.src}-${element.key}`;
-        const hasError = imageLoadErrors[imageKey];
+    if (element.type === 'image') {
+  const imageKey = `${element.src}-${element.key}`;
+  const hasError = imageLoadErrors[imageKey];
 
-        if (hasError) {
-          return (
-            <div 
-              key={element.key}
-              className="my-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl flex items-center space-x-3"
-            >
-              <FaImage className="w-5 h-5 text-red-500" />
-              <div>
-                <p className="text-red-700 dark:text-red-400 font-medium">Failed to load image</p>
-                <p className="text-red-600 dark:text-red-500 text-sm break-all">{element.src}</p>
-              </div>
-            </div>
-          );
-        }
+  if (hasError) {
+    return (
+      <div 
+        key={element.key}
+        className="my-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl flex items-center space-x-3"
+      >
+        <FaImage className="w-5 h-5 text-red-500" />
+        <div>
+          <p className="text-red-700 dark:text-red-400 font-medium">Failed to load image</p>
+          <p className="text-red-600 dark:text-red-500 text-sm break-all">{element.src}</p>
+        </div>
+      </div>
+    );
+  }
 
-        // Parse inline styles
-        const inlineStyles = {};
-        if (element.style) {
-          element.style.split(';').forEach(style => {
-            const [property, value] = style.split(':').map(s => s.trim());
-            if (property && value) {
-              // Convert CSS property to camelCase for React
-              const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-              inlineStyles[camelProperty] = value;
-            }
-          });
-        }
+  // Parse inline styles
+  const inlineStyles = {};
+  if (element.style) {
+    element.style.split(';').forEach(style => {
+      const [property, value] = style.split(':').map(s => s.trim());
+      if (property && value) {
+        // Convert CSS property to camelCase for React
+        const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+        inlineStyles[camelProperty] = value;
+      }
+    });
+  }
 
-        return (
-          <div key={element.key} className="my-6 flex justify-center">
-            <div className="relative inline-block">
-              <img
-                src={element.src}
-                alt="Editorial illustration"
-                style={{
-                  maxWidth: '100%',
-                  height: 'auto',
-                  borderRadius: '12px',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                  ...inlineStyles
-                }}
-                onError={() => handleImageError(imageKey)}
-                className="border border-slate-200 dark:border-slate-600"
-              />
-            </div>
-          </div>
-        );
-      } else {
+  return (
+  <SecureImage
+    key={element.key}
+    src={element.src}
+    alt="Editorial illustration"
+    className="w-full-bleed h-auto block"
+    style={{
+      ...inlineStyles
+    }}
+    onError={() => handleImageError(imageKey)}
+  />
+);
+}
+
+ else {
         // Render text content
         return element.content.split('\n').map((line, lineIndex) => (
           line.trim() && (
@@ -1470,6 +1902,7 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
       </div>
 
       <style jsx>{`
+
         .complexity-code {
           background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
           padding: 6px 12px;
