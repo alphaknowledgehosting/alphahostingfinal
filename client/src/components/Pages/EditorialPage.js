@@ -1047,76 +1047,81 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
         );
 
       case 'code':
-        return (
-          <div key={block.id} className="my-6 lg:my-8">
-            <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden">
-              {/* Code Header - Exactly matching solution style */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 bg-slate-100/60 dark:bg-slate-700/30 border-b border-slate-200/30 dark:border-slate-600/30 space-y-3 sm:space-y-0">
-                <h4 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 dark:text-white flex items-center">
-                  <Code className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mr-2 sm:mr-3 text-purple-600 dark:text-purple-400" />
-                  Code Example
-                </h4>
-                
-                {/* Language Tabs - Exactly matching solution style */}
-                {block.code.length > 1 && (
-                  <div className="flex flex-wrap gap-1 bg-white/70 dark:bg-slate-800/70 rounded-lg sm:rounded-xl p-1">
-                    {block.code.map((codeItem) => (
-                      <button
-                        key={codeItem.language}
-                        onClick={() => changeLanguage(block.id, codeItem.language)}
-                        className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 ${
-                          selectedLanguages[block.id] === codeItem.language
-                            ? 'bg-indigo-600 text-white shadow-md'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-700/50'
-                        }`}
-                      >
-                        {codeItem.language}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Code Block - Exactly matching solution style */}
-              {block.code
-                .filter(codeItem => codeItem.language === (selectedLanguages[block.id] || block.code[0].language))
-                .map((codeItem, codeIndex) => (
-                <div key={codeIndex} className="relative">
-                  <div className="bg-slate-900 dark:bg-black/80">
-                    <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                      <span className="text-slate-300 text-sm font-medium">
-                        {codeItem.language.toUpperCase()}
-                      </span>
-                      <button
-                        onClick={() => copyCode(codeItem.code, `${block.id}-${codeItem.language}`)}
-                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10"
-                      >
-                        {copiedCode[`${block.id}-${codeItem.language}`] ? (
-                          <FaCheck className="w-3 h-3 text-green-400" />
-                        ) : (
-                          <FaCopy className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
-                    <SyntaxHighlighter
-                      style={tomorrow}
-                      language={codeItem.language.toLowerCase()}
-                      PreTag="div"
-                      className="text-sm"
-                      customStyle={{
-                        margin: 0,
-                        padding: '1rem',
-                        background: 'transparent'
-                      }}
-                    >
-                      {codeItem.code.trim()}
-                    </SyntaxHighlighter>
-                  </div>
-                </div>
+  return (
+    <div key={block.id} className="my-6 lg:my-8">
+      <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden">
+        {/* Code Header - Exactly matching solution style */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 bg-slate-100/60 dark:bg-slate-700/30 border-b border-slate-200/30 dark:border-slate-600/30 space-y-3 sm:space-y-0">
+          <h4 className="text-base sm:text-lg lg:text-xl font-bold text-slate-900 dark:text-white flex items-center">
+            <Code className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mr-2 sm:mr-3 text-purple-600 dark:text-purple-400" />
+            Code Example
+          </h4>
+          
+          {/* Language Tabs - Exactly matching solution style */}
+          {block.code.length > 1 && (
+            <div className="flex flex-wrap gap-1 bg-white/70 dark:bg-slate-800/70 rounded-lg sm:rounded-xl p-1">
+              {block.code.map((codeItem) => (
+                <button
+                  key={codeItem.language}
+                  onClick={() => changeLanguage(block.id, codeItem.language)}
+                  className={`px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-md sm:rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                    selectedLanguages[block.id] === codeItem.language
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                  }`}
+                >
+                  {codeItem.language}
+                </button>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* Code Block with Fixed Height and Scrolling */}
+        {block.code
+          .filter(codeItem => codeItem.language === (selectedLanguages[block.id] || block.code[0].language))
+          .map((codeItem, codeIndex) => (
+          <div key={codeIndex} className="relative">
+            <div className="bg-slate-900 dark:bg-black/80">
+              <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
+                <span className="text-slate-300 text-sm font-medium">
+                  {codeItem.language.toUpperCase()}
+                </span>
+                <button
+                  onClick={() => copyCode(codeItem.code, `${block.id}-${codeItem.language}`)}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 backdrop-blur-sm border border-white/10"
+                >
+                  {copiedCode[`${block.id}-${codeItem.language}`] ? (
+                    <FaCheck className="w-3 h-3 text-green-400" />
+                  ) : (
+                    <FaCopy className="w-3 h-3" />
+                  )}
+                </button>
+              </div>
+              
+              {/* Fixed Height Container with Scrolling */}
+              <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
+                <SyntaxHighlighter
+                  style={tomorrow}
+                  language={codeItem.language.toLowerCase()}
+                  PreTag="div"
+                  className="text-sm"
+                  customStyle={{
+                    margin: 0,
+                    padding: '1rem',
+                    background: 'transparent',
+                    minHeight: 'auto'
+                  }}
+                >
+                  {codeItem.code.trim()}
+                </SyntaxHighlighter>
+              </div>
+            </div>
           </div>
-        );
+        ))}
+      </div>
+    </div>
+  );
 
       case 'image':
   const imageKey = `editorial-${block.src}-${block.id}`;
@@ -1714,28 +1719,31 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
                                 )}
                               </div>
 
-                              {/* Code Block */}
-                              {approach.code
-                                .filter(codeItem => codeItem.language === selectedLanguages[approach.id])
-                                .map((codeItem, codeIndex) => (
-                                <div key={codeIndex} className="relative">
-                                  <pre className="p-3 sm:p-6 lg:p-8 overflow-x-auto bg-slate-900 dark:bg-black/80 text-slate-100 text-xs sm:text-sm leading-relaxed font-mono">
-                                    <code className={`language-${codeItem.language.toLowerCase()}`}>{codeItem.code}</code>
-                                  </pre>
-                                  
-                                  {/* Copy Button */}
-                                  <button
-                                    onClick={() => copyCode(codeItem.code, `${approach.id}-${codeItem.language}`)}
-                                    className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
-                                  >
-                                    {copiedCode[`${approach.id}-${codeItem.language}`] ? (
-                                      <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-green-400" />
-                                    ) : (
-                                      <FaCopy className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
-                                    )}
-                                  </button>
-                                </div>
-                              ))}
+                              {/* Code Block with Fixed Height */}
+{approach.code
+  .filter(codeItem => codeItem.language === selectedLanguages[approach.id])
+  .map((codeItem, codeIndex) => (
+  <div key={codeIndex} className="relative">
+    {/* Fixed Height Container with Scrolling */}
+    <div className="max-h-96 overflow-y-auto bg-slate-900 dark:bg-black/80 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
+      <pre className="p-3 sm:p-6 lg:p-8 text-slate-100 text-xs sm:text-sm leading-relaxed font-mono min-h-0">
+        <code className={`language-${codeItem.language.toLowerCase()}`}>{codeItem.code}</code>
+      </pre>
+    </div>
+    
+    {/* Copy Button */}
+    <button
+      onClick={() => copyCode(codeItem.code, `${approach.id}-${codeItem.language}`)}
+      className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
+    >
+      {copiedCode[`${approach.id}-${codeItem.language}`] ? (
+        <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5 text-green-400" />
+      ) : (
+        <FaCopy className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+      )}
+    </button>
+  </div>
+))}
                             </div>
                           )}
 
@@ -1902,67 +1910,132 @@ If you're an admin or mentor, you can add ${contentType === 'editorial' ? 'an ed
       </div>
 
       <style jsx>{`
+  .w-full-bleed {
+    width: calc(100% + 2rem);
+    height: auto;
+    display: block;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding: 0;
+  }
 
-        .complexity-code {
-          background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
-          padding: 6px 12px;
-          border-radius: 10px;
-          font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
-          font-size: 1.1em;
-          font-weight: 600;
-          border: 1px solid rgba(99, 102, 241, 0.2);
-          color: #6366f1;
-          display: inline-block;
-          margin: 2px;
-        }
-        
-        .dark .complexity-code {
-          color: #a5b4fc;
-          border-color: rgba(165, 180, 252, 0.3);
-        }
+  @media (min-width: 640px) {
+    .w-full-bleed {
+      width: calc(100% + 3rem);
+      margin-left: -1.5rem;
+      margin-right: -1.5rem;
+    }
+  }
 
-        /* Responsive video adjustments */
-        @media (max-width: 767px) {
-          .video-responsive {
-            padding-bottom: 56.25% !important;
-            height: 0 !important;
-          }
-        }
+  @media (min-width: 1024px) {
+    .w-full-bleed {
+      width: calc(100% + 4rem);
+      margin-left: -2rem;
+      margin-right: -2rem;
+    }
+  }
 
-        @media (min-width: 768px) {
-          .video-responsive {
-            max-height: 70vh !important;
-            height: 70vh !important;
-            padding-bottom: 0 !important;
-          }
-          
-          .video-responsive iframe {
-            height: 100% !important;
-          }
-        }
+  /* Custom Scrollbar Styles for Code Blocks */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  
+  .scrollbar-thumb-slate-600::-webkit-scrollbar-thumb {
+    background-color: #475569;
+    border-radius: 4px;
+  }
+  
+  .scrollbar-track-slate-800::-webkit-scrollbar-track {
+    background-color: #1e293b;
+  }
+  
+  .hover\:scrollbar-thumb-slate-500:hover::-webkit-scrollbar-thumb {
+    background-color: #64748b;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  /* For Firefox */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #475569 #1e293b;
+  }
 
-        @media (min-width: 1024px) {
-          .video-responsive {
-            max-height: 65vh !important;
-            height: 65vh !important;
-          }
-        }
+  .complexity-code {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1));
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 1.1em;
+    font-weight: 600;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+    display: inline-block;
+    margin: 2px;
+  }
+  
+  .dark .complexity-code {
+    color: #a5b4fc;
+    border-color: rgba(165, 180, 252, 0.3);
+  }
 
-        @media (min-width: 1440px) {
-          .video-responsive {
-            max-height: 60vh !important;
-            height: 60vh !important;
-          }
-        }
+  /* Responsive video adjustments */
+  @media (max-width: 767px) {
+    .video-responsive {
+      padding-bottom: 56.25% !important;
+      height: 0 !important;
+    }
+  }
 
-        /* Responsive text scaling */
-        @media (max-width: 640px) {
-          .complexity-code {
-            font-size: 0.9em;
-            padding: 4px 8px;
-          }
-        }
-      `}</style>
+  @media (min-width: 768px) {
+    .video-responsive {
+      max-height: 70vh !important;
+      height: 70vh !important;
+      padding-bottom: 0 !important;
+    }
+    
+    .video-responsive iframe {
+      height: 100% !important;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .video-responsive {
+      max-height: 65vh !important;
+      height: 65vh !important;
+    }
+  }
+
+  @media (min-width: 1440px) {
+    .video-responsive {
+      max-height: 60vh !important;
+      height: 60vh !important;
+    }
+  }
+
+  /* Responsive text scaling */
+  @media (max-width: 640px) {
+    .complexity-code {
+      font-size: 0.9em;
+      padding: 4px 8px;
+    }
+    
+    /* Smaller max height on mobile */
+    .max-h-96 {
+      max-height: 20rem;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .max-h-96 {
+      max-height: 24rem;
+    }
+  }
+`}</style>
+
     </div>
   );
 };
