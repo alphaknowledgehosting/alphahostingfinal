@@ -603,30 +603,28 @@ const ProblemItem = ({
           )}
         />
 
-        {/* Practice Link - MOVED TO THIRD POSITION */}
+        {/* Video Link - MOVED TO THIRD POSITION */}
         <EditableCell
-          value={localProblem.practiceLink}
-          onSave={(value) => updateField('practiceLink', value)}
-          isEditable={canEditField('practiceLink')}
+          value={localProblem.youtubeLink}
+          onSave={(value) => updateField('youtubeLink', value)}
+          isEditable={canEditField('youtubeLink')}
           disabled={isDisabled}
           type="url"
-          placeholder="Enter practice URL"
+          placeholder="Enter YouTube URL"
           renderValue={(value) => 
             !isEmpty(value) ? (
-              <a
-                href={value}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center gap-1"
-                title="Solve on platform"
-              >
-                <FaExternalLinkAlt className="w-4 h-4 group-hover:scale-110 transition-all duration-200" />
-                <span className="hidden sm:inline text-sm font-semibold text-gray-700 dark:text-gray-300">Solve</span>
-              </a>
-            ) : canEditField('practiceLink') && !isDisabled ? (
               <button
-                title="Add practice link"
-                className="group text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2"
+                onClick={() => setShowVideo(true)}
+                disabled={isDisabled}
+                title="Watch editorial video"
+                className="group text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-all duration-200 transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <FaYoutube className="w-6 h-6 group-hover:scale-110 transition-transform duration-200" />
+              </button>
+            ) : canEditField('youtubeLink') && !isDisabled ? (
+              <button
+                title="Add video"
+                className="group text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -636,34 +634,7 @@ const ProblemItem = ({
           }
         />
 
-        {/* Revision Toggle - MOVED TO FOURTH POSITION */}
-        <td className="p-3 sm:p-4 text-center border-r border-gray-200/20 dark:border-white/10">
-          <div className="flex items-center justify-center relative">
-            <button
-              onClick={handleRevisionToggle}
-              disabled={isTogglingRevision || isDisabled}
-              className={`
-                transition-all duration-300 transform hover:scale-110 active:scale-95
-                disabled:opacity-70 disabled:cursor-not-allowed
-                ${isMarkedForRevision 
-                  ? 'text-orange-500 hover:text-orange-600' 
-                  : 'text-gray-400 dark:text-gray-500 hover:text-orange-500'
-                }
-              `}
-              title={isMarkedForRevision ? "Remove from revision list" : "Add to revision list"}
-            >
-              {isTogglingRevision ? (
-                <FaSpinner className="w-5 h-5 animate-spin" />
-              ) : isMarkedForRevision ? (
-                <FaBookmark className="w-5 h-5" />
-              ) : (
-                <FaRegBookmark className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-        </td>
-
-        {/* Editorial Link - MOVED TO FIFTH POSITION */}
+        {/* Editorial Link - MOVED TO FOURTH POSITION */}
         <td className="p-3 sm:p-4 text-center border-r border-gray-200/20 dark:border-white/10">
           <div className="flex items-center justify-center space-x-2">
             {editingEditorial ? (
@@ -732,28 +703,30 @@ const ProblemItem = ({
           </div>
         </td>
 
-        {/* Video Link - MOVED TO SIXTH POSITION */}
+        {/* Practice Link - MOVED TO FIFTH POSITION */}
         <EditableCell
-          value={localProblem.youtubeLink}
-          onSave={(value) => updateField('youtubeLink', value)}
-          isEditable={canEditField('youtubeLink')}
+          value={localProblem.practiceLink}
+          onSave={(value) => updateField('practiceLink', value)}
+          isEditable={canEditField('practiceLink')}
           disabled={isDisabled}
           type="url"
-          placeholder="Enter YouTube URL"
+          placeholder="Enter practice URL"
           renderValue={(value) => 
             !isEmpty(value) ? (
-              <button
-                onClick={() => setShowVideo(true)}
-                disabled={isDisabled}
-                title="Watch editorial video"
-                className="group text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-all duration-200 transform hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              <a
+                href={value}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center gap-1"
+                title="Solve on platform"
               >
-                <FaYoutube className="w-6 h-6 group-hover:scale-110 transition-transform duration-200" />
-              </button>
-            ) : canEditField('youtubeLink') && !isDisabled ? (
+                <FaExternalLinkAlt className="w-4 h-4 group-hover:scale-110 transition-all duration-200" />
+                <span className="hidden sm:inline text-sm font-semibold text-gray-700 dark:text-gray-300">Solve</span>
+              </a>
+            ) : canEditField('practiceLink') && !isDisabled ? (
               <button
-                title="Add video"
-                className="group text-gray-400 dark:text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2"
+                title="Add practice link"
+                className="group text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2"
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -763,7 +736,7 @@ const ProblemItem = ({
           }
         />
 
-        {/* Notes Link - MOVED TO SEVENTH POSITION */}
+        {/* Notes Link - MOVED TO SIXTH POSITION */}
         <EditableCell
           value={localProblem.notesLink}
           onSave={(value) => updateField('notesLink', value)}
@@ -794,6 +767,33 @@ const ProblemItem = ({
             )
           }
         />
+
+        {/* Revision Toggle - MOVED TO SEVENTH POSITION */}
+        <td className="p-3 sm:p-4 text-center border-r border-gray-200/20 dark:border-white/10">
+          <div className="flex items-center justify-center relative">
+            <button
+              onClick={handleRevisionToggle}
+              disabled={isTogglingRevision || isDisabled}
+              className={`
+                transition-all duration-300 transform hover:scale-110 active:scale-95
+                disabled:opacity-70 disabled:cursor-not-allowed
+                ${isMarkedForRevision 
+                  ? 'text-orange-500 hover:text-orange-600' 
+                  : 'text-gray-400 dark:text-gray-500 hover:text-orange-500'
+                }
+              `}
+              title={isMarkedForRevision ? "Remove from revision list" : "Add to revision list"}
+            >
+              {isTogglingRevision ? (
+                <FaSpinner className="w-5 h-5 animate-spin" />
+              ) : isMarkedForRevision ? (
+                <FaBookmark className="w-5 h-5" />
+              ) : (
+                <FaRegBookmark className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        </td>
 
         {/* Difficulty */}
         <EditableCell

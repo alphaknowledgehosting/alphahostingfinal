@@ -644,40 +644,99 @@ const SubsectionView = ({
         <div className="px-6 sm:px-12 lg:px-20 pb-4 animate-in slide-in-from-top duration-300 ease-out">
           <div className="bg-white/80 dark:bg-black/40 backdrop-blur-xl rounded-2xl overflow-hidden border border-white/20 dark:border-white/10 shadow-xl">
             
-            {/* Table Container */}
-            <div className="overflow-x-auto">
+            {/* Table Container with Beautiful Scrollbars */}
+            <div className="overflow-x-auto custom-scrollbar">
+              <style jsx>{`
+                .custom-scrollbar {
+                  /* Firefox */
+                  scrollbar-width: thin;
+                  scrollbar-color: rgba(99, 102, 241, 0.2) rgba(220, 225, 230, 0.05);
+                }
+                
+                /* WebKit browsers (Chrome, Safari, Edge) */
+                .custom-scrollbar::-webkit-scrollbar {
+                  height: 6px; /* Horizontal scrollbar height */
+                  width: 6px;  /* Vertical scrollbar width */
+                }
+                
+                .custom-scrollbar::-webkit-scrollbar-track {
+                  background: rgba(156, 163, 175, 0.1);
+                  border-radius: 8px;
+                  margin: 4px;
+                }
+                
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                  background: linear-gradient(135deg, #6366f1, #a855f7);
+                  border-radius: 8px;
+                  border: 1px solid rgba(255, 255, 255, 0.1);
+                  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                  transition: all 0.3s ease;
+                }
+                
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                  background: linear-gradient(135deg, #5855eb, #9333ea);
+                  box-shadow: 0 4px 8px rgba(99, 102, 241, 0.3);
+                  transform: scale(1.1);
+                }
+                
+                .custom-scrollbar::-webkit-scrollbar-thumb:active {
+                  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+                }
+                
+                /* Dark mode adjustments */
+                @media (prefers-color-scheme: dark) {
+                  .custom-scrollbar::-webkit-scrollbar-track {
+                    background: rgba(255, 255, 255, 0.05);
+                  }
+                  
+                  .custom-scrollbar::-webkit-scrollbar-thumb {
+                    background: linear-gradient(135deg, #6366f1, #a855f7);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                  }
+                  
+                  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                    background: linear-gradient(135deg, #7c3aed, #c084fc);
+                    box-shadow: 0 4px 8px rgba(168, 85, 247, 0.4);
+                  }
+                }
+                
+                /* Mobile optimizations */
+                @media (max-width: 768px) {
+                  .custom-scrollbar::-webkit-scrollbar {
+                    height: 4px;
+                    width: 4px;
+                  }
+                  
+                  .custom-scrollbar::-webkit-scrollbar-thumb {
+                    border-radius: 6px;
+                  }
+                }
+                
+                /* Corner styling */
+                .custom-scrollbar::-webkit-scrollbar-corner {
+                  background: rgba(156, 163, 175, 0.1);
+                }
+                
+                /* Button styling (arrows) */
+                .custom-scrollbar::-webkit-scrollbar-button {
+                  display: none; /* Hide arrows for cleaner look */
+                }
+              `}</style>
+              
               <table className="w-full border-collapse text-sm">
-                {/* Table Header with Brand Gradient - UPDATED ORDER */}
+                {/* Table Header with Brand Gradient - CENTERED HEADERS */}
                 <thead>
                   <tr className="bg-gradient-to-r from-[#6366f1]/10 via-[#a855f7]/5 to-[#6366f1]/10 dark:from-[#6366f1]/20 dark:via-[#a855f7]/10 dark:to-[#6366f1]/20 border-b-2 border-[#6366f1]/20 dark:border-white/20 backdrop-blur-sm">
-                    <th className="p-3 sm:p-4 text-left font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[6%]">
-                      <div className="flex items-center space-x-2">
+                    <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[6%]">
+                      <div className="flex items-center justify-center space-x-2">
                         <div className="w-2 h-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] rounded-full"></div>
                         <span>Status</span>
                       </div>
                     </th>
-                    <th className="p-3 sm:p-4 text-left font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[18%]">
-                      <div className="flex items-center space-x-2">
+                    <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[18%]">
+                      <div className="flex items-center justify-center space-x-2">
                         <div className="w-2 h-2 bg-gradient-to-r from-[#a855f7] to-[#6366f1] rounded-full"></div>
                         <span>Problem</span>
-                      </div>
-                    </th>
-                    <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[9%]">
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="w-2 h-2 bg-gradient-to-r from-[#a855f7] to-[#6366f1] rounded-full"></div>
-                        <span>Practice</span>
-                      </div>
-                    </th>
-                    <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[8%]">
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="w-2 h-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] rounded-full"></div>
-                        <span>Revision</span>
-                      </div>
-                    </th>
-                    <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[9%]">
-                      <div className="flex items-center justify-center space-x-2">
-                        <div className="w-2 h-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] rounded-full"></div>
-                        <span>Editorial</span>
                       </div>
                     </th>
                     <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[9%]">
@@ -689,7 +748,25 @@ const SubsectionView = ({
                     <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[9%]">
                       <div className="flex items-center justify-center space-x-2">
                         <div className="w-2 h-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] rounded-full"></div>
+                        <span>Editorial</span>
+                      </div>
+                    </th>
+                    <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[9%]">
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="w-2 h-2 bg-gradient-to-r from-[#a855f7] to-[#6366f1] rounded-full"></div>
+                        <span>Practice</span>
+                      </div>
+                    </th>
+                    <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[9%]">
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="w-2 h-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] rounded-full"></div>
                         <span>Notes</span>
+                      </div>
+                    </th>
+                    <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[8%]">
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="w-2 h-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] rounded-full"></div>
+                        <span>Revision</span>
                       </div>
                     </th>
                     <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider w-[12%]">
