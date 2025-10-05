@@ -1066,7 +1066,7 @@ const renderContentElements = (elements) => {
   const getYouTubeVideoId = (url) => {
     if (!url) return null;
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-    return match ? match : null;[1]
+    return match ? match[1] : null;
   };
 
   const renderSpecialThanks = () => {
@@ -1610,7 +1610,7 @@ const renderContentElements = (elements) => {
                   block.style.split(';').forEach(rule => {
                     const [key, value] = rule.split(':').map(s => s.trim());
                     if (key && value) {
-                      const camelKey = key.replace(/-([a-z])/g, g => g.toUpperCase());[1]
+                      const camelKey = key.replace(/-([a-z])/g, g => g[1].toUpperCase());
                       styleObj[camelKey] = value;
                     }
                   });
