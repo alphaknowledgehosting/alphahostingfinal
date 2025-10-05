@@ -1025,7 +1025,9 @@ const renderContentElements = (elements) => {
           const property = parts[0];
           const value = parts[1];
           if (property && value) {
-            const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
+            const camelProperty = property.replace(/-([a-z])/g, (g) => {
+              return g[1].toUpperCase();
+            });
             inlineStyles[camelProperty] = value;
           }
         });
@@ -1061,8 +1063,6 @@ const renderContentElements = (elements) => {
     });
   });
 };
-
-
   const getYouTubeVideoId = (url) => {
     if (!url) return null;
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
