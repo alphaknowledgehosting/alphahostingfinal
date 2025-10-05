@@ -92,7 +92,7 @@ const EditorialPage = () => {
         setCodeTabStates(prev => ({ ...prev, ...initialCodeTabStates }));
       }
     }
-  }, [editorial, contentType]);
+  }, [editorial, contentType, selectedLanguages]);
 
   const convertGoogleDriveUrl = (url) => {
     if (!url) return url;
@@ -415,7 +415,9 @@ const EditorialPage = () => {
     
     const handleError = () => {
       setHasError(true);
-      onError && onError();
+      if (onError) {
+        onError();
+      }
     };
     
     if (isLoading) {
@@ -1029,13 +1031,16 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
           />
         );
       } else {
-        return element.content.split('\n').map((line, lineIndex) => (
-          line.trim() && (
-            <p key={`${element.key}-${lineIndex}`} className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4">
-              {line}
-            </p>
-          )
-        ));
+        return element.content.split('\n').map((line, lineIndex) => {
+          if (line.trim()) {
+            return (
+              <p key={`${element.key}-${lineIndex}`} className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4">
+                {line}
+              </p>
+            );
+          }
+          return null;
+        });
       }
     });
   };
@@ -1078,10 +1083,6 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
     }));
   };
 
-  const formatComplexity = (complexity) => {
-    return complexity.replace(/O\$(.*?)\$/g, '<code class="complexity-code">O($1)</code>');
-  };
-
   const getApproachBadgeStyle = (approachName) => {
     const name = approachName.toLowerCase();
     if (name.includes('brute') || name.includes('naive')) {
@@ -1122,114 +1123,150 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
           <div key={block.id} className="prose prose-slate dark:prose-invert prose-lg max-w-none mb-6">
             <ReactMarkdown
               components={{
-                h1: ({children}) => (
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
-                    {children}
-                  </h1>
-                ),
-                h2: ({children}) => (
-                  <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
-                    {children}
-                  </h2>
-                ),
-                h3: ({children}) => (
-                  <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white mt-6 mb-3">
-                    {children}
-                  </h3>
-                ),
-                h4: ({children}) => (
-                  <h4 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-white mt-4 mb-2">
-                    {children}
-                  </h4>
-                ),
-                h5: ({children}) => (
-                  <h5 className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-white mt-3 mb-2">
-                    {children}
-                  </h5>
-                ),
-                h6: ({children}) => (
-                  <h6 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-700 dark:text-slate-300 mt-2 mb-1">
-                    {children}
-                  </h6>
-                ),
-                p: ({children}) => (
-                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
-                    {children}
-                  </p>
-                ),
-                ul: ({children}) => (
-                  <ul className="text-slate-700 dark:text-slate-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
-                    {children}
-                  </ul>
-                ),
-                ol: ({children}) => (
-                  <ol className="text-slate-700 dark:text-slate-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
-                    {children}
-                  </ol>
-                ),
-                li: ({children}) => (
-                  <li className="text-slate-700 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
-                    {children}
-                  </li>
-                ),
-                blockquote: ({children}) => (
-                  <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400 my-4 lg:my-6">
-                    {children}
-                  </blockquote>
-                ),
-                a: ({href, children}) => (
-                  <a 
-                    href={href} 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-                  >
-                    {children}
-                  </a>
-                ),
-                table: ({children}) => (
-                  <div className="overflow-x-auto my-6">
-                    <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg">
-                      {children}
-                    </table>
-                  </div>
-                ),
-                thead: ({children}) => (
-                  <thead className="bg-slate-50 dark:bg-slate-800">
-                    {children}
-                  </thead>
-                ),
-                tbody: ({children}) => (
-                  <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-                    {children}
-                  </tbody>
-                ),
-                tr: ({children}) => (
-                  <tr className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                    {children}
-                  </tr>
-                ),
-                th: ({children}) => (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                    {children}
-                  </th>
-                ),
-                td: ({children}) => (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-300">
-                    {children}
-                  </td>
-                ),
-                code: ({inline, className, children, ...props}) => {
+                h1: ({node, ...props}) => {
+                  return (
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
+                      {props.children}
+                    </h1>
+                  );
+                },
+                h2: ({node, ...props}) => {
+                  return (
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
+                      {props.children}
+                    </h2>
+                  );
+                },
+                h3: ({node, ...props}) => {
+                  return (
+                    <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white mt-6 mb-3">
+                      {props.children}
+                    </h3>
+                  );
+                },
+                h4: ({node, ...props}) => {
+                  return (
+                    <h4 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-white mt-4 mb-2">
+                      {props.children}
+                    </h4>
+                  );
+                },
+                h5: ({node, ...props}) => {
+                  return (
+                    <h5 className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-white mt-3 mb-2">
+                      {props.children}
+                    </h5>
+                  );
+                },
+                h6: ({node, ...props}) => {
+                  return (
+                    <h6 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-700 dark:text-slate-300 mt-2 mb-1">
+                      {props.children}
+                    </h6>
+                  );
+                },
+                p: ({node, ...props}) => {
+                  return (
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
+                      {props.children}
+                    </p>
+                  );
+                },
+                ul: ({node, ...props}) => {
+                  return (
+                    <ul className="text-slate-700 dark:text-slate-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
+                      {props.children}
+                    </ul>
+                  );
+                },
+                ol: ({node, ...props}) => {
+                  return (
+                    <ol className="text-slate-700 dark:text-slate-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
+                      {props.children}
+                    </ol>
+                  );
+                },
+                li: ({node, ...props}) => {
+                  return (
+                    <li className="text-slate-700 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
+                      {props.children}
+                    </li>
+                  );
+                },
+                blockquote: ({node, ...props}) => {
+                  return (
+                    <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400 my-4 lg:my-6">
+                      {props.children}
+                    </blockquote>
+                  );
+                },
+                a: ({node, href, ...props}) => {
+                  return (
+                    <a 
+                      href={href} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+                    >
+                      {props.children}
+                    </a>
+                  );
+                },
+                table: ({node, ...props}) => {
+                  return (
+                    <div className="overflow-x-auto my-6">
+                      <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg">
+                        {props.children}
+                      </table>
+                    </div>
+                  );
+                },
+                thead: ({node, ...props}) => {
+                  return (
+                    <thead className="bg-slate-50 dark:bg-slate-800">
+                      {props.children}
+                    </thead>
+                  );
+                },
+                tbody: ({node, ...props}) => {
+                  return (
+                    <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
+                      {props.children}
+                    </tbody>
+                  );
+                },
+                tr: ({node, ...props}) => {
+                  return (
+                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                      {props.children}
+                    </tr>
+                  );
+                },
+                th: ({node, ...props}) => {
+                  return (
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      {props.children}
+                    </th>
+                  );
+                },
+                td: ({node, ...props}) => {
+                  return (
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-300">
+                      {props.children}
+                    </td>
+                  );
+                },
+                code: ({node, inline, ...props}) => {
                   if (inline) {
                     return (
-                      <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono" {...props}>
-                        {children}
+                      <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono">
+                        {props.children}
                       </code>
                     );
                   }
                   return (
-                    <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono" {...props}>
-                      {children}
+                    <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono">
+                      {props.children}
                     </code>
                   );
                 }
@@ -1244,12 +1281,11 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
         const hasValidLanguages = block.code && block.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
         
         if (!block.code || block.code.length === 0 || !hasValidLanguages || block.code.length === 1) {
-          // Get the first valid code item
-          const firstCode = block.code && block.code.length > 0 ? block.code[0] : null;
+          const firstCode = block.code && block.code.length > 0 ? block.code : null;
           
           return (
             <div key={block.id} className="my-6 lg:my-8">
-              <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden">
+              <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
                 
                 <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
                   <div className="flex gap-0.5 rounded-lg p-0.5">
@@ -1341,10 +1377,9 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
           );
         }
 
-        // Multi-language code block
         return (
           <div key={block.id} className="my-6 lg:my-8">
-            <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
               
               <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
                 <div className="flex gap-0.5 rounded-lg p-0.5">
@@ -1378,7 +1413,7 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
                     <button
                       onClick={() => {
                         const currentCode = block.code.find(codeItem => 
-                          codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
+                          codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code && block.code.language))
                         );
                         const outputToCopy = currentCode?.output || "No output provided";
                         copyCode(outputToCopy, `${block.id}-output`);
@@ -1397,7 +1432,7 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
                     <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
                       {(() => {
                         const currentCode = block.code.find(codeItem => 
-                          codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
+                          codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code && block.code.language))
                         );
                         const output = currentCode?.output;
                         
@@ -1449,13 +1484,13 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
                       <button
                         onClick={() => {
                           const currentCode = block.code.find(codeItem => 
-                            codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
+                            codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code && block.code.language))
                           );
                           copyCode(currentCode?.code || '', `${block.id}-${currentCode?.language || 'code'}`);
                         }}
                         className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 self-start sm:self-center"
                       >
-                        {copiedCode[`${block.id}-${selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'code'}`] ? (
+                        {copiedCode[`${block.id}-${selectedLanguages[block.id] || (block.code && block.code.language) || 'code'}`] ? (
                           <FaCheck className="w-3 h-3 text-green-400" />
                         ) : (
                           <FaCopy className="w-3 h-3" />
@@ -1464,16 +1499,16 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
                     </div>
                   )}
                   
-                  {block.code.length === 1 && block.code[0] && (
+                  {block.code.length === 1 && block.code && (
                     <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
                       <span className="text-slate-300 text-sm font-medium">
-                        {block.code[0].language ? block.code[0].language.toUpperCase() : 'CODE'}
+                        {block.code.language ? block.code.language.toUpperCase() : 'CODE'}
                       </span>
                       <button
-                        onClick={() => copyCode(block.code[0].code || '', `${block.id}-${block.code[0].language || 'code'}`)}
+                        onClick={() => copyCode(block.code.code || '', `${block.id}-${block.code.language || 'code'}`)}
                         className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
                       >
-                        {copiedCode[`${block.id}-${block.code[0].language || 'code'}`] ? (
+                        {copiedCode[`${block.id}-${block.code.language || 'code'}`] ? (
                           <FaCheck className="w-3 h-3 text-green-400" />
                         ) : (
                           <FaCopy className="w-3 h-3" />
@@ -1485,7 +1520,7 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
                   <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
                     <SyntaxHighlighter
                       style={tomorrow}
-                      language={(selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'text').toLowerCase()}
+                      language={(selectedLanguages[block.id] || (block.code && block.code.language) || 'text').toLowerCase()}
                       PreTag="div"
                       className="text-sm"
                       customStyle={{
@@ -1497,7 +1532,7 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
                     >
                       {(() => {
                         const currentCode = block.code.find(codeItem => 
-                          codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
+                          codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code && block.code.language))
                         );
                         return currentCode?.code?.trim() || '// No code available';
                       })()}
@@ -1506,6 +1541,39 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
                 </div>
               )}
             </div>
+
+            {/* Complexity Section for Editorial */}
+            {block.complexity && (block.complexity.time || block.complexity.space) && (
+              <div className="space-y-4">
+                {block.complexity.time && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                    <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                      <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
+                      Time Complexity
+                    </h4>
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
+                      <ReactMarkdown>
+                        {block.complexity.time}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+                
+                {block.complexity.space && (
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
+                    <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
+                      <Database className="w-4 h-4 sm:w-5 sm:h-5" />
+                      Space Complexity
+                    </h4>
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
+                      <ReactMarkdown>
+                        {block.complexity.space}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
 
@@ -1522,7 +1590,7 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
                   block.style.split(';').forEach(rule => {
                     const [key, value] = rule.split(':').map(s => s.trim());
                     if (key && value) {
-                      const camelKey = key.replace(/-([a-z])/g, g => g[1].toUpperCase());
+                      const camelKey = key.replace(/-([a-z])/g, g => g.toUpperCase());[1]
                       styleObj[camelKey] = value;
                     }
                   });
@@ -1539,7 +1607,6 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
         return null;
     }
   };
-
 
   if (loading) {
     return (
@@ -1821,293 +1888,285 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
                           )}
 
                           {approach.code && approach.code.length > 0 && (
-  <div>
-    {(() => {
-      const hasValidLanguages = approach.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
-      
-      if (!hasValidLanguages) {
-        return (
-          <div>
-            {/* Code Block */}
-            <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
-              {approach.code.map((codeItem, codeIndex) => (
-                <div key={codeIndex} className="relative">
-                  <div className="bg-slate-900 dark:bg-black/80">
-                    <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-                      <SyntaxHighlighter
-                        style={tomorrow}
-                        language="text"
-                        PreTag="div"
-                        className="text-sm"
-                        customStyle={{
-                          margin: 0,
-                          padding: '1rem',
-                          background: 'transparent',
-                          minHeight: 'auto'
-                        }}
-                      >
-                        {codeItem.code.trim()}
-                      </SyntaxHighlighter>
-                    </div>
-                    
-                    <button
-                      onClick={() => copyCode(codeItem.code, `${approach.id}-${codeIndex}`)}
-                      className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
-                    >
-                      {copiedCode[`${approach.id}-${codeIndex}`] ? (
-                        <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
-                      ) : (
-                        <FaCopy className="w-3 h-3 sm:w-4 sm:h-4" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                            <div>
+                              {(() => {
+                                const hasValidLanguages = approach.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
+                                
+                                if (!hasValidLanguages) {
+                                  return (
+                                    <div>
+                                      <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
+                                        {approach.code.map((codeItem, codeIndex) => (
+                                          <div key={codeIndex} className="relative">
+                                            <div className="bg-slate-900 dark:bg-black/80">
+                                              <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
+                                                <SyntaxHighlighter
+                                                  style={tomorrow}
+                                                  language="text"
+                                                  PreTag="div"
+                                                  className="text-sm"
+                                                  customStyle={{
+                                                    margin: 0,
+                                                    padding: '1rem',
+                                                    background: 'transparent',
+                                                    minHeight: 'auto'
+                                                  }}
+                                                >
+                                                  {codeItem.code.trim()}
+                                                </SyntaxHighlighter>
+                                              </div>
+                                              
+                                              <button
+                                                onClick={() => copyCode(codeItem.code, `${approach.id}-${codeIndex}`)}
+                                                className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
+                                              >
+                                                {copiedCode[`${approach.id}-${codeIndex}`] ? (
+                                                  <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
+                                                ) : (
+                                                  <FaCopy className="w-3 h-3 sm:w-4 sm:h-4" />
+                                                )}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
 
-            {/* Complexity Section Below */}
-            {(approach.complexity.time || approach.complexity.space) && (
-              <div className="space-y-4 mt-6">
-                {approach.complexity.time && (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                    <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                      <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Time Complexity
-                    </h4>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                      <ReactMarkdown>
-                        {approach.complexity.time}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-                
-                {approach.complexity.space && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-                    <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                      <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Space Complexity
-                    </h4>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                      <ReactMarkdown>
-                        {approach.complexity.space}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      }
+                                      {(approach.complexity.time || approach.complexity.space) && (
+                                        <div className="space-y-4">
+                                          {approach.complexity.time && (
+                                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                                              <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                                                <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                Time Complexity
+                                              </h4>
+                                              <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
+                                                <ReactMarkdown>
+                                                  {approach.complexity.time}
+                                                </ReactMarkdown>
+                                              </div>
+                                            </div>
+                                          )}
+                                          
+                                          {approach.complexity.space && (
+                                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
+                                              <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
+                                                <Database className="w-4 h-4 sm:w-5 sm:h-5" />
+                                                Space Complexity
+                                              </h4>
+                                              <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
+                                                <ReactMarkdown>
+                                                  {approach.complexity.space}
+                                                </ReactMarkdown>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                }
 
-      return (
-        <div>
-          {/* Code/Output Tabs and Code Block */}
-          <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
-            
-            {/* Code/Output Tabs */}
-            <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
-              <div className="flex gap-0.5 rounded-lg p-0.5">
-                <button
-                  onClick={() => switchCodeTab(approach.id, 'code')}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
-                    getCurrentTab(approach.id) === 'code'
-                      ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                  }`}
-                >
-                  <Code className="w-3 h-3" />
-                  Code
-                </button>
-                <button
-                  onClick={() => switchCodeTab(approach.id, 'output')}
-                  className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
-                    getCurrentTab(approach.id) === 'output'
-                      ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                  }`}
-                >
-                  Output
-                </button>
-              </div>
-            </div>
+                                return (
+                                  <div>
+                                    <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
+                                      
+                                      <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
+                                        <div className="flex gap-0.5 rounded-lg p-0.5">
+                                          <button
+                                            onClick={() => switchCodeTab(approach.id, 'code')}
+                                            className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+                                              getCurrentTab(approach.id) === 'code'
+                                                ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+                                            }`}
+                                          >
+                                            <Code className="w-3 h-3" />
+                                            Code
+                                          </button>
+                                          <button
+                                            onClick={() => switchCodeTab(approach.id, 'output')}
+                                            className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
+                                              getCurrentTab(approach.id) === 'output'
+                                                ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
+                                                : 'text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+                                            }`}
+                                          >
+                                            Output
+                                          </button>
+                                        </div>
+                                      </div>
 
-            {getCurrentTab(approach.id) === 'output' ? (
-              <div className="bg-slate-900 dark:bg-black/80">
-                <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                  <span className="text-slate-300 text-sm font-medium">OUTPUT</span>
-                  <button
-                    onClick={() => {
-                      const currentCode = approach.code.find(codeItem => 
-                        codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code[0] && approach.code[0].language))
-                      );
-                      copyCode(currentCode?.output || "No output provided", `${approach.id}-output`);
-                    }}
-                    className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                  >
-                    {copiedCode[`${approach.id}-output`] ? (
-                      <FaCheck className="w-3 h-3 text-green-400" />
-                    ) : (
-                      <FaCopy className="w-3 h-3" />
-                    )}
-                  </button>
-                </div>
-                
-                <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-                  <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
-                    {(() => {
-                      const currentCode = approach.code.find(codeItem => 
-                        codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code[0] && approach.code[0].language))
-                      );
-                      const output = currentCode?.output;
-                      
-                      if (output && output.trim()) {
-                        return (
-                          <pre className="whitespace-pre-wrap text-green-400">
-                            {output}
-                          </pre>
-                        );
-                      } else {
-                        return (
-                          <>
-                            <div className="text-amber-400 mb-2">No output provided</div>
-                            <div className="text-slate-400">
-                              Output will be shown here when available
+                                      {getCurrentTab(approach.id) === 'output' ? (
+                                        <div className="bg-slate-900 dark:bg-black/80">
+                                          <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
+                                            <span className="text-slate-300 text-sm font-medium">OUTPUT</span>
+                                            <button
+                                              onClick={() => {
+                                                const currentCode = approach.code.find(codeItem => 
+                                                  codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code && approach.code.language))
+                                                );
+                                                copyCode(currentCode?.output || "No output provided", `${approach.id}-output`);
+                                              }}
+                                              className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
+                                            >
+                                              {copiedCode[`${approach.id}-output`] ? (
+                                                <FaCheck className="w-3 h-3 text-green-400" />
+                                              ) : (
+                                                <FaCopy className="w-3 h-3" />
+                                              )}
+                                            </button>
+                                          </div>
+                                          
+                                          <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+                                            <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
+                                              {(() => {
+                                                const currentCode = approach.code.find(codeItem => 
+                                                  codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code && approach.code.language))
+                                                );
+                                                const output = currentCode?.output;
+                                                
+                                                if (output && output.trim()) {
+                                                  return (
+                                                    <pre className="whitespace-pre-wrap text-green-400">
+                                                      {output}
+                                                    </pre>
+                                                  );
+                                                } else {
+                                                  return (
+                                                    <>
+                                                      <div className="text-amber-400 mb-2">No output provided</div>
+                                                      <div className="text-slate-400">
+                                                        Output will be shown here when available
+                                                      </div>
+                                                    </>
+                                                  );
+                                                }
+                                              })()}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="bg-slate-900 dark:bg-black/80">
+                                          
+                                          {approach.code.length > 1 && (
+                                            <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50 border-b border-slate-700/50">
+                                              <div className="flex flex-wrap gap-1">
+                                                {approach.code.map((codeItem) => {
+                                                  if (!codeItem || !codeItem.language) return null;
+                                                  
+                                                  return (
+                                                    <button
+                                                      key={codeItem.language}
+                                                      onClick={() => changeLanguage(approach.id, codeItem.language)}
+                                                      className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                                                        selectedLanguages[approach.id] === codeItem.language
+                                                          ? 'bg-indigo-600 text-white shadow-md'
+                                                          : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50'
+                                                      }`}
+                                                    >
+                                                      {codeItem.language}
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                              
+                                              <button
+                                                onClick={() => {
+                                                  const currentCode = approach.code.find(codeItem => 
+                                                    codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code && approach.code.language))
+                                                  );
+                                                  copyCode(currentCode?.code || '', `${approach.id}-${currentCode?.language || 'code'}`);
+                                                }}
+                                                className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
+                                              >
+                                                {copiedCode[`${approach.id}-${selectedLanguages[approach.id] || (approach.code && approach.code.language) || 'code'}`] ? (
+                                                  <FaCheck className="w-3 h-3 text-green-400" />
+                                                ) : (
+                                                  <FaCopy className="w-3 h-3" />
+                                                )}
+                                              </button>
+                                            </div>
+                                          )}
+                                          
+                                          {approach.code.length === 1 && approach.code && (
+                                            <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
+                                              <span className="text-slate-300 text-sm font-medium">
+                                                {approach.code.language ? approach.code.language.toUpperCase() : 'CODE'}
+                                              </span>
+                                              <button
+                                                onClick={() => copyCode(approach.code.code || '', `${approach.id}-${approach.code.language || 'code'}`)}
+                                                className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
+                                              >
+                                                {copiedCode[`${approach.id}-${approach.code.language || 'code'}`] ? (
+                                                  <FaCheck className="w-3 h-3 text-green-400" />
+                                                ) : (
+                                                  <FaCopy className="w-3 h-3" />
+                                                )}
+                                              </button>
+                                            </div>
+                                          )}
+                                          
+                                          <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
+                                            <SyntaxHighlighter
+                                              style={tomorrow}
+                                              language={(selectedLanguages[approach.id] || (approach.code && approach.code.language) || 'text').toLowerCase()}
+                                              PreTag="div"
+                                              className="text-sm"
+                                              customStyle={{
+                                                margin: 0,
+                                                padding: '1rem',
+                                                background: 'transparent',
+                                                minHeight: 'auto'
+                                              }}
+                                            >
+                                              {(() => {
+                                                const currentCode = approach.code.find(codeItem => 
+                                                  codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code && approach.code.language))
+                                                );
+                                                return currentCode?.code?.trim() || '// No code available';
+                                              })()}
+                                            </SyntaxHighlighter>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {(approach.complexity.time || approach.complexity.space) && (
+                                      <div className="space-y-4">
+                                        {approach.complexity.time && (
+                                          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                                            <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                                              <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
+                                              Time Complexity
+                                            </h4>
+                                            <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
+                                              <ReactMarkdown>
+                                                {approach.complexity.time}
+                                              </ReactMarkdown>
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        {approach.complexity.space && (
+                                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
+                                            <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
+                                              <Database className="w-4 h-4 sm:w-5 sm:h-5" />
+                                              Space Complexity
+                                            </h4>
+                                                                                        <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
+                                              <ReactMarkdown>
+                                                {approach.complexity.space}
+                                              </ReactMarkdown>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
-                          </>
-                        );
-                      }
-                    })()}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-slate-900 dark:bg-black/80">
-                
-                {/* Language selector - ONLY inside code section */}
-                {approach.code.length > 1 && (
-                  <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50 border-b border-slate-700/50">
-                    <div className="flex flex-wrap gap-1">
-                      {approach.code.map((codeItem) => {
-                        if (!codeItem || !codeItem.language) return null;
-                        
-                        return (
-                          <button
-                            key={codeItem.language}
-                            onClick={() => changeLanguage(approach.id, codeItem.language)}
-                            className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
-                              selectedLanguages[approach.id] === codeItem.language
-                                ? 'bg-indigo-600 text-white shadow-md'
-                                : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50'
-                            }`}
-                          >
-                            {codeItem.language}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    
-                    <button
-                      onClick={() => {
-                        const currentCode = approach.code.find(codeItem => 
-                          codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code[0] && approach.code[0].language))
-                        );
-                        copyCode(currentCode?.code || '', `${approach.id}-${currentCode?.language || 'code'}`);
-                      }}
-                      className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                    >
-                      {copiedCode[`${approach.id}-${selectedLanguages[approach.id] || (approach.code[0] && approach.code[0].language) || 'code'}`] ? (
-                        <FaCheck className="w-3 h-3 text-green-400" />
-                      ) : (
-                        <FaCopy className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
-                )}
-                
-                {approach.code.length === 1 && approach.code[0] && (
-                  <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                    <span className="text-slate-300 text-sm font-medium">
-                      {approach.code[0].language ? approach.code[0].language.toUpperCase() : 'CODE'}
-                    </span>
-                    <button
-                      onClick={() => copyCode(approach.code[0].code || '', `${approach.id}-${approach.code[0].language || 'code'}`)}
-                      className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                    >
-                      {copiedCode[`${approach.id}-${approach.code[0].language || 'code'}`] ? (
-                        <FaCheck className="w-3 h-3 text-green-400" />
-                      ) : (
-                        <FaCopy className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
-                )}
-                
-                <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-                  <SyntaxHighlighter
-                    style={tomorrow}
-                    language={(selectedLanguages[approach.id] || (approach.code[0] && approach.code[0].language) || 'text').toLowerCase()}
-                    PreTag="div"
-                    className="text-sm"
-                    customStyle={{
-                      margin: 0,
-                      padding: '1rem',
-                      background: 'transparent',
-                      minHeight: 'auto'
-                    }}
-                  >
-                    {(() => {
-                      const currentCode = approach.code.find(codeItem => 
-                        codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code[0] && approach.code[0].language))
-                      );
-                      return currentCode?.code?.trim() || '// No code available';
-                    })()}
-                  </SyntaxHighlighter>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Complexity Section BELOW Code Block */}
-          {(approach.complexity.time || approach.complexity.space) && (
-            <div className="space-y-4">
-              {approach.complexity.time && (
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                  <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                    <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                    Time Complexity
-                  </h4>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                    <ReactMarkdown>
-                      {approach.complexity.time}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              )}
-              
-              {approach.complexity.space && (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-                  <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                    <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                    Space Complexity
-                  </h4>
-                  <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                    <ReactMarkdown>
-                      {approach.complexity.space}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      );
-    })()}
-  </div>
-)}
-
-
+                          )}
                         </div>
                       )}
                     </div>
@@ -2228,7 +2287,8 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
           color: rgb(203 213 225);
           border: 1px solid rgb(51 65 85);
         }
-                .w-full-bleed {
+        
+        .w-full-bleed {
           width: 100vw;
           max-width: 100vw;
           margin-left: calc(50% - 50vw);
@@ -2282,6 +2342,7 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
         }
       `}</style>
 
+      
     </div>
   );
 };
