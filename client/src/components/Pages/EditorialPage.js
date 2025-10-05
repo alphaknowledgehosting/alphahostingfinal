@@ -819,43 +819,54 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
           }
         }
 
-        while (i < lines.length && i < j + 5) {
-          const currentLine = lines[i].trim();
-          
-          if (currentLine.includes('**Output:**')) {
-            i++;
-            
-            while (i < lines.length && lines[i].trim() === '') {
-              i++;
-            }
-            
-            let outputContent = '';
-            
-            if (i < lines.length && lines[i].startsWith('```')) {
-              i++;
-              
-              while (i < lines.length && !lines[i].startsWith('```')){
-                outputContent += lines[i] + '\n';
-                i++;
-              }
-              
-              if (i < lines.length && lines[i].startsWith('```')) {
-                i++;
-              }
-            } else {
-              while (i < lines.length && !lines[i].startsWith('#') && !lines[i].startsWith('```')){
-                outputContent += lines[i] + '\n';
-                i++;
-              }
-            }
-            
-            codeContents.forEach(codeItem => {
-              codeItem.output = outputContent.trim() || null;
-            });
-            break;
-          }
-          i++;
-        }
+        // Look for output section
+while (i < lines.length && i < j + 5) {
+  const currentLine = lines[i].trim();
+
+  if (currentLine.includes('**Output:**')) {
+    i += 1;
+
+    // Skip empty lines
+    while (i < lines.length && lines[i].trim() === '') {
+      i += 1;
+    }
+
+    let outputContent = '';
+
+    // Check for code block output
+    if (i < lines.length && lines[i].startsWith('```')) {
+      i += 1;
+
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        outputContent = outputContent + lines[i] + '\n';
+        i += 1;
+      }
+
+      if (i < lines.length && lines[i].startsWith('```')) {
+        i += 1;
+      }
+    } else {
+      // Direct output
+      while (
+        i < lines.length &&
+        !lines[i].startsWith('#') &&
+        !lines[i].startsWith('```') &&
+        lines[i].trim()
+      ) {
+        outputContent = outputContent + lines[i] + '\n';
+        i += 1;
+      }
+    }
+
+    // Assign output to all language variants
+    codeContents.forEach((codeItem) => {
+      codeItem.output = outputContent.trim() || null;
+    });
+    break;
+  }
+  i += 1;
+}
+
 
         result.content.push({
           type: 'code',
@@ -986,8 +997,8 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
     }));
   };
 
- const renderContentElements = (elements) => {
-  return elements.map(element => {
+const renderContentElements = (elements) => {
+  return elements.map((element) => {
     if (element.type === 'image') {
       const imageKey = `${element.src}-${element.key}`;
       const hasError = imageLoadErrors[imageKey];
@@ -1009,14 +1020,12 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
 
       const inlineStyles = {};
       if (element.style) {
-        element.style.split(';').forEach(style => {
-          const parts = style.split(':').map(s => s.trim());
-          const property = parts;
-          const value = parts;[1]
+        element.style.split(';').forEach((stylePair) => {
+          const parts = stylePair.split(':').map((s) => s.trim());
+          const property = parts[0];
+          const value = parts[1];
           if (property && value) {
-            const camelProperty = property.replace(/-([a-z])/g, (g) => {
-              return g.toUpperCase();[1]
-            });
+            const camelProperty = property.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
             inlineStyles[camelProperty] = value;
           }
         });
@@ -1028,26 +1037,28 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
           src={element.src}
           alt="Editorial illustration"
           className="w-full h-auto block"
-          style={{
-            ...inlineStyles
-          }}
+          style={inlineStyles}
           onError={() => {
-            handleImageError(imageKey);
+            setImageLoadErrors((prev) => ({
+              ...prev,
+              [imageKey]: true,
+            }));
           }}
         />
       );
-    } else {
-      return element.content.split('\n').map((line, lineIndex) => {
-        if (line.trim()) {
-          return (
-            <p key={`${element.key}-${lineIndex}`} className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4">
-              {line}
-            </p>
-          );
-        }
-        return null;
-      });
     }
+
+    return element.content.split('\n').map((line, lineIndex) => {
+      if (!line.trim()) return null;
+      return (
+        <p
+          key={`${element.key}-${lineIndex}`}
+          className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4"
+        >
+          {line}
+        </p>
+      );
+    });
   });
 };
 
@@ -1281,6 +1292,7 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
 >
   {block.content}
 </ReactMarkdown>
+
 
           </div>
         );
