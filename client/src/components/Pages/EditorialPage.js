@@ -986,64 +986,71 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
     }));
   };
 
-  const renderContentElements = (elements) => {
-    return elements.map(element => {
-      if (element.type === 'image') {
-        const imageKey = `${element.src}-${element.key}`;
-        const hasError = imageLoadErrors[imageKey];
+ const renderContentElements = (elements) => {
+  return elements.map(element => {
+    if (element.type === 'image') {
+      const imageKey = `${element.src}-${element.key}`;
+      const hasError = imageLoadErrors[imageKey];
 
-        if (hasError) {
-          return (
-            <div 
-              key={element.key}
-              className="my-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl flex items-center space-x-3"
-            >
-              <FaImage className="w-5 h-5 text-red-500" />
-              <div>
-                <p className="text-red-700 dark:text-red-400 font-medium">Failed to load image</p>
-                <p className="text-red-600 dark:text-red-500 text-sm break-all">{element.src}</p>
-              </div>
-            </div>
-          );
-        }
-
-        const inlineStyles = {};
-        if (element.style) {
-          element.style.split(';').forEach(style => {
-            const [property, value] = style.split(':').map(s => s.trim());
-            if (property && value) {
-              const camelProperty = property.replace(/-([a-z])/g, (g) => g.toUpperCase());[1]
-              inlineStyles[camelProperty] = value;
-            }
-          });
-        }
-
+      if (hasError) {
         return (
-          <SecureImage
+          <div 
             key={element.key}
-            src={element.src}
-            alt="Editorial illustration"
-            className="w-full h-auto block"
-            style={{
-              ...inlineStyles
-            }}
-            onError={() => handleImageError(imageKey)}
-          />
+            className="my-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl flex items-center space-x-3"
+          >
+            <FaImage className="w-5 h-5 text-red-500" />
+            <div>
+              <p className="text-red-700 dark:text-red-400 font-medium">Failed to load image</p>
+              <p className="text-red-600 dark:text-red-500 text-sm break-all">{element.src}</p>
+            </div>
+          </div>
         );
-      } else {
-        return element.content.split('\n').map((line, lineIndex) => {
-          if (line.trim()) {
-            return (
-              <p key={`${element.key}-${lineIndex}`} className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4">
-                {line}
-              </p>
-            );
+      }
+
+      const inlineStyles = {};
+      if (element.style) {
+        element.style.split(';').forEach(style => {
+          const parts = style.split(':').map(s => s.trim());
+          const property = parts;
+          const value = parts;[1]
+          if (property && value) {
+            const camelProperty = property.replace(/-([a-z])/g, (g) => {
+              return g.toUpperCase();[1]
+            });
+            inlineStyles[camelProperty] = value;
           }
-          return null;
         });
       }
-    });
-  };
+
+      return (
+        <SecureImage
+          key={element.key}
+          src={element.src}
+          alt="Editorial illustration"
+          className="w-full h-auto block"
+          style={{
+            ...inlineStyles
+          }}
+          onError={() => {
+            handleImageError(imageKey);
+          }}
+        />
+      );
+    } else {
+      return element.content.split('\n').map((line, lineIndex) => {
+        if (line.trim()) {
+          return (
+            <p key={`${element.key}-${lineIndex}`} className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4">
+              {line}
+            </p>
+          );
+        }
+        return null;
+      });
+    }
+  });
+};
+
 
   const getYouTubeVideoId = (url) => {
     if (!url) return null;
@@ -1122,158 +1129,159 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
         return (
           <div key={block.id} className="prose prose-slate dark:prose-invert prose-lg max-w-none mb-6">
             <ReactMarkdown
-              components={{
-                h1: ({node, ...props}) => {
-                  return (
-                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
-                      {props.children}
-                    </h1>
-                  );
-                },
-                h2: ({node, ...props}) => {
-                  return (
-                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
-                      {props.children}
-                    </h2>
-                  );
-                },
-                h3: ({node, ...props}) => {
-                  return (
-                    <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white mt-6 mb-3">
-                      {props.children}
-                    </h3>
-                  );
-                },
-                h4: ({node, ...props}) => {
-                  return (
-                    <h4 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-white mt-4 mb-2">
-                      {props.children}
-                    </h4>
-                  );
-                },
-                h5: ({node, ...props}) => {
-                  return (
-                    <h5 className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-white mt-3 mb-2">
-                      {props.children}
-                    </h5>
-                  );
-                },
-                h6: ({node, ...props}) => {
-                  return (
-                    <h6 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-700 dark:text-slate-300 mt-2 mb-1">
-                      {props.children}
-                    </h6>
-                  );
-                },
-                p: ({node, ...props}) => {
-                  return (
-                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
-                      {props.children}
-                    </p>
-                  );
-                },
-                ul: ({node, ...props}) => {
-                  return (
-                    <ul className="text-slate-700 dark:text-slate-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
-                      {props.children}
-                    </ul>
-                  );
-                },
-                ol: ({node, ...props}) => {
-                  return (
-                    <ol className="text-slate-700 dark:text-slate-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
-                      {props.children}
-                    </ol>
-                  );
-                },
-                li: ({node, ...props}) => {
-                  return (
-                    <li className="text-slate-700 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
-                      {props.children}
-                    </li>
-                  );
-                },
-                blockquote: ({node, ...props}) => {
-                  return (
-                    <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400 my-4 lg:my-6">
-                      {props.children}
-                    </blockquote>
-                  );
-                },
-                a: ({node, href, ...props}) => {
-                  return (
-                    <a 
-                      href={href} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-                    >
-                      {props.children}
-                    </a>
-                  );
-                },
-                table: ({node, ...props}) => {
-                  return (
-                    <div className="overflow-x-auto my-6">
-                      <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg">
-                        {props.children}
-                      </table>
-                    </div>
-                  );
-                },
-                thead: ({node, ...props}) => {
-                  return (
-                    <thead className="bg-slate-50 dark:bg-slate-800">
-                      {props.children}
-                    </thead>
-                  );
-                },
-                tbody: ({node, ...props}) => {
-                  return (
-                    <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-                      {props.children}
-                    </tbody>
-                  );
-                },
-                tr: ({node, ...props}) => {
-                  return (
-                    <tr className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                      {props.children}
-                    </tr>
-                  );
-                },
-                th: ({node, ...props}) => {
-                  return (
-                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      {props.children}
-                    </th>
-                  );
-                },
-                td: ({node, ...props}) => {
-                  return (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-300">
-                      {props.children}
-                    </td>
-                  );
-                },
-                code: ({node, inline, ...props}) => {
-                  if (inline) {
-                    return (
-                      <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono">
-                        {props.children}
-                      </code>
-                    );
-                  }
-                  return (
-                    <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono">
-                      {props.children}
-                    </code>
-                  );
-                }
-              }}
-            >
-              {block.content}
-            </ReactMarkdown>
+  components={{
+    h1: ({node, ...props}) => {
+      return (
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
+          {props.children}
+        </h1>
+      );
+    },
+    h2: ({node, ...props}) => {
+      return (
+        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
+          {props.children}
+        </h2>
+      );
+    },
+    h3: ({node, ...props}) => {
+      return (
+        <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white mt-6 mb-3">
+          {props.children}
+        </h3>
+      );
+    },
+    h4: ({node, ...props}) => {
+      return (
+        <h4 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-white mt-4 mb-2">
+          {props.children}
+        </h4>
+      );
+    },
+    h5: ({node, ...props}) => {
+      return (
+        <h5 className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-white mt-3 mb-2">
+          {props.children}
+        </h5>
+      );
+    },
+    h6: ({node, ...props}) => {
+      return (
+        <h6 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-700 dark:text-slate-300 mt-2 mb-1">
+          {props.children}
+        </h6>
+      );
+    },
+    p: ({node, ...props}) => {
+      return (
+        <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
+          {props.children}
+        </p>
+      );
+    },
+    ul: ({node, ...props}) => {
+      return (
+        <ul className="text-slate-700 dark:text-slate-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
+          {props.children}
+        </ul>
+      );
+    },
+    ol: ({node, ...props}) => {
+      return (
+        <ol className="text-slate-700 dark:text-slate-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
+          {props.children}
+        </ol>
+      );
+    },
+    li: ({node, ...props}) => {
+      return (
+        <li className="text-slate-700 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
+          {props.children}
+        </li>
+      );
+    },
+    blockquote: ({node, ...props}) => {
+      return (
+        <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400 my-4 lg:my-6">
+          {props.children}
+        </blockquote>
+      );
+    },
+    a: ({node, href, ...props}) => {
+      return (
+        <a 
+          href={href} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
+        >
+          {props.children}
+        </a>
+      );
+    },
+    table: ({node, ...props}) => {
+      return (
+        <div className="overflow-x-auto my-6">
+          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg">
+            {props.children}
+          </table>
+        </div>
+      );
+    },
+    thead: ({node, ...props}) => {
+      return (
+        <thead className="bg-slate-50 dark:bg-slate-800">
+          {props.children}
+        </thead>
+      );
+    },
+    tbody: ({node, ...props}) => {
+      return (
+        <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
+          {props.children}
+        </tbody>
+      );
+    },
+    tr: ({node, ...props}) => {
+      return (
+        <tr className="hover:bg-slate-50 dark:hover:bg-slate-800">
+          {props.children}
+        </tr>
+      );
+    },
+    th: ({node, ...props}) => {
+      return (
+        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+          {props.children}
+        </th>
+      );
+    },
+    td: ({node, ...props}) => {
+      return (
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-300">
+          {props.children}
+        </td>
+      );
+    },
+    code: ({node, inline, ...props}) => {
+      if (inline) {
+        return (
+          <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono">
+            {props.children}
+          </code>
+        );
+      }
+      return (
+        <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono">
+          {props.children}
+        </code>
+      );
+    }
+  }}
+>
+  {block.content}
+</ReactMarkdown>
+
           </div>
         );
 
