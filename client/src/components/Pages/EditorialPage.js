@@ -1797,18 +1797,13 @@ const renderContentElements = (elements) => {
                       <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold bg-gradient-to-r from-emerald-700 via-green-600 to-teal-600 bg-clip-text text-transparent dark:from-emerald-300 dark:via-green-300 dark:to-teal-300 leading-normal pb-1 break-words">
                         {editorialData?.title || problem?.title || 'Concept Editorial'}
                       </h1>
-                      <p className="text-xs sm:text-sm md:text-base text-slate-600 dark:text-slate-400 font-medium mt-1 sm:mt-2 break-words leading-relaxed">
-                        Comprehensive concept explanation and theory
-                      </p>
                     </>
                   ) : (
                     <>
                       <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-slate-900 via-indigo-700 to-purple-600 bg-clip-text text-transparent dark:from-white dark:via-indigo-300 dark:to-purple-300 truncate">
                         {editorialData?.title || problem?.title || 'Problem Solution'}
                       </h1>
-                      <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium hidden sm:block">
-                        Comprehensive solution guide with multiple approaches
-                      </p>
+                     
                     </>
                   )}
                 </div>
