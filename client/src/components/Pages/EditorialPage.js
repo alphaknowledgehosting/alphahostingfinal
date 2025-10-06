@@ -28,6 +28,7 @@ import {
   BookOpen,
   PlayCircle,
   Home,
+  ArrowUp,
   FileText,
   Lightbulb,
   Timer,
@@ -2369,7 +2370,7 @@ const renderContentElements = (elements) => {
           className="w-10 h-10 sm:w-12 sm:h-12 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center border border-slate-200/50 dark:border-slate-700/50"
           title="Back to top"
         >
-          <Home className="w-4 h-4 sm:w-5 sm:h-5" />
+          <ArrowUp className="w-4 h-4 sm:w-5 sm:h-5" />
         </button>
       </div>
 
