@@ -737,185 +737,252 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
     return result;
   };
 
-  const parseEditorialMarkdown = (markdown) => {
-    const lines = markdown.split('\n');
-    const result = {
-      title: '',
-      content: [],
-    };
+const parseEditorialMarkdown = (markdown) => {
+  const lines = markdown.split('\n');
+  const result = {
+    title: '',
+    content: [],
+  };
 
-    let currentTextBlock = '';
-    let i = 0;
+  let currentTextBlock = '';
+  let i = 0;
 
-    while (i < lines.length) {
-      const line = lines[i];
+  while (i < lines.length) {
+    const line = lines[i];
 
-      if (line.startsWith('# ') && !result.title) {
-        result.title = line.substring(2).trim();
-        i++;
-        continue;
+    if (line.startsWith('# ') && !result.title) {
+      result.title = line.substring(2).trim();
+      i += 1;
+      continue;
+    }
+
+    if (line.startsWith('```')){
+      if (currentTextBlock.trim()) {
+        result.content.push({
+          type: 'text',
+          content: currentTextBlock.trim(),
+          id: `text-${result.content.length}`
+        });
+        currentTextBlock = '';
       }
 
-      if (line.startsWith('```')) {
-        if (currentTextBlock.trim()) {
-          result.content.push({
-            type: 'text',
-            content: currentTextBlock.trim(),
-            id: `text-${result.content.length}`
-          });
-          currentTextBlock = '';
-        }
+      const blockId = `code-block-${result.content.length}`;
+      const codeContents = [];
 
-        const blockId = `code-block-${result.content.length}`;
-        const codeLanguages = [];
-        const codeContents = [];
-        
-        let language = line.substring(3).trim() || 'text';
-        i++;
-        
-        let codeContent = '';
-        while (i < lines.length && !lines[i].startsWith('```')){
-          codeContent += lines[i] + '\n';
-          i++;
+      // Parse first code block
+      let language = line.substring(3).trim() || 'text';
+      i += 1;
+
+      let codeContent = '';
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        codeContent = codeContent + lines[i] + '\n';
+        i += 1;
+      }
+
+      if (i < lines.length && lines[i].startsWith('```')){
+        i += 1;
+      }
+
+      codeContents.push({ language, code: codeContent.trim(), output: null });
+
+      // FIXED: Look for immediately consecutive code blocks (no text in between)
+      while (i < lines.length) {
+        // Skip empty lines
+        while (i < lines.length && lines[i].trim() === '') {
+          i += 1;
         }
         
+        // Check if next non-empty line is a code block
         if (i < lines.length && lines[i].startsWith('```')) {
-          i++;
-        }
-
-        codeLanguages.push(language);
-        codeContents.push({ language, code: codeContent.trim(), output: null });
-
-        let j = i;
-        while (j < i + 10 && j < lines.length) {
-          const nextLine = lines[j].trim();
+          const nextLanguage = lines[i].substring(3).trim();
           
-          if (nextLine.startsWith('```')){
-            const nextLanguage = nextLine.substring(3).trim();
-            
-            if (nextLanguage && nextLanguage.match(/^(cpp|c\+\+|java|python|py|javascript|js|c|go|rust|typescript|ts)$/i)) {
-              j++;
-              let nextCode = '';
-              
-              while (j < lines.length && !lines[j].startsWith('```')) {
-                nextCode += lines[j] + '\n';
-                j++;
-              }
-              
-              if (j < lines.length && lines[j].startsWith('```')){
-                j++;
-              }
-              
-              codeLanguages.push(nextLanguage);
-              codeContents.push({ language: nextLanguage, code: nextCode.trim(), output: null });
-              i = j;
-            } else {
-              break;
+          // Only group if it's a valid programming language
+          if (nextLanguage && nextLanguage.match(/^(cpp|c\+\+|java|python|py|javascript|js|c|go|rust|typescript|ts)$/i)) {
+            i += 1;
+            let nextCode = '';
+            while (i < lines.length && !lines[i].startsWith('```')){
+              nextCode = nextCode + lines[i] + '\n';
+              i += 1;
             }
-          } else if (nextLine === '' || nextLine.startsWith('#')) {
-            j++;
+            if (i < lines.length && lines[i].startsWith('```')) {
+              i += 1;
+            }
+            codeContents.push({ language: nextLanguage, code: nextCode.trim(), output: null });
           } else {
+            // Not a programming language code block, stop grouping
             break;
           }
+        } else {
+          // No more consecutive code blocks
+          break;
+        }
+      }
+
+      // Look for output section
+      let k = i;
+      while (k < lines.length && k < i + 5) {
+        const currentLine = lines[k].trim();
+
+        if (currentLine.includes('**Output:**')) {
+          k += 1;
+
+          while (k < lines.length && lines[k].trim() === '') {
+            k += 1;
+          }
+
+          let outputContent = '';
+
+          if (k < lines.length && lines[k].startsWith('```')){
+            k += 1;
+            while (k < lines.length && !lines[k].startsWith('```')) {
+              outputContent = outputContent + lines[k] + '\n';
+              k += 1;
+            }
+            if (k < lines.length && lines[k].startsWith('```')){
+              k += 1;
+            }
+          } else {
+            while (k < lines.length && lines[k].trim() !== '' && !lines[k].startsWith('#') && !lines[k].startsWith('```')) {
+              outputContent = outputContent + lines[k] + '\n';
+              k += 1;
+            }
+          }
+
+          // Set output for all languages in this code block
+          codeContents.forEach(item => {
+            item.output = outputContent.trim();
+          });
+
+          i = k;
+          break;
+        } else if (currentLine === '') {
+          k += 1;
+        } else {
+          break;
+        }
+      }
+
+      // Parse complexity sections near the code block
+      const complexity = { time: '', space: '' };
+      let lookAhead = i;
+      while (lookAhead < lines.length && lookAhead < i + 20) {
+        const lookLine = lines[lookAhead];
+
+        if (lookLine.startsWith('### Time Complexity') || lookLine.startsWith('## Time Complexity')) {
+          lookAhead += 1;
+          let timeContent = '';
+          while (lookAhead < lines.length && !lines[lookAhead].startsWith('#')) {
+            if (lines[lookAhead].trim()) {
+              timeContent = timeContent + lines[lookAhead] + '\n';
+            }
+            lookAhead += 1;
+            if (lines[lookAhead] && lines[lookAhead].startsWith('###')) break;
+          }
+          complexity.time = timeContent.trim();
+          continue;
         }
 
-        // Look for output section
-while (i < lines.length && i < j + 5) {
-  const currentLine = lines[i].trim();
+        if (lookLine.startsWith('### Space Complexity') || lookLine.startsWith('## Space Complexity')) {
+          lookAhead += 1;
+          let spaceContent = '';
+          while (lookAhead < lines.length && !lines[lookAhead].startsWith('#')) {
+            if (lines[lookAhead].trim()) {
+              spaceContent = spaceContent + lines[lookAhead] + '\n';
+            }
+            lookAhead += 1;
+            if (lines[lookAhead] && lines[lookAhead].startsWith('###')) break;
+          }
+          complexity.space = spaceContent.trim();
+          continue;
+        }
 
-  if (currentLine.includes('**Output:**')) {
-    i += 1;
+        lookAhead += 1;
+      }
 
-    // Skip empty lines
-    while (i < lines.length && lines[i].trim() === '') {
-      i += 1;
+      result.content.push({
+        type: 'code',
+        code: codeContents,
+        id: blockId,
+        complexity: complexity
+      });
+
+      continue;
     }
 
-    let outputContent = '';
+    // Check for image tags
+    const imgMatch = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
 
-    // Check for code block output
-    if (i < lines.length && lines[i].startsWith('```')) {
+    if (imgMatch) {
+      if (currentTextBlock.trim()) {
+        result.content.push({
+          type: 'text',
+          content: currentTextBlock.trim(),
+          id: `text-${result.content.length}`
+        });
+        currentTextBlock = '';
+      }
+
+      const [, src, style] = imgMatch;
+      result.content.push({
+        type: 'image',
+        src: src,
+        style: style || '',
+        id: `image-${result.content.length}`
+      });
       i += 1;
+      continue;
+    }
 
-      while (i < lines.length && !lines[i].startsWith('```')) {
-        outputContent = outputContent + lines[i] + '\n';
-        i += 1;
-      }
+    // Strong filter: drop raw complexity sections from being added as text
+    const trimmed = line.trim();
 
-      if (i < lines.length && lines[i].startsWith('```')) {
-        i += 1;
-      }
-    } else {
-      // Direct output
+    // If this line is a complexity header, set a flag to skip subsequent lines of that section
+    let skipThisLine = false;
+    if (
+      trimmed.startsWith('### Time Complexity') ||
+      trimmed.startsWith('## Time Complexity') ||
+      trimmed.startsWith('### Space Complexity') ||
+      trimmed.startsWith('## Space Complexity')
+    ) {
+      skipThisLine = true;
+
+      // Consume lines until next heading or code fence, so none of the raw complexity
+      // lines enter currentTextBlock
+      i += 1;
       while (
         i < lines.length &&
+        !lines[i].startsWith('###') &&
+        !lines[i].startsWith('##') &&
         !lines[i].startsWith('#') &&
-        !lines[i].startsWith('```') &&
-        lines[i].trim()
+        !lines[i].startsWith('```')
       ) {
-        outputContent = outputContent + lines[i] + '\n';
         i += 1;
       }
+
+      // Go back one step because the outer loop will i += 1 at the end
+      i -= 1;
     }
 
-    // Assign output to all language variants
-    codeContents.forEach((codeItem) => {
-      codeItem.output = outputContent.trim() || null;
-    });
-    break;
+    if (!line.includes('**Output:**') && !skipThisLine) {
+      currentTextBlock = currentTextBlock + line + '\n';
+    }
+
+    i += 1;
   }
-  i += 1;
-}
+
+  if (currentTextBlock.trim()) {
+    result.content.push({
+      type: 'text',
+      content: currentTextBlock.trim(),
+      id: `text-${result.content.length}`
+    });
+  }
+
+  return result;
+};
 
 
-        result.content.push({
-          type: 'code',
-          id: blockId,
-          languages: codeLanguages,
-          code: codeContents
-        });
-        
-        continue;
-      }
 
-      const imgMatch = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
-      
-      if (imgMatch) {
-        if (currentTextBlock.trim()) {
-          result.content.push({
-            type: 'text',
-            content: currentTextBlock.trim(),
-            id: `text-${result.content.length}`
-          });
-          currentTextBlock = '';
-        }
-
-        const [, src, style] = imgMatch;
-        result.content.push({
-          type: 'image',
-          src: src,
-          style: style || '',
-          id: `image-${result.content.length}`
-        });
-      } else {
-        if (!line.includes('**Output:**')) {
-          currentTextBlock += line + '\n';
-        }
-      }
-      
-      i++;
-    }
-
-    if (currentTextBlock.trim()) {
-      result.content.push({
-        type: 'text',
-        content: currentTextBlock.trim(),
-        id: `text-${result.content.length}`
-      });
-    }
-
-    return result;
-  };
 
   const switchCodeTab = (blockId, tab) => {
     setCodeTabStates(prev => ({
@@ -1298,304 +1365,319 @@ const renderContentElements = (elements) => {
         );
 
       case 'code':
-        const hasValidLanguages = block.code && block.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
-        
-        if (!block.code || block.code.length === 0 || !hasValidLanguages || block.code.length === 1) {
-          const firstCode = block.code && block.code.length > 0 ? block.code : null;
+  const hasValidLanguages = block.code && block.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
+  
+  // Single language or no valid languages path
+  if (!block.code || block.code.length === 0 || !hasValidLanguages || block.code.length === 1) {
+    const firstCode = block.code && block.code.length > 0 ? block.code[0] : null;
+    
+    return (
+      <div key={block.id} className="my-6 lg:my-8">
+        <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
           
-          return (
-            <div key={block.id} className="my-6 lg:my-8">
-              <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
-                
-                <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
-                  <div className="flex gap-0.5 rounded-lg p-0.5">
-                    <button
-                      onClick={() => switchCodeTab(block.id, 'code')}
-                      className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                        getCurrentTab(block.id) === 'code'
-                          ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                      }`}
-                    >
-                      Code
-                    </button>
-                    <button
-                      onClick={() => switchCodeTab(block.id, 'output')}
-                      className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                        getCurrentTab(block.id) === 'output'
-                          ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                      }`}
-                    >
-                      Output
-                    </button>
-                  </div>
-                </div>
+          <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
+            <div className="flex gap-0.5 rounded-lg p-0.5">
+              <button
+                onClick={() => switchCodeTab(block.id, 'code')}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                  getCurrentTab(block.id) === 'code'
+                    ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+                }`}
+              >
+                Code
+              </button>
+              <button
+                onClick={() => switchCodeTab(block.id, 'output')}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                  getCurrentTab(block.id) === 'output'
+                    ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+                }`}
+              >
+                Output
+              </button>
+            </div>
+          </div>
 
-                {getCurrentTab(block.id) === 'output' ? (
-                  <div className="bg-slate-900 dark:bg-black/80">
-                    <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                      <span className="text-slate-300 text-sm font-medium">OUTPUT</span>
-                      <button
-                        onClick={() => copyCode(firstCode?.output || "No output provided", `${block.id}-output`)}
-                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                      >
-                        {copiedCode[`${block.id}-output`] ? (
-                          <FaCheck className="w-3 h-3 text-green-400" />
-                        ) : (
-                          <FaCopy className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
-                    
-                    <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-                      <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
-                        {firstCode?.output ? (
-                          <pre className="whitespace-pre-wrap text-green-400">{firstCode.output}</pre>
-                        ) : (
-                          <>
-                            <div className="text-amber-400 mb-2">No output provided</div>
-                            <div className="text-slate-400">Output will be shown here when available</div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-slate-900 dark:bg-black/80">
-                    <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                      <span className="text-slate-300 text-sm font-medium">
-                        {firstCode?.language ? firstCode.language.toUpperCase() : 'CODE'}
-                      </span>
-                      <button
-                        onClick={() => copyCode(firstCode?.code || '', `${block.id}-simple`)}
-                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                      >
-                        {copiedCode[`${block.id}-simple`] ? (
-                          <FaCheck className="w-3 h-3 text-green-400" />
-                        ) : (
-                          <FaCopy className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
-                    
-                    <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-                      <SyntaxHighlighter
-                        style={tomorrow}
-                        language={firstCode?.language ? firstCode.language.toLowerCase() : 'text'}
-                        PreTag="div"
-                        className="text-sm"
-                        customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
-                      >
-                        {firstCode?.code?.trim() || '// No code available'}
-                      </SyntaxHighlighter>
-                    </div>
-                  </div>
-                )}
+          {getCurrentTab(block.id) === 'output' ? (
+            <div className="bg-slate-900 dark:bg-black/80">
+              <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
+                <span className="text-slate-300 text-sm font-medium">OUTPUT</span>
+                <button
+                  onClick={() => copyCode(firstCode?.output || 'No output provided', `${block.id}-output`)}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
+                >
+                  {copiedCode[`${block.id}-output`] ? (
+                    <FaCheck className="w-3 h-3 text-green-400" />
+                  ) : (
+                    <FaCopy className="w-3 h-3" />
+                  )}
+                </button>
+              </div>
+              <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
+                <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
+                  {firstCode?.output ? (
+                    <pre className="whitespace-pre-wrap text-green-400">{firstCode.output}</pre>
+                  ) : (
+                    <>
+                      <div className="text-amber-400 mb-2">No output provided</div>
+                      <div className="text-slate-400">Output will be shown here when available</div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          );
-        }
+          ) : (
+            <div className="bg-slate-900 dark:bg-black/80">
+              <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
+                <span className="text-slate-300 text-sm font-medium">
+                  {firstCode?.language ? firstCode.language.toUpperCase() : 'CODE'}
+                </span>
+                <button
+                  onClick={() => copyCode(firstCode?.code || '', `${block.id}-simple`)}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
+                >
+                  {copiedCode[`${block.id}-simple`] ? (
+                    <FaCheck className="w-3 h-3 text-green-400" />
+                  ) : (
+                    <FaCopy className="w-3 h-3" />
+                  )}
+                </button>
+              </div>
+              <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
+                <SyntaxHighlighter
+                  style={tomorrow}
+                  language={firstCode?.language ? firstCode.language.toLowerCase() : 'text'}
+                  PreTag="div"
+                  className="text-sm"
+                  customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+                >
+                  {firstCode?.code?.trim() || '// No code available'}
+                </SyntaxHighlighter>
+              </div>
+            </div>
+          )}
+        </div>
 
-        return (
-          <div key={block.id} className="my-6 lg:my-8">
-            <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
-              
-              <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
-                <div className="flex gap-0.5 rounded-lg p-0.5">
-                  <button
-                    onClick={() => switchCodeTab(block.id, 'code')}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                      getCurrentTab(block.id) === 'code'
-                        ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                    }`}
-                  >
-                    Code
-                  </button>
-                  <button
-                    onClick={() => switchCodeTab(block.id, 'output')}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                      getCurrentTab(block.id) === 'output'
-                        ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                    }`}
-                  >
-                    Output
-                  </button>
+        {/* Complexity Section */}
+        {block.complexity && (block.complexity.time || block.complexity.space) && (
+          <div className="space-y-4">
+            {block.complexity.time && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                  <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Time Complexity
+                </h4>
+                <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
+                  <ReactMarkdown>
+                    {block.complexity.time}
+                  </ReactMarkdown>
                 </div>
               </div>
-
-              {getCurrentTab(block.id) === 'output' ? (
-                <div className="bg-slate-900 dark:bg-black/80">
-                  <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                    <span className="text-slate-300 text-sm font-medium">OUTPUT</span>
-                    <button
-                      onClick={() => {
-                        const currentCode = block.code.find(codeItem => 
-                          codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code && block.code.language))
-                        );
-                        const outputToCopy = currentCode?.output || "No output provided";
-                        copyCode(outputToCopy, `${block.id}-output`);
-                      }}
-                      className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                    >
-                      {copiedCode[`${block.id}-output`] ? (
-                        <FaCheck className="w-3 h-3 text-green-400" />
-                      ) : (
-                        <FaCopy className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
-                  
-                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-                    <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
-                      {(() => {
-                        const currentCode = block.code.find(codeItem => 
-                          codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code && block.code.language))
-                        );
-                        const output = currentCode?.output;
-                        
-                        if (output && output.trim()) {
-                          return (
-                            <pre className="whitespace-pre-wrap text-green-400">
-                              {output}
-                            </pre>
-                          );
-                        } else {
-                          return (
-                            <>
-                              <div className="text-amber-400 mb-2">No output provided for this code example</div>
-                              <div className="text-slate-400">
-                                Output will be shown here when available
-                              </div>
-                            </>
-                          );
-                        }
-                      })()}
-                    </div>
-                  </div>
+            )}
+            
+            {block.complexity.space && (
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
+                <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
+                  <Database className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Space Complexity
+                </h4>
+                <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
+                  <ReactMarkdown>
+                    {block.complexity.space}
+                  </ReactMarkdown>
                 </div>
-              ) : (
-                <div className="bg-slate-900 dark:bg-black/80">
-                  
-                  {block.code.length > 1 && (
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50 border-b border-slate-700/50 space-y-2 sm:space-y-0">
-                      <div className="flex flex-wrap gap-1">
-                        {block.code.map((codeItem) => {
-                          if (!codeItem || !codeItem.language) return null;
-                          
-                          return (
-                            <button
-                              key={codeItem.language}
-                              onClick={() => changeLanguage(block.id, codeItem.language)}
-                              className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
-                                selectedLanguages[block.id] === codeItem.language
-                                  ? 'bg-indigo-600 text-white shadow-md'
-                                  : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50'
-                              }`}
-                            >
-                              {codeItem.language}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      
-                      <button
-                        onClick={() => {
-                          const currentCode = block.code.find(codeItem => 
-                            codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code && block.code.language))
-                          );
-                          copyCode(currentCode?.code || '', `${block.id}-${currentCode?.language || 'code'}`);
-                        }}
-                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 self-start sm:self-center"
-                      >
-                        {copiedCode[`${block.id}-${selectedLanguages[block.id] || (block.code && block.code.language) || 'code'}`] ? (
-                          <FaCheck className="w-3 h-3 text-green-400" />
-                        ) : (
-                          <FaCopy className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
-                  )}
-                  
-                  {block.code.length === 1 && block.code && (
-                    <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                      <span className="text-slate-300 text-sm font-medium">
-                        {block.code.language ? block.code.language.toUpperCase() : 'CODE'}
-                      </span>
-                      <button
-                        onClick={() => copyCode(block.code.code || '', `${block.id}-${block.code.language || 'code'}`)}
-                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                      >
-                        {copiedCode[`${block.id}-${block.code.language || 'code'}`] ? (
-                          <FaCheck className="w-3 h-3 text-green-400" />
-                        ) : (
-                          <FaCopy className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
-                  )}
-                  
-                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-                    <SyntaxHighlighter
-                      style={tomorrow}
-                      language={(selectedLanguages[block.id] || (block.code && block.code.language) || 'text').toLowerCase()}
-                      PreTag="div"
-                      className="text-sm"
-                      customStyle={{
-                        margin: 0,
-                        padding: '1rem',
-                        background: 'transparent',
-                        minHeight: 'auto'
-                      }}
-                    >
-                      {(() => {
-                        const currentCode = block.code.find(codeItem => 
-                          codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code && block.code.language))
-                        );
-                        return currentCode?.code?.trim() || '// No code available';
-                      })()}
-                    </SyntaxHighlighter>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Complexity Section for Editorial */}
-            {block.complexity && (block.complexity.time || block.complexity.space) && (
-              <div className="space-y-4">
-                {block.complexity.time && (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                    <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                      <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Time Complexity
-                    </h4>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                      <ReactMarkdown>
-                        {block.complexity.time}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-                
-                {block.complexity.space && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-                    <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                      <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Space Complexity
-                    </h4>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                      <ReactMarkdown>
-                        {block.complexity.space}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
-        );
+        )}
+      </div>
+    );
+  }
+
+  // Multi-language path - WITH SOLUTION-STYLE COPY BUTTON
+  return (
+    <div key={block.id} className="my-6 lg:my-8">
+      <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
+        <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
+          <div className="flex gap-0.5 rounded-lg p-0.5">
+            <button
+              onClick={() => switchCodeTab(block.id, 'code')}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                getCurrentTab(block.id) === 'code'
+                  ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+              }`}
+            >
+              Code
+            </button>
+            <button
+              onClick={() => switchCodeTab(block.id, 'output')}
+              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                getCurrentTab(block.id) === 'output'
+                  ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
+              }`}
+            >
+              Output
+            </button>
+          </div>
+        </div>
+
+        {getCurrentTab(block.id) === 'output' ? (
+          <div className="bg-slate-900 dark:bg-black/80">
+            <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
+              <span className="text-slate-300 text-sm font-medium">OUTPUT</span>
+              <button
+                onClick={() => {
+                  const currentCode = block.code.find(codeItem => 
+                    codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
+                  );
+                  const outputToCopy = currentCode?.output || "No output provided";
+                  copyCode(outputToCopy, `${block.id}-output`);
+                }}
+                className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
+              >
+                {copiedCode[`${block.id}-output`] ? (
+                  <FaCheck className="w-3 h-3 text-green-400" />
+                ) : (
+                  <FaCopy className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+            <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
+              <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
+                {(() => {
+                  const currentCode = block.code.find(codeItem => 
+                    codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
+                  );
+                  const output = currentCode?.output;
+                  
+                  if (output && output.trim()) {
+                    return <pre className="whitespace-pre-wrap text-green-400">{output}</pre>;
+                  } else {
+                    return (
+                      <>
+                        <div className="text-amber-400 mb-2">No output provided for this code example</div>
+                        <div className="text-slate-400">Output will be shown here when available</div>
+                      </>
+                    );
+                  }
+                })()}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-slate-900 dark:bg-black/80 relative">
+            {block.code.length > 1 && (
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50 border-b border-slate-700/50 space-y-2 sm:space-y-0">
+                <div className="flex flex-wrap gap-1">
+                  {block.code.map((codeItem) => {
+                    if (!codeItem || !codeItem.language) return null;
+                    
+                    return (
+                      <button
+                        key={codeItem.language}
+                        onClick={() => changeLanguage(block.id, codeItem.language)}
+                        className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                          selectedLanguages[block.id] === codeItem.language
+                            ? 'bg-indigo-600 text-white shadow-md'
+                            : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50'
+                        }`}
+                      >
+                        {codeItem.language}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            
+            {block.code.length === 1 && block.code[0] && (
+              <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
+                <span className="text-slate-300 text-sm font-medium">
+                  {block.code[0].language ? block.code[0].language.toUpperCase() : 'CODE'}
+                </span>
+              </div>
+            )}
+            
+            <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
+              <SyntaxHighlighter
+                style={tomorrow}
+                language={(() => {
+                  const currentCode = block.code.find(codeItem => 
+                    codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
+                  );
+                  return (selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'text').toLowerCase();
+                })()}
+                PreTag="div"
+                className="text-sm"
+                customStyle={{ margin: 0, padding: '1rem', background: 'transparent', minHeight: 'auto' }}
+              >
+                {(() => {
+                  const currentCode = block.code.find(codeItem => 
+                    codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
+                  );
+                  return currentCode?.code?.trim() || '// No code available';
+                })()}
+              </SyntaxHighlighter>
+            </div>
+
+            {/* ABSOLUTE POSITIONED COPY BUTTON - SAME AS SOLUTION */}
+            <button
+              onClick={() => {
+                const currentCode = block.code.find(codeItem => 
+                  codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
+                );
+                copyCode(currentCode?.code || '', `${block.id}-${currentCode?.language || 'code'}`);
+              }}
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
+            >
+              {copiedCode[`${block.id}-${selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'code'}`] ? (
+                <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
+              ) : (
+                <FaCopy className="w-3 h-3 sm:w-4 sm:h-4" />
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Complexity Section */}
+      {block.complexity && (block.complexity.time || block.complexity.space) && (
+        <div className="space-y-4">
+          {block.complexity.time && (
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
+              <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
+                Time Complexity
+              </h4>
+              <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
+                <ReactMarkdown>
+                  {block.complexity.time}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
+          
+          {block.complexity.space && (
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
+              <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
+                <Database className="w-4 h-4 sm:w-5 sm:h-5" />
+                Space Complexity
+              </h4>
+              <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
+                <ReactMarkdown>
+                  {block.complexity.space}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 
       case 'image':
         return (
@@ -2292,75 +2374,93 @@ const renderContentElements = (elements) => {
       </div>
 
       <style jsx>{`
-        .complexity-code {
-          background-color: rgb(241 245 249);
-          color: rgb(51 65 85);
-          padding: 0.25rem 0.5rem;
-          border-radius: 0.375rem;
-          font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
-          font-size: 0.875rem;
-          border: 1px solid rgb(226 232 240);
-        }
-        
-        .dark .complexity-code {
-          background-color: rgb(30 41 59);
-          color: rgb(203 213 225);
-          border: 1px solid rgb(51 65 85);
-        }
-        
-        .w-full-bleed {
-          width: 100vw;
-          max-width: 100vw;
-          margin-left: calc(50% - 50vw);
-          margin-right: calc(50% - 50vw);
-        }
-        
-        @media (max-width: 640px) {
-          .w-full-bleed {
-            width: 100%;
-            max-width: 100%;
-            margin-left: 0;
-            margin-right: 0;
-          }
-        }
-        
-        .scrollbar-thin::-webkit-scrollbar {
-          width: 8px;
-          height: 8px;
-        }
-        
-        .scrollbar-thin::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        
-        .scrollbar-thumb-slate-600::-webkit-scrollbar-thumb {
-          background-color: rgb(71 85 105);
-          border-radius: 4px;
-        }
-        
-        .scrollbar-thumb-slate-600::-webkit-scrollbar-thumb:hover {
-          background-color: rgb(51 65 85);
-        }
-        
-        .scrollbar-track-slate-800::-webkit-scrollbar-track {
-          background-color: rgb(30 41 59);
-        }
-        
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-      `}</style>
+  .complexity-code {
+    background-color: rgb(241 245 249);
+    color: rgb(51 65 85);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.875rem;
+    border: 1px solid rgb(226 232 240);
+  }
+  
+  .dark .complexity-code {
+    background-color: rgb(30 41 59);
+    color: rgb(203 213 225);
+    border: 1px solid rgb(51 65 85);
+  }
+  
+  .w-full-bleed {
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+  }
+  
+  @media (max-width: 640px) {
+    .w-full-bleed {
+      width: 100%;
+      max-width: 100%;
+      margin-left: 0;
+      margin-right: 0;
+    }
+  }
+  
+  /* Minimal Themed Scrollbar Styling */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(100, 116, 139, 0.3);
+    border-radius: 3px;
+    transition: background-color 0.2s;
+  }
+  
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(100, 116, 139, 0.5);
+  }
+  
+  /* Dark theme scrollbar */
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.2);
+  }
+  
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(148, 163, 184, 0.4);
+  }
+  
+  /* Firefox scrollbar styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+  }
+  
+  .dark .scrollbar-thin {
+    scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-out;
+  }
+`}</style>
+
 
       
     </div>
