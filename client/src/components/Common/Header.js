@@ -16,10 +16,92 @@ import {
   LogOut,
   Bell,
   Settings,
-  ChevronDown
+  ChevronDown,
+  Compass,
+  Code,
+  Layout
 } from 'lucide-react';
 
-// Admin Dropdown Component (unchanged)
+// Explore Dropdown Component
+const ExploreDropdown = ({ onNavigate, isActive }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const exploreItems = [
+    { path: '/sheets', label: 'Sheets', icon: List },
+    { path: '/compiler', label: 'Quick Compiler', icon: Code },
+    { path: '/live-code-editor', label: 'WebDev Editor', icon: Layout },
+  ];
+
+  return (
+    <div 
+      ref={dropdownRef}
+      className="relative group"
+      onMouseEnter={() => setIsOpen(true)}
+      onMouseLeave={() => setIsOpen(false)}
+    >
+      <button
+        className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
+          isActive 
+            ? 'text-[#6366f1] dark:text-[#a855f7]' 
+            : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
+        }`}
+      >
+        <span className="relative flex items-center gap-1">
+          <Compass className="w-4 h-4" />
+          <span>Explore</span>
+          <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+          <span
+            className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
+              isActive ? 'w-full' : 'w-0 group-hover:w-full'
+            }`}
+          />
+        </span>
+      </button>
+
+      <div
+        className={`absolute top-full left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-xl transition-all duration-300 transform origin-top ${
+          isOpen 
+            ? 'opacity-100 visible translate-y-0 scale-100' 
+            : 'opacity-0 invisible -translate-y-2 scale-95'
+        }`}
+        style={{ zIndex: 1000 }}
+      >
+        <div className="py-2">
+          {exploreItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.path}
+                onClick={() => {
+                  onNavigate(item.path);
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-[#6366f1] dark:hover:text-[#a855f7] transition-all duration-200"
+              >
+                <Icon className="w-4 h-4" />
+                <span className="font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Admin Dropdown Component
 const AdminDropdown = ({ onNavigate, isActive }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -115,29 +197,39 @@ const Header = () => {
   const [scrolled, setScrolled] = useState(false);
   const [badgeCleared, setBadgeCleared] = useState(false);
 
+  // REORDERED: Home → Announcements → Contact (Explore will be inserted separately)
   const baseNavigationItems = [
     { path: '/', label: 'Home', icon: Home },
-    { path: '/sheets', label: 'Sheets', icon: List },
     { path: '/announcements', label: 'Announcements', icon: Bell },
     { path: '/contact', label: 'Contact', icon: Mail },
   ];
 
+  const exploreItems = [
+    { path: '/sheets', label: 'Sheets', icon: List },
+    { path: '/quick-compiler', label: 'Quick Compiler', icon: Code },
+    { path: '/live-code-editor', label: 'WebDev Editor', icon: Layout },
+  ];
+
+  // MOBILE: Home → Explore items → Announcements → Contact → Admin
   const mobileNavigationItems = [
-    ...baseNavigationItems,
+    baseNavigationItems[0], // Home
+    ...exploreItems, // Sheets, Quick Compiler, WebDev Editor
+    baseNavigationItems[1], // Announcements
+    baseNavigationItems[2], // Contact
     ...(user && canManageUsers ? [{ path: '/admin/users', label: 'Users', icon: User }] : []),
     ...(user && canManageSheets ? [{ path: '/admin/sheets', label: 'Manage', icon: Settings }] : [])
   ];
 
   const isAdminPathActive = location.pathname.startsWith('/admin/');
+  const isExplorePathActive = ['/sheets', '/quick-compiler', '/live-code-editor'].some(path => location.pathname.startsWith(path));
 
-  // FIXED: Enhanced badge clearing when visiting announcements
+  // Badge clearing when visiting announcements
   useEffect(() => {
     if (user && location.pathname === '/announcements' && unreadCount > 0) {
       const timer = setTimeout(() => {
         markAllAsRead();
         setBadgeCleared(true);
         localStorage.setItem('announcementsBadgeCleared', 'true');
-        // console.log('🔔 Announcement badge cleared after visiting page');
       }, 1000);
 
       return () => clearTimeout(timer);
@@ -199,7 +291,6 @@ const Header = () => {
     setIsMobileMenuOpen(false);
   };
 
-  // FIXED: Only show badge if there are actually unread announcements
   const shouldShowBadge = user && unreadCount > 0 && !badgeCleared && location.pathname !== '/announcements';
 
   // Show loading spinner during auth initialization
@@ -230,7 +321,7 @@ const Header = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
             
-            {/* FIXED: Logo with proper sizing and spacing for title fix */}
+            {/* Logo */}
             <div 
               className="flex items-center cursor-pointer space-x-3 group relative z-60"
               onClick={() => handleNavigation('/')}
@@ -240,59 +331,106 @@ const Header = () => {
                 alt="AlphaKnowledge Logo"
                 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-12 lg:h-12 object-contain"
               />
-              {/* FIXED: Title with proper line-height and size adjustments for large screens only */}
               <h1 
                 className="text-base sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-bold bg-gradient-to-r from-[#6366f1] to-[#a855f7] bg-clip-text text-transparent group-hover:from-[#5855eb] group-hover:to-[#9333ea] transition-all leading-tight"
                 style={{ 
                   lineHeight: '1.2',
-                  paddingBottom: '2px' // Extra padding to prevent cutting of descenders like 'g'
+                  paddingBottom: '2px'
                 }}
               >
                 AlphaKnowledge
               </h1>
             </div>
 
-            {/* Desktop Navigation */}
+            {/* Desktop Navigation - REORDERED: Home → Explore → Announcements → Contact → Admin */}
             <nav className="hidden md:flex">
               <ul className="flex items-center space-x-1">
-                {baseNavigationItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = location.pathname === item.path;
-                  const isAnnouncements = item.path === '/announcements';
-                  
-                  return (
-                    <li key={item.path}>
-                      <button
-                        onClick={() => handleNavigation(item.path)}
-                        className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
-                          isActive 
-                            ? 'text-[#6366f1] dark:text-[#a855f7]' 
-                            : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
+                {/* Home */}
+                <li key={baseNavigationItems[0].path}>
+                  <button
+                    onClick={() => handleNavigation(baseNavigationItems[0].path)}
+                    className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
+                      location.pathname === baseNavigationItems[0].path
+                        ? 'text-[#6366f1] dark:text-[#a855f7]' 
+                        : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
+                    }`}
+                  >
+                    <span className="relative flex items-center gap-1">
+                      <div className="relative">
+                        <Home className="w-4 h-4 m-0 p-0" />
+                      </div>
+                      <span>{baseNavigationItems[0].label}</span>
+                      <span
+                        className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
+                          location.pathname === baseNavigationItems[0].path ? 'w-full' : 'w-0 group-hover:w-full'
                         }`}
-                      >
-                        <span className="relative flex items-center gap-1">
-                          <div className="relative">
-                            <Icon className="w-4 h-4 m-0 p-0" />
-                            {/* FIXED: Only show badge when truly needed */}
-                            {isAnnouncements && shouldShowBadge && (
-                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
-                                {unreadCount > 9 ? '9+' : unreadCount}
-                              </span>
-                            )}
-                          </div>
-                          <span>{item.label}</span>
-                          <span
-                            className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
-                              isActive ? 'w-full' : 'w-0 group-hover:w-full'
-                            }`}
-                          />
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
+                      />
+                    </span>
+                  </button>
+                </li>
+
+                {/* Explore Dropdown */}
+                <li>
+                  <ExploreDropdown 
+                    onNavigate={handleNavigation}
+                    isActive={isExplorePathActive}
+                  />
+                </li>
+
+                {/* Announcements */}
+                <li key={baseNavigationItems[1].path}>
+                  <button
+                    onClick={() => handleNavigation(baseNavigationItems[1].path)}
+                    className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
+                      location.pathname === baseNavigationItems[1].path
+                        ? 'text-[#6366f1] dark:text-[#a855f7]' 
+                        : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
+                    }`}
+                  >
+                    <span className="relative flex items-center gap-1">
+                      <div className="relative">
+                        <Bell className="w-4 h-4 m-0 p-0" />
+                        {shouldShowBadge && (
+                          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
+                            {unreadCount > 9 ? '9+' : unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      <span>{baseNavigationItems[1].label}</span>
+                      <span
+                        className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
+                          location.pathname === baseNavigationItems[1].path ? 'w-full' : 'w-0 group-hover:w-full'
+                        }`}
+                      />
+                    </span>
+                  </button>
+                </li>
+
+                {/* Contact */}
+                <li key={baseNavigationItems[2].path}>
+                  <button
+                    onClick={() => handleNavigation(baseNavigationItems[2].path)}
+                    className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
+                      location.pathname === baseNavigationItems[2].path
+                        ? 'text-[#6366f1] dark:text-[#a855f7]' 
+                        : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
+                    }`}
+                  >
+                    <span className="relative flex items-center gap-1">
+                      <div className="relative">
+                        <Mail className="w-4 h-4 m-0 p-0" />
+                      </div>
+                      <span>{baseNavigationItems[2].label}</span>
+                      <span
+                        className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
+                          location.pathname === baseNavigationItems[2].path ? 'w-full' : 'w-0 group-hover:w-full'
+                        }`}
+                      />
+                    </span>
+                  </button>
+                </li>
                 
-                {/* Admin Dropdown for Desktop */}
+                {/* Admin Dropdown */}
                 {user && (canManageUsers || canManageSheets) && (
                   <li>
                     <AdminDropdown 
@@ -372,7 +510,6 @@ const Header = () => {
                   )}
                 </div>
                 
-                {/* FIXED: Mobile menu badge - only show when needed */}
                 {!isMobileMenuOpen && shouldShowBadge && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -416,7 +553,6 @@ const Header = () => {
                           >
                             <div className="relative">
                               <Icon className={`w-5 h-5 ${isActive ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
-                              {/* FIXED: Mobile navigation badge */}
                               {isAnnouncements && shouldShowBadge && (
                                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
                                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -449,7 +585,6 @@ const Header = () => {
                             {user.email}
                           </div>
                         </div>
-                        {/* FIXED: Mobile user section badge */}
                         {shouldShowBadge && (
                           <div className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold">
                             {unreadCount} unread
