@@ -310,10 +310,14 @@ useEffect(() => {
     return () => iframe.removeEventListener('load', onLoad);
   }, [srcDoc]);
 
-  // Build srcDoc - WITH BASE TAG to prevent infinite recursion
-  useEffect(() => {
-    const id = setTimeout(() => {
-      const doc = `
+// Build srcDoc - DEBOUNCED (waits for user to stop typing)
+useEffect(() => {
+  // Clear console when code changes (user is typing)
+  setConsoleOutput([]);
+  
+  // Wait for user to stop typing (debounce)
+  const id = setTimeout(() => {
+    const doc = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -327,6 +331,7 @@ useEffect(() => {
   <script>
     (function() {
       let parentArmed = false;
+      let messageQueue = [];
       
       function safeSerialize(arg) {
         try {
@@ -346,29 +351,55 @@ useEffect(() => {
         }
       }
       
-      window.addEventListener('message', function(e) {
-        if (!e || !e.data) return;
-        if (e.data.type === 'parent-ready') {
-          try {
-            if (window.parent !== window) {
-              window.parent.postMessage({type: 'iframe-ready'}, '*');
-            }
-          } catch (err) {}
-        }
-        if (e.data.type === 'parent-armed') {
-          parentArmed = true;
-        }
-      });
-      
+      // Post message to parent
       function post(type, payload) {
-        if (!parentArmed) return;
+        var message = {type: type};
+        for (var key in payload) {
+          if (payload.hasOwnProperty(key)) {
+            message[key] = payload[key];
+          }
+        }
+        
+        if (!parentArmed) {
+          messageQueue.push(message);
+          return;
+        }
+        
         try {
-          if (window.parent !== window) {
-            window.parent.postMessage({type: type, ...payload}, '*');
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage(message, '*');
           }
         } catch (err) {}
       }
       
+      // Message listener
+      window.addEventListener('message', function(e) {
+        if (!e || !e.data) return;
+        
+        if (e.data.type === 'parent-ready') {
+          try {
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({type: 'iframe-ready'}, '*');
+            }
+          } catch (err) {}
+        }
+        
+        if (e.data.type === 'parent-armed') {
+          parentArmed = true;
+          
+          // Send queued messages
+          while (messageQueue.length > 0) {
+            var msg = messageQueue.shift();
+            try {
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage(msg, '*');
+              }
+            } catch (err) {}
+          }
+        }
+      });
+      
+      // Error handler
       window.addEventListener('error', function(e) {
         post('error', {
           message: (e && e.message) ? e.message : 'Unknown error',
@@ -378,43 +409,47 @@ useEffect(() => {
         return false;
       });
       
-      const oldLog = console.log;
-      const oldError = console.error;
-      const oldWarn = console.warn;
+      // Save original console methods
+      var oldLog = console.log;
+      var oldError = console.error;
+      var oldWarn = console.warn;
       
+      // Override console.log - ONLY send to parent
       console.log = function() {
         var args = Array.prototype.slice.call(arguments);
         post('log', {data: args.map(safeSerialize)});
-        oldLog.apply(console, args);
       };
       
+      // Override console.error - ONLY send to parent
       console.error = function() {
         var args = Array.prototype.slice.call(arguments);
         post('error', {data: args.map(safeSerialize)});
-        oldError.apply(console, args);
       };
       
+      // Override console.warn - ONLY send to parent
       console.warn = function() {
         var args = Array.prototype.slice.call(arguments);
         post('warn', {data: args.map(safeSerialize)});
-        oldWarn.apply(console, args);
       };
       
+      // Run user code
       setTimeout(function runUserJS() {
         try {
           ${js}
         } catch (err) {
           console.error('Runtime Error: ' + (err && err.message ? err.message : String(err)));
         }
-      }, 0);
+      }, 100);
     })();
   <\/script>
 </body>
 </html>`;
-      setSrcDoc(doc);
-    }, 120);
-    return () => clearTimeout(id);
-  }, [html, css, js, previewKey]);
+    setSrcDoc(doc);
+  }, 800); // Wait 800ms after user stops typing
+  
+  return () => clearTimeout(id);
+}, [html, css, js, previewKey]);
+
 
   const handleReset = () => {
     setHtml(DEFAULT_HTML);
