@@ -206,7 +206,7 @@ const Header = () => {
 
   const exploreItems = [
     { path: '/sheets', label: 'Sheets', icon: List },
-    { path: '/quick-compiler', label: 'Quick Compiler', icon: Code },
+    { path: '/compiler', label: 'Quick Compiler', icon: Code },
     { path: '/live-code-editor', label: 'WebDev Editor', icon: Layout },
   ];
 
@@ -221,7 +221,7 @@ const Header = () => {
   ];
 
   const isAdminPathActive = location.pathname.startsWith('/admin/');
-  const isExplorePathActive = ['/sheets', '/quick-compiler', '/live-code-editor'].some(path => location.pathname.startsWith(path));
+  const isExplorePathActive = ['/sheets', '/compiler', '/live-code-editor'].some(path => location.pathname.startsWith(path));
 
   // Badge clearing when visiting announcements
   useEffect(() => {
