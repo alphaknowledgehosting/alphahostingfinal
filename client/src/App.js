@@ -39,7 +39,8 @@ const Announcements = lazy(() => import('./components/Pages/Announcements'));
 const EditorialPage = lazy(() => import('./components/Pages/EditorialPage'));
 const UserManagement = lazy(() => import('./components/Admin/UserManagement'));
 const SheetManagement = lazy(() => import('./components/Admin/SheetManagement'));
-
+const LiveCodeEditor = lazy(() => import('./components/Pages/LiveCodeEditor'));
+const QuickCompiler = lazy(() => import('./components/Pages/QuickCompiler'));
 // Loading component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -170,6 +171,8 @@ function App() {
                     <Route path="/admin/users" element={<AdminUsersPage />} />
                     <Route path="/admin/sheets" element={<AdminSheetsPage />} />
                     <Route path="*" element={<NotFoundPage />} />
+                    <Route path="/live-code-editor" element={<LiveCodeEditor />} />
+                    <Route path="/compiler" element={<QuickCompiler />} />
                   </Routes>
                 </Suspense>
               </ProgressProvider>
