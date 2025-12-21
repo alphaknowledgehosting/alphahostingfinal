@@ -28,7 +28,7 @@ import 'aos/dist/aos.css';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://alphahostingfinal.onrender.com';
 const Jobs = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -63,11 +63,11 @@ const Jobs = () => {
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('http://localhost:5000/api/jobs/tech');
+      const response = await axios.get(`${API_BASE_URL}/api/jobs/tech`);
       setJobs(response.data.data || []);
       setFilteredJobs(response.data.data || []);
       
-      const statsResponse = await axios.get('http://localhost:5000/api/jobs/stats');
+      const statsResponse = await axios.get(`${API_BASE_URL}/api/jobs/stats`);
       setStats(statsResponse.data.data);
     } catch (error) {
       console.error('Error fetching jobs:', error);
@@ -94,7 +94,7 @@ const Jobs = () => {
       }
       
       const response = await axios.post(
-        'http://localhost:5000/api/jobs/sync',
+        `${API_BASE_URL}/api/jobs/sync`,
         {},
         {
           headers: {
