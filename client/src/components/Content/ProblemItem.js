@@ -17,7 +17,8 @@ import {
   FaTrash,
   FaSave,
   FaBookmark,
-  FaRegBookmark
+  FaRegBookmark,
+  FaUnlink
 } from 'react-icons/fa';
 import { 
   ChevronRight,
@@ -28,11 +29,11 @@ import {
   Plus,
   Edit
 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { useProgress } from '../../context/ProgressContext';
 import LoginButton from '../Auth/LoginButton';
 import YouTubeModal from '../Common/YouTubeModal';
-import { sheetAPI } from '../../services/api';
+import { sheetAPI, problemAPI } from '../../services/api';
 
 // Reusable Editable Cell Component
 const EditableCell = ({ 
@@ -178,10 +179,8 @@ const ProblemItem = ({
   sectionId, 
   subsectionId, 
   index, 
-  onUpdateProblem, 
-  onDeleteProblem,
-  canManageSheets,
-  onProgress
+  onRefresh,
+  canManageSheets
 }) => {
   const { user, canAddEditorials } = useAuth();
   const { toggleProblem, toggleRevision, isProblemCompleted, isProblemMarkedForRevision, refreshStats } = useProgress();
@@ -193,6 +192,9 @@ const ProblemItem = ({
   const [editingEditorial, setEditingEditorial] = useState(false);
   const [tempEditorialValue, setTempEditorialValue] = useState('');
   const [updating, setUpdating] = useState(false);
+  
+  // ✅ NEW: Add state for unlink and delete
+  const [unlinking, setUnlinking] = useState(false);
   const [deleting, setDeleting] = useState(false);
   
   const isCompleted = isProblemCompleted(problem.id);
@@ -230,13 +232,13 @@ const ProblemItem = ({
     try {
       setLocalProblem(prev => ({ ...prev, [field]: value }));
       
-      if (onUpdateProblem) {
-        await onUpdateProblem(sectionId, subsectionId, problem.id, field, value);
-      } else {
-        await sheetAPI.updateProblemField(sheetId, sectionId, subsectionId, problem.id, { [field]: value });
-      }
+      await problemAPI.update(problem.id, { [field]: value });
       
       toast.success(`${field} updated successfully! ✅`, { id: loadingToast });
+      
+      if (onRefresh) {
+        await onRefresh();
+      }
     } catch (error) {
       console.error('Error updating field:', error);
       setLocalProblem(prev => ({ ...prev, [field]: problem[field] }));
@@ -327,7 +329,6 @@ const ProblemItem = ({
       if (success) {
         toast.success(isCompleted ? 'Problem marked as incomplete' : 'Problem completed! 🎉');
         await refreshStats();
-        if (onProgress) onProgress();
       } else {
         toast.error('Failed to update problem status');
       }
@@ -359,7 +360,6 @@ const ProblemItem = ({
       if (success) {
         toast.success(isMarkedForRevision ? 'Removed from revision list' : 'Added to revision list! 📚');
         await refreshStats();
-        if (onProgress) onProgress();
       } else {
         toast.error('Failed to update revision status');
       }
@@ -378,35 +378,70 @@ const ProblemItem = ({
     }
   };
 
+  // ✅ Unlink problem from subsection (keeps global problem)
+  const handleUnlinkProblem = async () => {
+    if (!canManageSheets) {
+      toast.error('You do not have permission to unlink problems.');
+      return;
+    }
+
+    if (!window.confirm(`Remove "${localProblem.title || 'this problem'}" from this subsection? The problem will still exist globally and can be re-added later.`)) {
+      return;
+    }
+
+    const loadingToast = toast.loading('Unlinking problem...');
+
+    try {
+      setUnlinking(true);
+      
+      await sheetAPI.unlinkProblem(sheetId, sectionId, subsectionId, problem.id);
+      
+      toast.success(`Problem unlinked successfully! 🔗`, { id: loadingToast });
+      
+      await refreshStats();
+      
+      if (onRefresh) {
+        await onRefresh();
+      }
+      
+    } catch (error) {
+      console.error('Error unlinking problem:', error);
+      toast.error(`Failed to unlink: ${error.response?.data?.message || error.message}`, { id: loadingToast });
+      setUnlinking(false);
+    }
+  };
+
+  // ✅ NEW: Delete problem globally (all sheets + all user progress)
   const handleDeleteProblem = async () => {
     if (!canManageSheets) {
       toast.error('You do not have permission to delete problems.');
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete "${localProblem.title || 'this problem'}"? This action cannot be undone.`)) {
+    if (!window.confirm(
+      `⚠️ DANGER: Delete "${localProblem.title || 'this problem'}" GLOBALLY?\n\n` +
+      `This will:\n` +
+      `• Remove it from ALL sheets\n` +
+      `• Delete ALL user progress for ALL users\n` +
+      `• Delete the problem permanently\n\n` +
+      `This action CANNOT be undone!`
+    )) {
       return;
     }
 
-    const loadingToast = toast.loading('Deleting problem...');
+    const loadingToast = toast.loading('Deleting problem globally...');
 
     try {
       setDeleting(true);
+      await problemAPI.delete(problem.id);
       
-      if (onDeleteProblem) {
-        await onDeleteProblem(sectionId, subsectionId, problem.id);
-      } else {
-        await sheetAPI.deleteProblem(sheetId, sectionId, subsectionId, problem.id);
-      }
-      
-      toast.success(`Problem "${localProblem.title || 'Untitled'}" deleted successfully! 🗑️`, { id: loadingToast });
+      toast.success(`Problem deleted globally! 🗑️`, { id: loadingToast });
       
       await refreshStats();
-      if (onProgress) onProgress();
-      
+      if (onRefresh) await onRefresh();
     } catch (error) {
       console.error('Error deleting problem:', error);
-      toast.error(`Failed to delete problem: ${error.response?.data?.message || error.message}`, { id: loadingToast });
+      toast.error(`Failed to delete: ${error.response?.data?.message || error.message}`, { id: loadingToast });
       setDeleting(false);
     }
   };
@@ -415,118 +450,106 @@ const ProblemItem = ({
     setShowAuthModal(false);
   };
 
-  // COMPACT Authentication Modal - SMALLER SIZE, NO OVERFLOW
-const AuthModal = () => {
-  if (!showAuthModal) return null;
+  // Authentication Modal
+  const AuthModal = () => {
+    if (!showAuthModal) return null;
 
-  const closeModal = () => {
-    setShowAuthModal(false);
-  };
+    const closeModal = () => {
+      setShowAuthModal(false);
+    };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6">
-      {/* Enhanced Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300"
-        onClick={closeModal}
-      />
-      
-      {/* COMPACT Modal Container - Much smaller */}
-      <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-xl sm:rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 animate-in zoom-in-95 fade-in slide-in-from-bottom-8 duration-300 overflow-hidden">
-        
-        {/* Background Pattern */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/5 via-[#a855f7]/3 to-[#6366f1]/5 dark:from-[#6366f1]/10 dark:via-[#a855f7]/5 dark:to-[#6366f1]/10 rounded-xl sm:rounded-2xl" />
-        
-        {/* Close Button - Smaller */}
-        <button
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 md:p-6">
+        <div 
+          className="absolute inset-0 bg-black/80 backdrop-blur-xl animate-in fade-in duration-300"
           onClick={closeModal}
-          className="absolute top-2 right-2 sm:top-3 sm:right-3 w-6 h-6 sm:w-8 sm:h-8 bg-white/80 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center z-10 border border-white/30 dark:border-white/20"
-        >
-          <FaTimes className="w-3 h-3" />
-        </button>
-
-        {/* Modal Content - Compact layout */}
-        <div className="relative p-4 sm:p-6 text-center">
+        />
+        
+        <div className="relative w-full max-w-xs sm:max-w-sm md:max-w-md bg-white/95 dark:bg-black/95 backdrop-blur-xl rounded-xl sm:rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 animate-in zoom-in-95 fade-in slide-in-from-bottom-8 duration-300 overflow-hidden">
           
-          {/* Icon - Smaller */}
-          <div className="relative w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-lg sm:rounded-xl shadow-xl animate-pulse opacity-20"></div>
-            <div className="relative w-full h-full bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-lg sm:rounded-xl shadow-lg flex items-center justify-center">
-              <FaLock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-            </div>
-          </div>
-
-          {/* Title - Smaller */}
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Sign In Required
-          </h2>
+          <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1]/5 via-[#a855f7]/3 to-[#6366f1]/5 dark:from-[#6366f1]/10 dark:via-[#a855f7]/5 dark:to-[#6366f1]/10 rounded-xl sm:rounded-2xl" />
           
-          {/* Subtitle - More compact */}
-          <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-4 sm:mb-6 leading-relaxed">
-            Sign in to track your progress and mark problems as completed
-          </p>
-
-          {/* Problem Info Display - Compact */}
-          <div className="bg-white/80 dark:bg-white/5 backdrop-blur-sm rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-white/30 dark:border-white/10 shadow-lg">
-            <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
-              <div className="bg-white dark:bg-white/10 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg shadow-sm border border-gray-200 dark:border-white/20 backdrop-blur-sm">
-                <span className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm">
-                  {isEmpty(localProblem.title) ? 'Untitled Problem' : (
-                    localProblem.title.length > 20 ? 
-                      `${localProblem.title.substring(0, 20)}...` : 
-                      localProblem.title
-                  )}
-                </span>
-              </div>
-              
-              {!isEmpty(localProblem.difficulty) && (
-                <span className={`
-                  inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium
-                  ${getDifficultyStyle(localProblem.difficulty)}
-                `}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${getDifficultyDotColor(localProblem.difficulty)}`}></span>
-                  <span>{localProblem.difficulty}</span>
-                </span>
-              )}
-            </div>
-            <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm leading-relaxed">
-              Track your coding progress with ease!
-            </p>
-          </div>
-
-          {/* Login Button - Compact */}
-          <div className="flex justify-center mb-3 sm:mb-4">
-            <LoginButton 
-              onLoginSuccess={handleLoginSuccess}
-              variant="google"
-            />
-          </div>
-
-          {/* Skip Button - Smaller */}
-          <button 
+          <button
             onClick={closeModal}
-            className="text-gray-500 dark:text-gray-400 hover:text-[#6366f1] dark:hover:text-[#a855f7] font-medium transition-colors duration-200 text-sm mb-3 sm:mb-4"
+            className="absolute top-2 right-2 sm:top-3 sm:right-3 w-6 h-6 sm:w-8 sm:h-8 bg-white/80 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-500/20 text-gray-500 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg backdrop-blur-sm transition-all duration-200 flex items-center justify-center z-10 border border-white/30 dark:border-white/20"
           >
-            Maybe Later
+            <FaTimes className="w-3 h-3" />
           </button>
 
-          {/* Encouragement - More compact */}
-          <div className="bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 dark:from-[#6366f1]/20 dark:to-[#a855f7]/20 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-[#6366f1]/20 dark:border-[#a855f7]/30 backdrop-blur-sm">
-            <p className="text-[#6366f1] dark:text-[#a855f7] font-semibold flex items-center justify-center gap-1 text-xs sm:text-sm leading-relaxed">
-              <span>✨</span>
-              <span className="text-center">Quick sign-in to start tracking!</span>
-              <span>🚀</span>
+          <div className="relative p-4 sm:p-6 text-center">
+            
+            <div className="relative w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-lg sm:rounded-xl shadow-xl animate-pulse opacity-20"></div>
+              <div className="relative w-full h-full bg-gradient-to-br from-[#6366f1] to-[#a855f7] rounded-lg sm:rounded-xl shadow-lg flex items-center justify-center">
+                <FaLock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              </div>
+            </div>
+
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              Sign In Required
+            </h2>
+            
+            <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base mb-4 sm:mb-6 leading-relaxed">
+              Sign in to track your progress and mark problems as completed
             </p>
+
+            <div className="bg-white/80 dark:bg-white/5 backdrop-blur-sm rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 sm:mb-6 border border-white/30 dark:border-white/10 shadow-lg">
+              <div className="flex items-center justify-center gap-2 mb-2 flex-wrap">
+                <div className="bg-white dark:bg-white/10 px-2 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg shadow-sm border border-gray-200 dark:border-white/20 backdrop-blur-sm">
+                  <span className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm">
+                    {isEmpty(localProblem.title) ? 'Untitled Problem' : (
+                      localProblem.title.length > 20 ? 
+                        `${localProblem.title.substring(0, 20)}...` : 
+                        localProblem.title
+                    )}
+                  </span>
+                </div>
+                
+                {!isEmpty(localProblem.difficulty) && (
+                  <span className={`
+                    inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium
+                    ${getDifficultyStyle(localProblem.difficulty)}
+                  `}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${getDifficultyDotColor(localProblem.difficulty)}`}></span>
+                    <span>{localProblem.difficulty}</span>
+                  </span>
+                )}
+              </div>
+              <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm leading-relaxed">
+                Track your coding progress with ease!
+              </p>
+            </div>
+
+            <div className="flex justify-center mb-3 sm:mb-4">
+              <LoginButton 
+                onLoginSuccess={handleLoginSuccess}
+                variant="google"
+              />
+            </div>
+
+            <button 
+              onClick={closeModal}
+              className="text-gray-500 dark:text-gray-400 hover:text-[#6366f1] dark:hover:text-[#a855f7] font-medium transition-colors duration-200 text-sm mb-3 sm:mb-4"
+            >
+              Maybe Later
+            </button>
+
+            <div className="bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 dark:from-[#6366f1]/20 dark:to-[#a855f7]/20 rounded-lg sm:rounded-xl p-2 sm:p-3 border border-[#6366f1]/20 dark:border-[#a855f7]/30 backdrop-blur-sm">
+              <p className="text-[#6366f1] dark:text-[#a855f7] font-semibold flex items-center justify-center gap-1 text-xs sm:text-sm leading-relaxed">
+                <span>✨</span>
+                <span className="text-center">Quick sign-in to start tracking!</span>
+                <span>🚀</span>
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
+      </div>,
+      document.body
+    );
+  };
 
-
-  const isDisabled = updating || deleting;
+  // ✅ UPDATED: Include all disabled states
+  const isDisabled = updating || unlinking || deleting;
 
   return (
     <>
@@ -545,7 +568,7 @@ const AuthModal = () => {
         hover:shadow-sm hover:bg-gray-50/80 dark:hover:bg-slate-700/80
       `}>
         
-        {/* Modern Status Checkbox with Color-coded Tick */}
+        {/* Status Checkbox */}
         <td className="p-3 sm:p-4 text-center border-r border-gray-200/20 dark:border-white/10">
           <div className="flex items-center justify-center relative">
             <button
@@ -573,7 +596,7 @@ const AuthModal = () => {
           </div>
         </td>
 
-        {/* Problem Title - Only show "Solved" text, no revision badge */}
+        {/* Problem Title */}
         <EditableCell
           value={localProblem.title}
           onSave={(value) => updateField('title', value)}
@@ -602,7 +625,7 @@ const AuthModal = () => {
           )}
         />
 
-        {/* Video Link - MOVED TO THIRD POSITION */}
+        {/* Video Link */}
         <EditableCell
           value={localProblem.youtubeLink}
           onSave={(value) => updateField('youtubeLink', value)}
@@ -633,7 +656,7 @@ const AuthModal = () => {
           }
         />
 
-        {/* Editorial Link - MOVED TO FOURTH POSITION */}
+        {/* Editorial Link */}
         <td className="p-3 sm:p-4 text-center border-r border-gray-200/20 dark:border-white/10">
           <div className="flex items-center justify-center space-x-2">
             {editingEditorial ? (
@@ -702,7 +725,7 @@ const AuthModal = () => {
           </div>
         </td>
 
-        {/* Practice Link - MOVED TO FIFTH POSITION */}
+        {/* Practice Link */}
         <EditableCell
           value={localProblem.practiceLink}
           onSave={(value) => updateField('practiceLink', value)}
@@ -735,7 +758,7 @@ const AuthModal = () => {
           }
         />
 
-        {/* Notes Link - MOVED TO SIXTH POSITION */}
+        {/* Notes Link */}
         <EditableCell
           value={localProblem.notesLink}
           onSave={(value) => updateField('notesLink', value)}
@@ -767,7 +790,7 @@ const AuthModal = () => {
           }
         />
 
-        {/* Revision Toggle - MOVED TO SEVENTH POSITION */}
+        {/* Revision Toggle */}
         <td className="p-3 sm:p-4 text-center border-r border-gray-200/20 dark:border-white/10">
           <div className="flex items-center justify-center relative">
             <button
@@ -818,23 +841,47 @@ const AuthModal = () => {
           }
         />
 
-        {/* Actions */}
+        {/* ✅ Actions - Both Unlink and Delete */}
         {canManageSheets && (
           <td className="p-3 sm:p-4 text-center">
-            <button
-              onClick={handleDeleteProblem}
-              disabled={isDisabled}
-              className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Delete Problem"
-            >
-              {deleting ? (
-                <FaSpinner className="w-4 h-4 animate-spin" />
-              ) : (
-                <FaTrash className="w-4 h-4" />
-              )}
-            </button>
+            <div className="flex items-center justify-center space-x-2">
+              {/* Unlink Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleUnlinkProblem();
+                }}
+                disabled={isDisabled}
+                className="text-orange-600 hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Unlink from this subsection (keeps global problem)"
+              >
+                {unlinking ? (
+                  <FaSpinner className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FaUnlink className="w-4 h-4" />
+                )}
+              </button>
+              
+              {/* Delete Button */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteProblem();
+                }}
+                disabled={isDisabled}
+                className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Delete problem globally (removes from ALL sheets + ALL user progress)"
+              >
+                {deleting ? (
+                  <FaSpinner className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FaTrash className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </td>
         )}
+
       </tr>
 
       <AuthModal />

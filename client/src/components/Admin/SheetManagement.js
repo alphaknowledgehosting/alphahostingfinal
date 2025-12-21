@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { sheetAPI } from '../../services/api';
-import InlineProblemEditor from './InlineProblemEditor';
+import { sheetAPI, problemAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import { createPortal } from 'react-dom';
 import { 
   FaPlus, 
   FaEdit, 
@@ -16,15 +16,15 @@ import {
   FaSync,
   FaExternalLinkAlt,
   FaYoutube,
-  FaBook,
-  FaFileAlt,
   FaArrowLeft,
   FaSpinner,
-  FaGraduationCap
+  FaGraduationCap,
+  FaUnlink
 } from 'react-icons/fa';
-import { BookOpen, FileText, Plus } from 'lucide-react';
+import { BookOpen, FileText, Plus, Search } from 'lucide-react';
+import YouTubeModal from '../Common/YouTubeModal';
 
-// Inline Editable Component
+// ============= INLINE EDITABLE TEXT COMPONENT =============
 const InlineEditableText = ({ 
   value, 
   onSave, 
@@ -151,7 +151,440 @@ const InlineEditableText = ({
   );
 };
 
-// Add Item Form Component
+// ============= INLINE FIELD EDITOR FOR PROBLEMS =============
+const InlineFieldEditor = ({ value, onSave, placeholder, type = 'text', disabled }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(value || '');
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleSave = async () => {
+    if (tempValue !== value) {
+      setSaving(true);
+      try {
+        await onSave(tempValue);
+        setIsEditing(false);
+        toast.success('Field updated!');
+      } catch (error) {
+        toast.error('Failed to update');
+      } finally {
+        setSaving(false);
+      }
+    } else {
+      setIsEditing(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setTempValue(value || '');
+      setIsEditing(false);
+    }
+  };
+
+  if (disabled) {
+    return <span className="text-gray-900 dark:text-white text-sm">{value || placeholder}</span>;
+  }
+
+  if (isEditing) {
+    return (
+      <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
+        <input
+          ref={inputRef}
+          type={type}
+          value={tempValue}
+          onChange={(e) => setTempValue(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleSave}
+          className="flex-1 px-2 py-1 border border-indigo-400 dark:border-indigo-500 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50"
+          disabled={saving}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="group cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded px-2 py-1 transition-colors"
+      onClick={() => setIsEditing(true)}
+      title="Click to edit"
+    >
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">
+          {value || <span className="text-gray-400 italic text-xs">{placeholder}</span>}
+        </span>
+        <FaEdit className="w-3 h-3 text-gray-400 group-hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity ml-2" />
+      </div>
+    </div>
+  );
+};
+
+// ============= PROBLEM SELECTOR COMPONENT =============
+const ProblemSelector = ({ onSelect, selectedProblemIds = [] }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [problems, setProblems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const searchInputRef = useRef(null);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm.length >= 2) {
+        searchProblems();
+        setShowDropdown(true);
+      } else {
+        setProblems([]);
+        setShowDropdown(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        searchInputRef.current &&
+        !searchInputRef.current.contains(event.target) &&
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
+        setShowDropdown(false);
+      }
+    };
+
+    if (showDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showDropdown]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (showDropdown && dropdownRef.current && searchInputRef.current) {
+        updateDropdownPosition();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [showDropdown]);
+
+  const searchProblems = async () => {
+    try {
+      setLoading(true);
+      const response = await problemAPI.search({ q: searchTerm, limit: 20 });
+      setProblems(response.data.problems || []);
+    } catch (error) {
+      console.error('Error searching problems:', error);
+      toast.error('Failed to search problems');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelect = (problem) => {
+    if (selectedProblemIds.includes(problem.id)) {
+      toast.info('Problem already added to this subsection');
+      return;
+    }
+    onSelect(problem);
+    setSearchTerm('');
+    setProblems([]);
+    setShowDropdown(false);
+  };
+
+  const updateDropdownPosition = () => {
+    if (!searchInputRef.current || !dropdownRef.current) return;
+    
+    const rect = searchInputRef.current.getBoundingClientRect();
+    dropdownRef.current.style.top = `${rect.bottom + window.scrollY + 8}px`;
+    dropdownRef.current.style.left = `${rect.left + window.scrollX}px`;
+    dropdownRef.current.style.width = `${rect.width}px`;
+  };
+
+  const DropdownPortal = () => {
+    useEffect(() => {
+      if (showDropdown) {
+        updateDropdownPosition();
+      }
+    }, [showDropdown, problems]);
+
+    if (!showDropdown || searchTerm.length < 2) return null;
+
+    return createPortal(
+      <div
+        ref={dropdownRef}
+        style={{
+          position: 'absolute',
+          zIndex: 999999,
+          maxHeight: '400px'
+        }}
+        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-indigo-200 dark:border-indigo-600 overflow-y-auto"
+      >
+        {loading ? (
+          <div className="p-4 text-center text-gray-500">Searching...</div>
+        ) : problems.length === 0 ? (
+          <div className="p-4 text-center text-gray-500">
+            No problems found. Try different keywords.
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+            {problems.map((problem) => {
+              const isSelected = selectedProblemIds.includes(problem.id);
+              return (
+                <li
+                  key={problem.id}
+                  onClick={() => !isSelected && handleSelect(problem)}
+                  className={`p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer transition-colors ${
+                    isSelected ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                        {problem.title}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        {problem.platform && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {problem.platform}
+                          </span>
+                        )}
+                        {problem.difficulty && (
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full ${
+                              problem.difficulty === 'Easy'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : problem.difficulty === 'Medium'
+                                ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            }`}
+                          >
+                            {problem.difficulty}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>,
+      document.body
+    );
+  };
+
+  return (
+    <div className="relative mb-4">
+      <div ref={searchInputRef} className="relative">
+        <Search className="absolute left-3 top-3 w-5 h-5 text-gray-400 pointer-events-none" />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onFocus={() => searchTerm.length >= 2 && setShowDropdown(true)}
+          placeholder="Search existing problems by title or platform..."
+          className="w-full pl-10 pr-4 py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white"
+        />
+      </div>
+
+      <DropdownPortal />
+    </div>
+  );
+};
+
+// ============= PROBLEM FORM COMPONENT =============
+const ProblemForm = ({ problem, onSubmit, onCancel, isEditing = false, canManageSheets, canAddEditorials }) => {
+  const [formData, setFormData] = useState(problem);
+  const [submitting, setSubmitting] = useState(false);
+  const titleInputRef = useRef(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (titleInputRef.current) {
+        titleInputRef.current.focus();
+        titleInputRef.current.select();
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    if (submitting) return;
+    
+    if (!formData.title?.trim()) {
+      toast.error('Problem title is required.');
+      titleInputRef.current?.focus();
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      await onSubmit(formData);
+    } catch (error) {
+      console.error('Form submit error:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-xl p-4 md:p-6 border-2 border-dashed border-indigo-300 dark:border-indigo-600 mb-4">
+      <form onSubmit={handleFormSubmit}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Problem Title *
+            </label>
+            <input
+              ref={titleInputRef}
+              type="text"
+              value={formData.title}
+              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-3 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white disabled:opacity-50 text-sm md:text-base"
+              required
+              disabled={!canManageSheets || submitting}
+              placeholder="Enter problem title"
+            />
+          </div>
+
+          {canManageSheets && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Platform</label>
+                <input
+                  type="text"
+                  value={formData.platform || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, platform: e.target.value }))}
+                  className="w-full px-3 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm md:text-base"
+                  placeholder="e.g., LeetCode"
+                  disabled={submitting}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Practice Link</label>
+                <input
+                  type="url"
+                  value={formData.practiceLink || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, practiceLink: e.target.value }))}
+                  className="w-full px-3 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm md:text-base"
+                  placeholder="https://leetcode.com/problems/..."
+                  disabled={submitting}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">YouTube Link</label>
+                <input
+                  type="url"
+                  value={formData.youtubeLink || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, youtubeLink: e.target.value }))}
+                  className="w-full px-3 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm md:text-base"
+                  placeholder="https://youtube.com/watch?v=..."
+                  disabled={submitting}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Difficulty</label>
+                <select
+                  value={formData.difficulty || 'Easy'}
+                  onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
+                  className="w-full px-3 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm md:text-base"
+                  disabled={submitting}
+                >
+                  <option value="Easy">Easy</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Hard">Hard</option>
+                </select>
+              </div>
+            </>
+          )}
+
+          {canAddEditorials && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Editorial Link</label>
+                <input
+                  type="url"
+                  value={formData.editorialLink || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, editorialLink: e.target.value }))}
+                  className="w-full px-3 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm md:text-base"
+                  placeholder="GitHub markdown link"
+                  disabled={submitting}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Notes Link</label>
+                <input
+                  type="url"
+                  value={formData.notesLink || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, notesLink: e.target.value }))}
+                  className="w-full px-3 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm md:text-base"
+                  placeholder="Link to notes"
+                  disabled={submitting}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 mt-6">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="w-full sm:w-auto px-6 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+          >
+            <FaTimes className="w-4 h-4" />
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting || !formData.title?.trim()}
+            className="w-full sm:w-auto px-6 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 flex items-center justify-center gap-2 text-sm shadow-lg"
+          >
+            {submitting ? (
+              <>
+                <FaSpinner className="w-4 h-4 animate-spin" />
+                {isEditing ? 'Updating...' : 'Adding...'}
+              </>
+            ) : (
+              <>
+                <FaSave className="w-4 h-4" />
+                {isEditing ? 'Update' : 'Add'} Problem
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+// ============= ADD ITEM FORM =============
 const AddItemForm = ({ 
   onSubmit, 
   onCancel, 
@@ -210,7 +643,7 @@ const AddItemForm = ({
                     value={field.value || ''}
                     onChange={(e) => field.onChange(e.target.value)}
                     placeholder={field.placeholder}
-                    className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm resize-none disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm resize-none disabled:opacity-50"
                     rows={2}
                     required={field.required}
                     disabled={submitting}
@@ -221,7 +654,7 @@ const AddItemForm = ({
                     value={field.value || ''}
                     onChange={(e) => field.onChange(e.target.value)}
                     placeholder={field.placeholder}
-                    className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50"
                     required={field.required}
                     disabled={submitting}
                   />
@@ -235,7 +668,7 @@ const AddItemForm = ({
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white disabled:opacity-50"
             autoFocus
             required
             disabled={submitting}
@@ -246,7 +679,7 @@ const AddItemForm = ({
             type="button"
             onClick={onCancel}
             disabled={submitting}
-            className="w-full sm:w-auto px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center justify-center space-x-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center justify-center space-x-2 text-sm disabled:opacity-50"
           >
             <FaTimes className="w-3 h-3" />
             <span>Cancel</span>
@@ -254,7 +687,7 @@ const AddItemForm = ({
           <button
             type="submit"
             disabled={submitting}
-            className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center space-x-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center space-x-2 text-sm disabled:opacity-50"
           >
             {submitting ? (
               <>
@@ -274,6 +707,7 @@ const AddItemForm = ({
   );
 };
 
+// ============= MAIN SHEET MANAGEMENT COMPONENT =============
 const SheetManagement = () => {
   const { user, canManageSheets, canAddEditorials } = useAuth();
   const [sheets, setSheets] = useState([]);
@@ -282,30 +716,34 @@ const SheetManagement = () => {
   const [expandedItems, setExpandedItems] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [selectedSubsection, setSelectedSubsection] = useState(null);
-  const [showAddProblem, setShowAddProblem] = useState(false);
-  const [editingProblem, setEditingProblem] = useState(null);
   const [addingSection, setAddingSection] = useState({});
   const [addingSubsection, setAddingSubsection] = useState({});
   const [deletingIds, setDeletingIds] = useState(new Set());
+  
+  // Problem management states
+  const [currentProblems, setCurrentProblems] = useState([]);
+  const [loadingProblems, setLoadingProblems] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingProblemId, setEditingProblemId] = useState(null);
+  const [unlinkingId, setUnlinkingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null); // ✅ NEW
+  const [showVideo, setShowVideo] = useState(null);
 
   const [newSheet, setNewSheet] = useState({ name: '', description: '' });
   const [newSectionName, setNewSectionName] = useState('');
   const [newSubsectionName, setNewSubsectionName] = useState('');
-  const [newProblem, setNewProblem] = useState({
-    title: '',
-    practiceLink: '',
-    platform: '',
-    youtubeLink: '',
-    editorialLink: '',
-    notesLink: '',
-    difficulty: 'Easy'
-  });
 
   useEffect(() => {
     if (canManageSheets) {
       loadSheets();
     }
   }, [canManageSheets]);
+
+  useEffect(() => {
+    if (selectedSubsection) {
+      loadProblemsForSubsection();
+    }
+  }, [selectedSubsection, sheets]);
 
   const loadSheets = async () => {
     try {
@@ -330,6 +768,31 @@ const SheetManagement = () => {
     }
   };
 
+  const loadProblemsForSubsection = async () => {
+    if (!selectedSubsection) return;
+
+    const sheet = sheets.find(s => s.id === selectedSubsection.sheetId);
+    const section = sheet?.sections?.find(s => s.id === selectedSubsection.sectionId);
+    const subsection = section?.subsections?.find(s => s.id === selectedSubsection.subsectionId);
+    const problemIds = subsection?.problemIds || [];
+
+    if (problemIds.length === 0) {
+      setCurrentProblems([]);
+      return;
+    }
+
+    try {
+      setLoadingProblems(true);
+      const response = await problemAPI.getBatch(problemIds);
+      setCurrentProblems(response.data.problems || []);
+    } catch (error) {
+      console.error('Error loading problems:', error);
+      toast.error('Failed to load problems');
+    } finally {
+      setLoadingProblems(false);
+    }
+  };
+
   // Sheet Operations
   const handleAddSheet = async (fields) => {
     if (!canManageSheets) return;
@@ -351,7 +814,7 @@ const SheetManagement = () => {
   };
 
   const handleDeleteSheet = async (sheetId, sheetName) => {
-    if (!window.confirm(`Are you sure you want to delete "${sheetName}"? This will delete all sections, subsections, problems, and user progress associated with this sheet.`)) {
+    if (!window.confirm(`Are you sure you want to delete "${sheetName}"? This will remove all references but NOT delete global problems.`)) {
       return;
     }
 
@@ -389,7 +852,7 @@ const SheetManagement = () => {
   };
 
   const handleDeleteSection = async (sheetId, sectionId, sectionName) => {
-    if (!window.confirm(`Are you sure you want to delete section "${sectionName}"? This will delete all subsections, problems, and user progress in this section.`)) {
+    if (!window.confirm(`Are you sure you want to delete section "${sectionName}"? This will remove all references but NOT delete global problems.`)) {
       return;
     }
 
@@ -427,7 +890,7 @@ const SheetManagement = () => {
   };
 
   const handleDeleteSubsection = async (sheetId, sectionId, subsectionId, subsectionName) => {
-    if (!window.confirm(`Are you sure you want to delete subsection "${subsectionName}"? This will delete all problems and user progress in this subsection.`)) {
+    if (!window.confirm(`Are you sure you want to delete subsection "${subsectionName}"? This will remove all references but NOT delete global problems.`)) {
       return;
     }
 
@@ -453,53 +916,154 @@ const SheetManagement = () => {
     setSelectedSubsection({ sheetId, sectionId, subsectionId, subsectionName });
   };
 
-  const handleAddProblem = async (formData) => {
-    if (!selectedSubsection || !formData.title.trim()) return;
-    
-    await sheetAPI.addProblem(
-      selectedSubsection.sheetId,
-      selectedSubsection.sectionId,
-      selectedSubsection.subsectionId,
-      formData
-    );
-    
-    setNewProblem({
-      title: '',
-      practiceLink: '',
-      platform: '',
-      youtubeLink: '',
-      editorialLink: '',
-      notesLink: '',
-      difficulty: 'Easy'
-    });
-    setShowAddProblem(false);
-    await refreshSheets();
-    toast.success('Problem added successfully!');
+  const handleLinkExistingProblem = async (problem) => {
+    if (!selectedSubsection) return;
+
+    try {
+      await sheetAPI.linkProblem(
+        selectedSubsection.sheetId,
+        selectedSubsection.sectionId,
+        selectedSubsection.subsectionId,
+        problem.id
+      );
+      toast.success(`Problem "${problem.title}" added to subsection!`);
+      await refreshSheets();
+    } catch (error) {
+      console.error('Error linking problem:', error);
+      toast.error('Failed to link problem');
+    }
   };
 
-  const handleDeleteProblem = async (problemId) => {
-    if (!selectedSubsection || !window.confirm('Are you sure you want to delete this problem?')) return;
-    
+  const handleCreateAndLinkProblem = async (problemData) => {
+    if (!selectedSubsection || !problemData.title?.trim()) {
+      toast.error('Problem title is required.');
+      return;
+    }
+
+    const loadingToast = toast.loading('Creating problem...');
+
     try {
-      setDeletingIds(prev => new Set(prev).add(problemId));
-      await sheetAPI.deleteProblem(
+      const createResponse = await problemAPI.create(problemData);
+      const createdProblem = createResponse.data.problem;
+
+      await sheetAPI.linkProblem(
+        selectedSubsection.sheetId,
+        selectedSubsection.sectionId,
+        selectedSubsection.subsectionId,
+        createdProblem.id
+      );
+
+      setShowCreateForm(false);
+      toast.success(`Problem "${createdProblem.title}" created and added! 🎉`, { id: loadingToast });
+      await refreshSheets();
+    } catch (error) {
+      console.error('Error creating and linking problem:', error);
+      toast.error('Failed to create problem', { id: loadingToast });
+    }
+  };
+
+  const handleUpdateProblem = async (problemId, updateData) => {
+    const loadingToast = toast.loading('Updating problem...');
+
+    try {
+      await problemAPI.update(problemId, updateData);
+      setEditingProblemId(null);
+      toast.success('Problem updated successfully! ✅', { id: loadingToast });
+      await refreshSheets();
+    } catch (error) {
+      console.error('Error updating problem:', error);
+      toast.error('Failed to update problem', { id: loadingToast });
+    }
+  };
+
+  const handleUpdateField = async (problemId, field, value) => {
+    try {
+      await problemAPI.update(problemId, { [field]: value });
+      await refreshSheets();
+    } catch (error) {
+      console.error('Error updating field:', error);
+      throw error;
+    }
+  };
+
+  // ✅ Unlink problem from subsection
+  const handleUnlinkProblem = async (problemId, problemTitle) => {
+    if (!selectedSubsection) return;
+
+    if (!window.confirm(
+      `Remove "${problemTitle}" from this subsection?\n\n` +
+      `The problem will still exist globally and in other subsections where it's used.`
+    )) {
+      return;
+    }
+
+    try {
+      setUnlinkingId(problemId);
+      await sheetAPI.unlinkProblem(
         selectedSubsection.sheetId,
         selectedSubsection.sectionId,
         selectedSubsection.subsectionId,
         problemId
       );
-      
+      toast.success('Problem removed from subsection');
       await refreshSheets();
-      toast.success('Problem deleted successfully!');
+    } catch (error) {
+      console.error('Error unlinking problem:', error);
+      toast.error('Failed to remove problem');
+    } finally {
+      setUnlinkingId(null);
+    }
+  };
+
+  // ✅ NEW: Delete problem globally
+  const handleDeleteProblem = async (problemId, problemTitle) => {
+    if (!selectedSubsection) return;
+
+    if (!window.confirm(
+      `⚠️ DANGER: Delete "${problemTitle}" GLOBALLY?\n\n` +
+      `This will:\n` +
+      `• Remove it from ALL sheets\n` +
+      `• Delete ALL user progress for ALL users\n` +
+      `• Delete the problem permanently\n\n` +
+      `This action CANNOT be undone!`
+    )) {
+      return;
+    }
+
+    const loadingToast = toast.loading('Deleting problem globally...');
+
+    try {
+      setDeletingId(problemId);
+      await problemAPI.delete(problemId);
+      toast.success('Problem deleted globally! 🗑️', { id: loadingToast });
+      await refreshSheets();
     } catch (error) {
       console.error('Error deleting problem:', error);
-      toast.error(`Failed to delete problem: ${error.response?.data?.message || error.message}`);
-    } finally {
-      setDeletingIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(problemId);
-        return newSet;
-      });
+      toast.error(`Failed to delete: ${error.response?.data?.message || error.message}`, { id: loadingToast });
+      setDeletingId(null);
+    }
+  };
+
+  const isEmpty = (value) => {
+    return !value || value === '' || value === null || value === undefined;
+  };
+
+  const handleLinkClick = (link, type, problem) => {
+    if (isEmpty(link)) return;
+
+    switch (type) {
+      case 'editorial':
+        const editorialPath = `/editorial/${problem.id}`;
+        window.open(editorialPath, '_blank', 'noopener,noreferrer');
+        break;
+      case 'youtube':
+        setShowVideo({ url: link, title: problem.title || 'Untitled Problem' });
+        break;
+      case 'practice':
+      case 'notes':
+      default:
+        window.open(link, '_blank', 'noopener,noreferrer');
+        break;
     }
   };
 
@@ -510,191 +1074,7 @@ const SheetManagement = () => {
     }));
   };
 
-  const getCurrentSubsectionProblems = () => {
-    if (!selectedSubsection) return [];
-    
-    const sheet = sheets.find(s => s.id === selectedSubsection.sheetId);
-    const section = sheet?.sections?.find(s => s.id === selectedSubsection.sectionId);
-    const subsection = section?.subsections?.find(s => s.id === selectedSubsection.subsectionId);
-    
-    return subsection?.problems || [];
-  };
-
-  const ProblemForm = ({ problem, onSubmit, onCancel, isEditing = false }) => {
-    const [formData, setFormData] = useState(problem || newProblem);
-    const [submitting, setSubmitting] = useState(false);
-
-    const handleFormSubmit = async (e) => {
-      e.preventDefault();
-      if (submitting) return;
-
-      try {
-        setSubmitting(true);
-        await onSubmit(formData);
-      } catch (error) {
-        console.error('Form submit error:', error);
-        toast.error(`Failed to ${isEditing ? 'update' : 'add'} problem: ${error.response?.data?.message || error.message}`);
-      } finally {
-        setSubmitting(false);
-      }
-    };
-
-    return (
-      <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl p-4 md:p-6 border border-indigo-200/50 dark:border-indigo-500/30 mb-6 shadow-xl">
-        <div className="flex items-center space-x-3 mb-4 md:mb-6">
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
-            <FaGraduationCap className="w-4 h-4 md:w-5 md:h-5 text-white" />
-          </div>
-          <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-white">
-            {isEditing ? 'Edit Problem' : 'Add New Problem'}
-          </h3>
-        </div>
-        
-        <form onSubmit={handleFormSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Problem Title *
-              </label>
-              <input
-                type="text"
-                value={formData.title}
-                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                className="w-full px-3 md:px-4 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                required
-                placeholder="Enter problem title"
-                disabled={submitting}
-              />
-            </div>
-
-            {canManageSheets && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Practice Link
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.practiceLink}
-                    onChange={(e) => setFormData(prev => ({ ...prev, practiceLink: e.target.value }))}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="https://leetcode.com/problems/..."
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Platform
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.platform}
-                    onChange={(e) => setFormData(prev => ({ ...prev, platform: e.target.value }))}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="LeetCode, GeeksforGeeks, etc."
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    YouTube Link
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.youtubeLink}
-                    onChange={(e) => setFormData(prev => ({ ...prev, youtubeLink: e.target.value }))}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="https://youtube.com/watch?v=..."
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Difficulty
-                  </label>
-                  <select
-                    value={formData.difficulty}
-                    onChange={(e) => setFormData(prev => ({ ...prev, difficulty: e.target.value }))}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={submitting}
-                  >
-                    <option value="Easy">Easy</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Hard">Hard</option>
-                  </select>
-                </div>
-              </>
-            )}
-
-            {canAddEditorials && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Editorial Link
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.editorialLink}
-                    onChange={(e) => setFormData(prev => ({ ...prev, editorialLink: e.target.value }))}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="GitHub markdown link"
-                    disabled={submitting}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Notes Link
-                  </label>
-                  <input
-                    type="url"
-                    value={formData.notesLink}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notesLink: e.target.value }))}
-                    className="w-full px-3 md:px-4 py-2 md:py-3 border border-indigo-300 dark:border-indigo-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    placeholder="Link to notes or documentation"
-                    disabled={submitting}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-3 mt-6 md:mt-8">
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={submitting}
-              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-3 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              <FaTimes className="w-3 h-3 md:w-4 md:h-4" />
-              <span>Cancel</span>
-            </button>
-            <button
-              type="submit"
-              disabled={submitting || !formData.title}
-              className="w-full sm:w-auto px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 shadow-lg flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {submitting ? (
-                <>
-                  <FaSpinner className="w-3 h-3 md:w-4 md:h-4 animate-spin" />
-                  <span>{isEditing ? 'Updating...' : 'Adding...'}</span>
-                </>
-              ) : (
-                <>
-                  <FaSave className="w-3 h-3 md:w-4 md:h-4" />
-                  <span>{isEditing ? 'Update' : 'Add'} Problem</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-    );
-  };
-
+  // ============= RENDER GUARD =============
   if (!canManageSheets) {
     return (
       <div className="min-h-screen flex items-center justify-center py-8 px-4">
@@ -725,10 +1105,11 @@ const SheetManagement = () => {
     );
   }
 
-  // Problem Management View
+  // ============= PROBLEM MANAGEMENT VIEW =============
   if (selectedSubsection) {
-    const problems = getCurrentSubsectionProblems();
-    
+    const selectedProblemIds = currentProblems.map(p => p.id);
+    const isDisabled = unlinkingId !== null || deletingId !== null; // ✅ NEW
+
     return (
       <div className="min-h-screen py-4 md:py-8 px-4">
         <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
@@ -748,36 +1129,66 @@ const SheetManagement = () => {
                   Problems in "{selectedSubsection.subsectionName}"
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm md:text-base">
-                  Manage problems, editorials, and content for this subsection
+                  Search existing problems or create new ones
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setShowAddProblem(true)}
-              className="w-full sm:w-auto flex items-center justify-center px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 shadow-lg transition-all duration-200 transform hover:scale-105 text-sm"
-            >
-              <FaPlus className="w-3 h-3 md:w-4 md:h-4 mr-2" />
-              Add Problem
-            </button>
           </div>
 
-          {/* Add Problem Form */}
-          {showAddProblem && (
-            <ProblemForm
-              problem={newProblem}
-              onSubmit={handleAddProblem}
-              onCancel={() => setShowAddProblem(false)}
-            />
+          {/* Problem Selector (Search + Create Button) */}
+          {canManageSheets && (
+            <div className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl p-4 md:p-6 border border-indigo-200/50 dark:border-indigo-500/30 shadow-xl">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add Problems</h3>
+                <button
+                  onClick={() => setShowCreateForm(!showCreateForm)}
+                  className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 flex items-center justify-center gap-2 text-sm shadow-lg transition-all duration-200 transform hover:scale-105"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create New Problem
+                </button>
+              </div>
+
+              {/* Search Existing Problems */}
+              <ProblemSelector
+                onSelect={handleLinkExistingProblem}
+                selectedProblemIds={selectedProblemIds}
+              />
+
+              {/* Create New Problem Form */}
+              {showCreateForm && (
+                <ProblemForm
+                  problem={{
+                    title: '',
+                    practiceLink: '',
+                    platform: '',
+                    youtubeLink: '',
+                    editorialLink: '',
+                    notesLink: '',
+                    difficulty: 'Easy'
+                  }}
+                  onSubmit={handleCreateAndLinkProblem}
+                  onCancel={() => setShowCreateForm(false)}
+                  canManageSheets={canManageSheets}
+                  canAddEditorials={canAddEditorials}
+                />
+              )}
+            </div>
           )}
 
-          {/* Problems List */}
-          {problems.length === 0 ? (
+          {/* Problems Table */}
+          {loadingProblems ? (
+            <div className="text-center py-8">
+              <FaSpinner className="w-6 h-6 animate-spin text-indigo-500 mx-auto mb-2" />
+              <p className="text-gray-500 dark:text-gray-400">Loading problems...</p>
+            </div>
+          ) : currentProblems.length === 0 ? (
             <div className="text-center py-8 md:py-12 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-indigo-200/50 dark:border-indigo-500/30">
               <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <FaGraduationCap className="w-8 h-8 md:w-10 md:h-10 text-gray-400 dark:text-gray-500" />
               </div>
               <h4 className="text-lg md:text-xl font-semibold text-gray-900 dark:text-white mb-2">No Problems Yet</h4>
-              <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm md:text-base">
+              <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base mb-6">
                 Click "Add Problem" to create the first problem in this subsection.
               </p>
             </div>
@@ -793,7 +1204,7 @@ const SheetManagement = () => {
                       </div>
                       <div>
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                          Problems ({problems.length}) - Click to edit inline
+                          Problems ({currentProblems.length}) - Click to edit inline
                         </h3>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
                           {canManageSheets ? 'As admin, you can edit all fields' : 'As mentor, you can edit editorial and notes fields only'}
@@ -801,63 +1212,43 @@ const SheetManagement = () => {
                       </div>
                     </div>
                   </div>
-
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-indigo-200/50 dark:divide-indigo-500/30">
                       <thead className="bg-gradient-to-r from-indigo-100/50 to-purple-100/50 dark:from-indigo-800/30 dark:to-purple-800/30">
                         <tr>
-                          <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                            Status
-                          </th>
-                          <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                            Problem Title
-                          </th>
-                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                            Editorial
-                          </th>
-                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                            Video
-                          </th>
-                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                            Notes
-                          </th>
-                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                            Practice
-                          </th>
-                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                            Difficulty
-                          </th>
-                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                            Actions
-                          </th>
+                          <th className="px-4 py-4 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Problem Title</th>
+                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Editorial</th>
+                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Video</th>
+                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Notes</th>
+                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Practice</th>
+                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Difficulty</th>
+                          <th className="px-4 py-4 text-center text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white/50 dark:bg-slate-800/50 divide-y divide-indigo-200/30 dark:divide-indigo-500/20">
-                        {problems.map((problem, index) => (
+                        {currentProblems.map((problem, index) => (
                           <React.Fragment key={problem.id}>
-                            {editingProblem === problem.id ? (
+                            {editingProblemId === problem.id ? (
                               <tr>
-                                <td colSpan="8" className="p-0">
-                                  <InlineProblemEditor
+                                <td colSpan="7" className="p-0">
+                                  <ProblemForm
                                     problem={problem}
-                                    sheetId={selectedSubsection.sheetId}
-                                    sectionId={selectedSubsection.sectionId}
-                                    subsectionId={selectedSubsection.subsectionId}
-                                    onUpdate={() => {
-                                      setEditingProblem(null);
-                                      refreshSheets();
-                                    }}
-                                    onCancel={() => setEditingProblem(null)}
+                                    onSubmit={(data) => handleUpdateProblem(editingProblemId, data)}
+                                    onCancel={() => setEditingProblemId(null)}
+                                    isEditing={true}
+                                    canManageSheets={canManageSheets}
+                                    canAddEditorials={canAddEditorials}
                                   />
                                 </td>
                               </tr>
                             ) : (
-                              <tr className={`${index % 2 === 0 ? 'bg-white/80 dark:bg-slate-800/80' : 'bg-indigo-50/80 dark:bg-indigo-900/20'} hover:bg-indigo-100/80 dark:hover:bg-indigo-800/30 transition-colors`}>
-                                <td className="px-4 py-4 text-center border-r border-indigo-200/30 dark:border-indigo-500/20">
-                                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center mx-auto">
-                                    <span className="text-white text-xs">●</span>
-                                  </div>
-                                </td>
+                              <tr className={`${
+                                index % 2 === 0 ? 'bg-white/80 dark:bg-slate-800/80' : 'bg-indigo-50/80 dark:bg-indigo-900/20'
+                              } hover:bg-indigo-100/80 dark:hover:bg-indigo-800/30 transition-colors ${
+                                isDisabled ? 'opacity-70' : ''
+                              }`}>
+                                
+                                {/* Problem Title Column */}
                                 <td className="px-4 py-4 border-r border-indigo-200/30 dark:border-indigo-500/20">
                                   <div className="font-semibold text-gray-900 dark:text-white">
                                     {problem.title || 'Untitled Problem'}
@@ -868,70 +1259,74 @@ const SheetManagement = () => {
                                     </div>
                                   )}
                                 </td>
+                                
+                                {/* Editorial Column */}
                                 <td className="px-4 py-4 text-center border-r border-indigo-200/30 dark:border-indigo-500/20">
-                                  {problem.editorialLink ? (
-                                    <a
-                                      href={problem.editorialLink}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 transition-colors"
+                                  {!isEmpty(problem.editorialLink) ? (
+                                    <button
+                                      onClick={() => handleLinkClick(problem.editorialLink, 'editorial', problem)}
+                                      disabled={isDisabled}
+                                      className="text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                       <BookOpen className="w-5 h-5 mx-auto" />
-                                    </a>
+                                    </button>
                                   ) : (
                                     <span className="text-gray-400 dark:text-gray-500">—</span>
                                   )}
                                 </td>
+                                
+                                {/* Video Column */}
                                 <td className="px-4 py-4 text-center border-r border-indigo-200/30 dark:border-indigo-500/20">
-                                  {problem.youtubeLink ? (
-                                    <a
-                                      href={problem.youtubeLink}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                                  {!isEmpty(problem.youtubeLink) ? (
+                                    <button
+                                      onClick={() => handleLinkClick(problem.youtubeLink, 'youtube', problem)}
+                                      disabled={isDisabled}
+                                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                       <FaYoutube className="w-5 h-5 mx-auto" />
-                                    </a>
+                                    </button>
                                   ) : (
                                     <span className="text-gray-400 dark:text-gray-500">—</span>
                                   )}
                                 </td>
+                                
+                                {/* Notes Column */}
                                 <td className="px-4 py-4 text-center border-r border-indigo-200/30 dark:border-indigo-500/20">
-                                  {problem.notesLink ? (
-                                    <a
-                                      href={problem.notesLink}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                                  {!isEmpty(problem.notesLink) ? (
+                                    <button
+                                      onClick={() => handleLinkClick(problem.notesLink, 'notes', problem)}
+                                      disabled={isDisabled}
+                                      className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                       <FileText className="w-5 h-5 mx-auto" />
-                                    </a>
+                                    </button>
                                   ) : (
                                     <span className="text-gray-400 dark:text-gray-500">—</span>
                                   )}
                                 </td>
+                                
+                                {/* Practice Column */}
                                 <td className="px-4 py-4 text-center border-r border-indigo-200/30 dark:border-indigo-500/20">
-                                  {problem.practiceLink ? (
-                                    <a
-                                      href={problem.practiceLink}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors"
+                                  {!isEmpty(problem.practiceLink) ? (
+                                    <button
+                                      onClick={() => handleLinkClick(problem.practiceLink, 'practice', problem)}
+                                      disabled={isDisabled}
+                                      className="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                       <FaExternalLinkAlt className="w-5 h-5 mx-auto" />
-                                    </a>
+                                    </button>
                                   ) : (
                                     <span className="text-gray-400 dark:text-gray-500">—</span>
                                   )}
                                 </td>
+                                
+                                {/* Difficulty Column */}
                                 <td className="px-4 py-4 text-center border-r border-indigo-200/30 dark:border-indigo-500/20">
                                   {problem.difficulty ? (
                                     <span className={`inline-flex px-3 py-1 text-xs font-bold rounded-full ${
-                                      problem.difficulty === 'Easy' 
-                                        ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-400'
-                                        : problem.difficulty === 'Medium'
-                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-800/30 dark:text-amber-400'
-                                        : 'bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-400'
+                                      problem.difficulty === 'Easy' ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-400'
+                                      : problem.difficulty === 'Medium' ? 'bg-amber-100 text-amber-800 dark:bg-amber-800/30 dark:text-amber-400'
+                                      : 'bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-400'
                                     }`}>
                                       {problem.difficulty}
                                     </span>
@@ -939,25 +1334,47 @@ const SheetManagement = () => {
                                     <span className="text-gray-400 dark:text-gray-500">—</span>
                                   )}
                                 </td>
+                                
+                                {/* ✅ UPDATED: Actions Column with Edit, Unlink, and Delete */}
                                 <td className="px-4 py-4 text-center">
                                   <div className="flex justify-center space-x-2">
+                                    {/* Edit Button */}
                                     {(canManageSheets || canAddEditorials) && (
                                       <button
-                                        onClick={() => setEditingProblem(problem.id)}
-                                        className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                                        onClick={() => setEditingProblemId(problem.id)}
+                                        disabled={isDisabled}
+                                        className="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                         title="Edit Problem"
                                       >
                                         <FaEdit className="w-4 h-4" />
                                       </button>
                                     )}
+                                    
+                                    {/* Unlink Button */}
                                     {canManageSheets && (
                                       <button
-                                        onClick={() => handleDeleteProblem(problem.id)}
-                                        disabled={deletingIds.has(problem.id)}
-                                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-                                        title="Delete Problem"
+                                        onClick={() => handleUnlinkProblem(problem.id, problem.title)}
+                                        disabled={isDisabled}
+                                        className="text-orange-600 hover:text-orange-800 dark:text-orange-400 dark:hover:text-orange-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title="Remove from subsection (keeps global problem)"
                                       >
-                                        {deletingIds.has(problem.id) ? (
+                                        {unlinkingId === problem.id ? (
+                                          <FaSpinner className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          <FaUnlink className="w-4 h-4" />
+                                        )}
+                                      </button>
+                                    )}
+                                    
+                                    {/* ✅ NEW: Delete Button (Global Delete) */}
+                                    {canManageSheets && (
+                                      <button
+                                        onClick={() => handleDeleteProblem(problem.id, problem.title)}
+                                        disabled={isDisabled}
+                                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        title="Delete globally (removes from ALL sheets + ALL user progress)"
+                                      >
+                                        {deletingId === problem.id ? (
                                           <FaSpinner className="w-4 h-4 animate-spin" />
                                         ) : (
                                           <FaTrash className="w-4 h-4" />
@@ -978,20 +1395,19 @@ const SheetManagement = () => {
 
               {/* Mobile Card View */}
               <div className="md:hidden space-y-3">
-                {problems.map((problem, index) => (
-                  <div key={problem.id} className="bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-xl border border-indigo-200/50 dark:border-indigo-500/30 shadow-lg overflow-hidden">
-                    {editingProblem === problem.id ? (
+                {currentProblems.map((problem) => (
+                  <div key={problem.id} className={`bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-xl border border-indigo-200/50 dark:border-indigo-500/30 shadow-lg overflow-hidden ${
+                    isDisabled ? 'opacity-70' : ''
+                  }`}>
+                    {editingProblemId === problem.id ? (
                       <div className="p-4">
-                        <InlineProblemEditor
+                        <ProblemForm
                           problem={problem}
-                          sheetId={selectedSubsection.sheetId}
-                          sectionId={selectedSubsection.sectionId}
-                          subsectionId={selectedSubsection.subsectionId}
-                          onUpdate={() => {
-                            setEditingProblem(null);
-                            refreshSheets();
-                          }}
-                          onCancel={() => setEditingProblem(null)}
+                          onSubmit={(data) => handleUpdateProblem(editingProblemId, data)}
+                          onCancel={() => setEditingProblemId(null)}
+                          isEditing={true}
+                          canManageSheets={canManageSheets}
+                          canAddEditorials={canAddEditorials}
                         />
                       </div>
                     ) : (
@@ -1003,99 +1419,108 @@ const SheetManagement = () => {
                               {problem.title || 'Untitled Problem'}
                             </h4>
                             {problem.platform && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                {problem.platform}
-                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{problem.platform}</p>
                             )}
                           </div>
-                          
                           {/* Difficulty Badge */}
                           {problem.difficulty && (
                             <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              problem.difficulty === 'Easy' 
-                                ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-400'
-                                : problem.difficulty === 'Medium'
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-800/30 dark:text-amber-400'
-                                : 'bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-400'
+                              problem.difficulty === 'Easy' ? 'bg-green-100 text-green-800 dark:bg-green-800/30 dark:text-green-400'
+                              : problem.difficulty === 'Medium' ? 'bg-amber-100 text-amber-800 dark:bg-amber-800/30 dark:text-amber-400'
+                              : 'bg-red-100 text-red-800 dark:bg-red-800/30 dark:text-red-400'
                             }`}>
                               {problem.difficulty}
                             </span>
                           )}
                         </div>
-                        
+
                         {/* Links Row */}
                         <div className="flex justify-between items-center">
                           <div className="flex space-x-3">
-                            {problem.practiceLink && (
-                              <a
-                                href={problem.practiceLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors"
+                            {!isEmpty(problem.practiceLink) && (
+                              <button
+                                onClick={() => handleLinkClick(problem.practiceLink, 'practice', problem)}
+                                disabled={isDisabled}
+                                className="p-2 text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors disabled:opacity-50"
                                 title="Practice Link"
                               >
                                 <FaExternalLinkAlt className="w-4 h-4" />
-                              </a>
+                              </button>
                             )}
-                            {problem.youtubeLink && (
-                              <a
-                                href={problem.youtubeLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            {!isEmpty(problem.youtubeLink) && (
+                              <button
+                                onClick={() => handleLinkClick(problem.youtubeLink, 'youtube', problem)}
+                                disabled={isDisabled}
+                                className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
                                 title="YouTube Video"
                               >
                                 <FaYoutube className="w-4 h-4" />
-                              </a>
+                              </button>
                             )}
-                            {problem.editorialLink && (
-                              <a
-                                href={problem.editorialLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 text-purple-600 hover:text-purple-800 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                            {!isEmpty(problem.editorialLink) && (
+                              <button
+                                onClick={() => handleLinkClick(problem.editorialLink, 'editorial', problem)}
+                                disabled={isDisabled}
+                                className="p-2 text-purple-600 hover:text-purple-800 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors disabled:opacity-50"
                                 title="Editorial"
                               >
                                 <BookOpen className="w-4 h-4" />
-                              </a>
+                              </button>
                             )}
-                            {problem.notesLink && (
-                              <a
-                                href={problem.notesLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                            {!isEmpty(problem.notesLink) && (
+                              <button
+                                onClick={() => handleLinkClick(problem.notesLink, 'notes', problem)}
+                                disabled={isDisabled}
+                                className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50"
                                 title="Notes"
                               >
                                 <FileText className="w-4 h-4" />
-                              </a>
+                              </button>
                             )}
                           </div>
-                          
-                          {/* Actions */}
+
+                          {/* ✅ UPDATED: Actions with Edit, Unlink, and Delete */}
                           <div className="flex space-x-1">
                             {(canManageSheets || canAddEditorials) && (
                               <button
-                                onClick={() => setEditingProblem(problem.id)}
-                                className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                                onClick={() => setEditingProblemId(problem.id)}
+                                disabled={isDisabled}
+                                className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors disabled:opacity-50"
                                 title="Edit Problem"
                               >
                                 <FaEdit className="w-4 h-4" />
                               </button>
                             )}
                             {canManageSheets && (
-                              <button
-                                onClick={() => handleDeleteProblem(problem.id)}
-                                disabled={deletingIds.has(problem.id)}
-                                className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                title="Delete Problem"
-                              >
-                                {deletingIds.has(problem.id) ? (
-                                  <FaSpinner className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <FaTrash className="w-4 h-4" />
-                                )}
-                              </button>
+                              <>
+                                {/* Unlink Button */}
+                                <button
+                                  onClick={() => handleUnlinkProblem(problem.id, problem.title)}
+                                  disabled={isDisabled}
+                                  className="p-2 text-orange-600 hover:text-orange-800 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20 rounded-lg transition-colors disabled:opacity-50"
+                                  title="Remove"
+                                >
+                                  {unlinkingId === problem.id ? (
+                                    <FaSpinner className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <FaUnlink className="w-4 h-4" />
+                                  )}
+                                </button>
+                                
+                                {/* ✅ NEW: Delete Button */}
+                                <button
+                                  onClick={() => handleDeleteProblem(problem.id, problem.title)}
+                                  disabled={isDisabled}
+                                  className="p-2 text-red-600 hover:text-red-800 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                                  title="Delete Globally"
+                                >
+                                  {deletingId === problem.id ? (
+                                    <FaSpinner className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <FaTrash className="w-4 h-4" />
+                                  )}
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>
@@ -1107,11 +1532,21 @@ const SheetManagement = () => {
             </>
           )}
         </div>
+
+        {/* YouTube Modal */}
+        {showVideo && (
+          <YouTubeModal
+            videoUrl={showVideo.url}
+            isOpen={!!showVideo}
+            onClose={() => setShowVideo(null)}
+            problemName={showVideo.title}
+          />
+        )}
       </div>
     );
   }
 
-  // Main Sheet Management View
+  // ============= MAIN SHEET MANAGEMENT VIEW =============
   return (
     <div className="min-h-screen py-4 md:py-8 px-4">
       <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
@@ -1123,12 +1558,8 @@ const SheetManagement = () => {
               <FaGraduationCap className="w-5 h-5 md:w-6 md:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                Sheet Management
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base">
-                Manage your problem sheets, sections, and content ({sheets.length} sheets)
-              </p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">Sheet Management</h1>
+              <p className="text-gray-600 dark:text-gray-400 text-sm md:text-base">Manage your problem sheets ({sheets.length} sheets)</p>
             </div>
           </div>
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto">
@@ -1225,11 +1656,7 @@ const SheetManagement = () => {
                         className="px-3 md:px-4 py-2 text-xs md:text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         title="Delete Sheet"
                       >
-                        {deletingIds.has(sheet.id) ? (
-                          <FaSpinner className="w-2 h-2 md:w-3 md:h-3 animate-spin" />
-                        ) : (
-                          <FaTrash className="w-2 h-2 md:w-3 md:h-3" />
-                        )}
+                        {deletingIds.has(sheet.id) ? <FaSpinner className="w-2 h-2 md:w-3 md:h-3 animate-spin" /> : <FaTrash className="w-2 h-2 md:w-3 md:h-3" />}
                         <span>Delete</span>
                       </button>
                     )}
@@ -1310,11 +1737,7 @@ const SheetManagement = () => {
                                   className="px-2 md:px-3 py-1 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                   title="Delete Section"
                                 >
-                                  {deletingIds.has(section.id) ? (
-                                    <FaSpinner className="w-2 h-2 animate-spin" />
-                                  ) : (
-                                    <FaTrash className="w-2 h-2" />
-                                  )}
+                                  {deletingIds.has(section.id) ? <FaSpinner className="w-2 h-2 animate-spin" /> : <FaTrash className="w-2 h-2" />}
                                   <span>Delete</span>
                                 </button>
                               )}
@@ -1354,7 +1777,7 @@ const SheetManagement = () => {
                                           className="font-medium"
                                         />
                                         <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-                                          {(subsection.problems || []).length} problems
+                                          {(subsection.problemIds || []).length} problems
                                         </div>
                                       </div>
                                     </div>
@@ -1372,11 +1795,7 @@ const SheetManagement = () => {
                                           className="px-2 md:px-3 py-1 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
                                           title="Delete Subsection"
                                         >
-                                          {deletingIds.has(subsection.id) ? (
-                                            <FaSpinner className="w-2 h-2 animate-spin" />
-                                          ) : (
-                                            <FaTrash className="w-2 h-2" />
-                                          )}
+                                          {deletingIds.has(subsection.id) ? <FaSpinner className="w-2 h-2 animate-spin" /> : <FaTrash className="w-2 h-2" />}
                                           <span>Delete</span>
                                         </button>
                                       )}
