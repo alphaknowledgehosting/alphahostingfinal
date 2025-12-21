@@ -1017,19 +1017,20 @@ const SubsectionView = ({
                 <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider">
                   <div className="flex items-center justify-center space-x-2">
                     <div className="w-2 h-2 bg-gradient-to-r from-[#a855f7] to-[#6366f1] rounded-full"></div>
-                    <span>Video</span>
-                  </div>
-                </th>
-                <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider">
-                  <div className="flex items-center justify-center space-x-2">
-                    <div className="w-2 h-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] rounded-full"></div>
-                    <span>Editorial</span>
+                    <span>Practice</span>
                   </div>
                 </th>
                 <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider">
                   <div className="flex items-center justify-center space-x-2">
                     <div className="w-2 h-2 bg-gradient-to-r from-[#a855f7] to-[#6366f1] rounded-full"></div>
-                    <span>Practice</span>
+                    <span>Video</span>
+                  </div>
+                </th>
+                
+                <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider">
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="w-2 h-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] rounded-full"></div>
+                    <span>Editorial</span>
                   </div>
                 </th>
                 <th className="p-3 sm:p-4 text-center font-semibold text-gray-800 dark:text-gray-200 text-xs uppercase tracking-wider">

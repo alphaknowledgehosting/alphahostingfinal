@@ -624,7 +624,38 @@ const ProblemItem = ({
             </div>
           )}
         />
-
+        {/* Practice Link */}
+        <EditableCell
+          value={localProblem.practiceLink}
+          onSave={(value) => updateField('practiceLink', value)}
+          isEditable={canEditField('practiceLink')}
+          disabled={isDisabled}
+          type="url"
+          placeholder="Enter practice URL"
+          renderValue={(value) => 
+            !isEmpty(value) ? (
+              <a
+                href={value}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center gap-1"
+                title="Solve on platform"
+              >
+                <FaExternalLinkAlt className="w-4 h-4 group-hover:scale-110 transition-all duration-200" />
+                <span className="hidden sm:inline text-sm font-semibold text-gray-700 dark:text-gray-300">Solve</span>
+              </a>
+            ) : canEditField('practiceLink') && !isDisabled ? (
+              <button
+                title="Add practice link"
+                className="group text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            ) : (
+              <span className="text-gray-400 dark:text-gray-500 text-sm font-medium">—</span>
+            )
+          }
+        />
         {/* Video Link */}
         <EditableCell
           value={localProblem.youtubeLink}
@@ -725,38 +756,7 @@ const ProblemItem = ({
           </div>
         </td>
 
-        {/* Practice Link */}
-        <EditableCell
-          value={localProblem.practiceLink}
-          onSave={(value) => updateField('practiceLink', value)}
-          isEditable={canEditField('practiceLink')}
-          disabled={isDisabled}
-          type="url"
-          placeholder="Enter practice URL"
-          renderValue={(value) => 
-            !isEmpty(value) ? (
-              <a
-                href={value}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center gap-1"
-                title="Solve on platform"
-              >
-                <FaExternalLinkAlt className="w-4 h-4 group-hover:scale-110 transition-all duration-200" />
-                <span className="hidden sm:inline text-sm font-semibold text-gray-700 dark:text-gray-300">Solve</span>
-              </a>
-            ) : canEditField('practiceLink') && !isDisabled ? (
-              <button
-                title="Add practice link"
-                className="group text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-200 transform hover:scale-110 active:scale-95 mx-auto flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            ) : (
-              <span className="text-gray-400 dark:text-gray-500 text-sm font-medium">—</span>
-            )
-          }
-        />
+        
 
         {/* Notes Link */}
         <EditableCell
