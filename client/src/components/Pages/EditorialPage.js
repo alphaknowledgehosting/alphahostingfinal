@@ -424,14 +424,14 @@ const EditorialPage = () => {
     
     if (isLoading) {
       return (
-        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-600/30">
+        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-[3px] border-[#BD83FF] dark:border-[#BD83FF]">
           <div className="text-center max-w-xs">
             <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-indigo-600 mx-auto mb-3"></div>
-            <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium">
+            <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm font-medium">
               Loading secure image...
             </p>
             {loadingMethod && (
-              <p className="text-slate-500 dark:text-slate-500 text-xs mt-1">
+              <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">
                 {loadingMethod}
               </p>
             )}
@@ -442,7 +442,7 @@ const EditorialPage = () => {
     
     if (hasError || !imageSrc) {
       return (
-        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-500/30">
+        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-amber-50 dark:bg-amber-900/20 rounded-lg border-[3px] border-[#BD83FF] dark:border-[#BD83FF]">
           <div className="text-center max-w-xs">
             <FaImage className="w-8 h-8 sm:w-10 sm:h-10 text-amber-600 dark:text-amber-400 mx-auto mb-3" />
             <p className="text-amber-700 dark:text-amber-400 text-xs sm:text-sm font-medium mb-1">
@@ -465,32 +465,31 @@ const EditorialPage = () => {
         onContextMenu={handleContextMenu}
       >
         <img
-          {...props}
-          src={imageSrc}
-          alt={alt}
-          className={className}
-          style={{
-            ...style,
-            userSelect: 'none',
-            WebkitUserSelect: 'none',
-            MozUserSelect: 'none',
-            msUserSelect: 'none',
-            WebkitTouchCallout: 'none',
-            WebkitUserDrag: 'none',
-            KhtmlUserSelect: 'none',
-            pointerEvents: 'auto'
-          }}
-          onError={handleError}
-          onContextMenu={handleContextMenu}
-          draggable={false}
-          onDragStart={(e) => e.preventDefault()}
-          onSelectStart={(e) => e.preventDefault()}
-          onMouseDown={(e) => {
-            if (e.detail > 1) {
-              e.preventDefault();
-            }
-          }}
-        />
+        {...props}
+        src={imageSrc}
+        alt={alt}
+        className={`${className} rounded-xl border-[3px] border-[#BD83FF] shadow-lg shadow-[#BD83FF]/20 w-full sm:w-4/5 md:w-3/4 lg:w-2/3 xl:w-1/2 h-auto`}
+        style={{
+          ...style,
+          maxHeight: '500px',
+          objectFit: 'contain',
+          display: 'block',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          MozUserSelect: 'none',
+          msUserSelect: 'none',
+          WebkitTouchCallout: 'none',
+          WebkitUserDrag: 'none',
+          KhtmlUserSelect: 'none',
+          pointerEvents: 'auto'
+        }}
+        onError={handleError}
+        onContextMenu={handleContextMenu}
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
+        onSelectStart={(e) => e.preventDefault()}
+        onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
+      />
       </div>
     );
   };
@@ -500,132 +499,130 @@ const loadProblemAndEditorial = async () => {
     setLoading(true);
     setError(null);
 
-      const sheetsResponse = await sheetAPI.getAll();
-      const sheets = sheetsResponse.data?.sheets || [];
-      
-      let foundProblem = null;
-      let foundSheet = null;
-      
-      for (const sheet of sheets) {
-        for (const section of sheet.sections || []) {
-          for (const subsection of section.subsections || []) {
-            const problem = subsection.problems?.find(p => p.id === problemId);
-            if (problem) {
-              foundProblem = problem;
-              foundSheet = sheet;
-              break;
-            }
+    // Try fetching problem directly first
+    try {
+      const directProblemResponse = await fetch(`/api/problems/${problemId}`);
+      if (directProblemResponse.ok) {
+        const data = await directProblemResponse.json();
+        if (data.success && data.problem) {
+          setProblem(data.problem);
+          // Process editorial for direct problem
+          processEditorial(data.problem);
+          return;
+        }
+      }
+    } catch (directError) {
+      console.log('Direct problem fetch failed, trying sheets...', directError);
+    }
+
+    // Fallback: search in sheets
+    const sheetsResponse = await sheetAPI.getAll();
+    const sheets = sheetsResponse.data?.sheets;
+
+    let foundProblem = null;
+    let foundSheet = null;
+
+    for (const sheet of sheets) {
+      for (const section of sheet.sections) {
+        for (const subsection of section.subsections) {
+          const problem = subsection.problems?.find(p => p.id === problemId);
+          if (problem) {
+            foundProblem = problem;
+            foundSheet = sheet;
+            break;
           }
-          if (foundProblem) break;
         }
         if (foundProblem) break;
       }
+      if (foundProblem) break;
+    }
 
     if (!foundProblem) {
       throw new Error(`Problem with ID "${problemId}" not found in any sheet or problem database`);
     }
 
-      setProblem(foundProblem);
+    setProblem(foundProblem);
+    processEditorial(foundProblem);
 
-      let fileName = '';
-      if (foundProblem.editorialLink) {
-        try {
-          const url = foundProblem.editorialLink.trim();
-          const urlParts = url.split('?')[0].split('#')[0].split('/');
-          fileName = urlParts[urlParts.length - 1].toLowerCase();
-        } catch {
-          fileName = '';
-        }
-      }
+  } catch (error) {
+    setError(error.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
-      const isEditorialContent = fileName.includes('-editorial') ||
-                                 (foundProblem.title && foundProblem.title.toLowerCase().includes('-editorial')) ||
-                                 (problemId && problemId.toLowerCase().includes('-editorial'));
-      
-      const isSolutionContent = fileName.endsWith('-solution.md') ||
-                                (foundProblem.title && foundProblem.title.toLowerCase().endsWith('-solution')) ||
-                                (problemId && problemId.toLowerCase().endsWith('-solution'));
-      
-      if (isEditorialContent) {
-        setContentType('editorial');
-      } else if (isSolutionContent) {
-        setContentType('solution');
-      } else {
-        setContentType('solution');
-      }
-
-      if (foundProblem.editorialLink && foundProblem.editorialLink.trim()) {
-        try {
-          let editorialUrl = foundProblem.editorialLink.trim();
-          
-          if (editorialUrl.includes('github.com') && !editorialUrl.includes('raw.githubusercontent.com')) {
-            if (editorialUrl.includes('/blob/')) {
-              editorialUrl = editorialUrl
-                .replace('github.com', 'raw.githubusercontent.com')
-                .replace('/blob/', '/');
-            }
-          }
-
-          const response = await fetch(editorialUrl);
-          
-          if (response.ok) {
-            const content = await response.text();
-            setEditorial(content);
-            setEditorialContent(content);
-            
-            if (contentType === 'solution') {
-              const parsedData = parseMarkdown(content);
-              setEditorialData(parsedData);
-              
-              const initialExpanded = {};
-              parsedData.approaches.forEach(approach => {
-                initialExpanded[approach.id] = false;
-              });
-              setExpandedSections(initialExpanded);
-              
-              const initialLanguages = {};
-              const initialCodeTabStates = {};
-              parsedData.approaches.forEach(approach => {
-                if (approach.code && approach.code.length > 0) {
-                  const hasValidLanguages = approach.code.some(codeItem => codeItem.language.trim());
-                  if (hasValidLanguages) {
-                    initialLanguages[approach.id] = approach.code[0].language;
-                  }
-                  initialCodeTabStates[approach.id] = 'code';
-                }
-              });
-              setSelectedLanguages(initialLanguages);
-              setCodeTabStates(initialCodeTabStates);
-            }
-          } else {
-            throw new Error(`Failed to fetch editorial content (${response.status})`);
-          }
-        } catch (fetchError) {
-          const errorContent = `# Editorial Content Error
-
-**Error loading editorial from:** ${foundProblem.editorialLink}
-
-**Error Details:** ${fetchError.message}
-
-The editorial link exists but the content could not be fetched.`;
-          
-          setEditorial(errorContent);
-          setEditorialContent(errorContent);
-        }
-      } else {
-        const noEditorialContent = `# No ${contentType === 'editorial' ? 'Editorial' : 'Solution'} Available
-
-This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.title}"** does not have ${contentType === 'editorial' ? 'an editorial' : 'a solution'} yet.`;
-        
-        setEditorial(noEditorialContent);
-        setEditorialContent(noEditorialContent);
-      }
-    } catch (error) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
+// Extract editorial processing into separate function
+const processEditorial = (problemData) => {
+  let fileName = '';
+  if (problemData.editorialLink) {
+    try {
+      const url = problemData.editorialLink.trim();
+      const urlParts = url.split('?')[0].split('#')[0].split('/');
+      fileName = urlParts[urlParts.length - 1].toLowerCase();
+    } catch {
+      fileName = '';
     }
-  };
+  }
+
+  const isEditorialContent =
+    fileName.includes('-editorial') ||
+    problemData.title?.toLowerCase().includes('-editorial') ||
+    problemId?.toLowerCase().includes('-editorial');
+
+  const isSolutionContent =
+    fileName.endsWith('-solution.md') ||
+    problemData.title?.toLowerCase().endsWith('-solution') ||
+    problemId?.toLowerCase().endsWith('-solution');
+
+  if (isEditorialContent) {
+    setContentType('editorial');
+  } else if (isSolutionContent) {
+    setContentType('solution');
+  } else {
+    setContentType('solution');
+  }
+
+  // Fetch editorial content
+  if (problemData.editorialLink && problemData.editorialLink.trim()) {
+    fetchEditorialContent(problemData.editorialLink.trim());
+  } else {
+    const noEditorialContent = `No ${contentType === 'editorial' ? 'Editorial' : 'Solution'} Available\n\nThis ${contentType === 'editorial' ? 'concept' : 'problem'} (${problemData.title}) does not have ${contentType === 'editorial' ? 'an editorial' : 'a solution'} yet.`;
+    setEditorial(noEditorialContent);
+    setEditorialContent(noEditorialContent);
+  }
+};
+
+const fetchEditorialContent = async (editorialUrl) => {
+  try {
+    let processedUrl = editorialUrl;
+    if (processedUrl.includes('github.com') && !processedUrl.includes('raw.githubusercontent.com')) {
+      if (processedUrl.includes('/blob/')) {
+        processedUrl = processedUrl
+          .replace('github.com', 'raw.githubusercontent.com')
+          .replace('/blob/', '/');
+      }
+    }
+
+    const response = await fetch(processedUrl);
+    if (response.ok) {
+      const content = await response.text();
+      setEditorial(content);
+      setEditorialContent(content);
+
+      if (contentType === 'solution') {
+        const parsedData = parseMarkdown(content);
+        setEditorialData(parsedData);
+        // ... rest of initialization
+      }
+    } else {
+      throw new Error(`Failed to fetch editorial content: ${response.status}`);
+    }
+  } catch (fetchError) {
+    const errorContent = `## Editorial Content Error\n\n**Error loading editorial from:** ${editorialUrl}\n\n**Error Details:** ${fetchError.message}\n\nThe editorial link exists but the content could not be fetched.`;
+    setEditorial(errorContent);
+    setEditorialContent(errorContent);
+  }
+};
 
   const parseMarkdown = (markdown) => {
     const lines = markdown.split('\n');
@@ -701,7 +698,7 @@ This ${contentType === 'editorial' ? 'concept' : 'problem'} **"${foundProblem.ti
         continue;
       }
 
-      if (line.startsWith('```')){
+      if (line.startsWith('```')) {
         if (!inCodeBlock) {
           inCodeBlock = true;
           const language = line.substring(3).trim() || '';
@@ -776,7 +773,7 @@ const parseEditorialMarkdown = (markdown) => {
       i += 1;
 
       let codeContent = '';
-      while (i < lines.length && !lines[i].startsWith('```')) {
+      while (i < lines.length && !lines[i].startsWith('```')){
         codeContent = codeContent + lines[i] + '\n';
         i += 1;
       }
@@ -795,7 +792,7 @@ const parseEditorialMarkdown = (markdown) => {
         }
         
         // Check if next non-empty line is a code block
-        if (i < lines.length && lines[i].startsWith('```')) {
+        if (i < lines.length && lines[i].startsWith('```')){
           const nextLanguage = lines[i].substring(3).trim();
           
           // Only group if it's a valid programming language
@@ -806,7 +803,7 @@ const parseEditorialMarkdown = (markdown) => {
               nextCode = nextCode + lines[i] + '\n';
               i += 1;
             }
-            if (i < lines.length && lines[i].startsWith('```')) {
+            if (i < lines.length && lines[i].startsWith('```')){
               i += 1;
             }
             codeContents.push({ language: nextLanguage, code: nextCode.trim(), output: null });
@@ -825,7 +822,7 @@ const parseEditorialMarkdown = (markdown) => {
       while (k < lines.length && k < i + 5) {
         const currentLine = lines[k].trim();
 
-        if (currentLine.includes('**Output:**')) {
+        if (currentLine.includes('**Output:**') || currentLine.includes('**Output**') ||currentLine.includes('### Output')) {
           k += 1;
 
           while (k < lines.length && lines[k].trim() === '') {
@@ -836,7 +833,7 @@ const parseEditorialMarkdown = (markdown) => {
 
           if (k < lines.length && lines[k].startsWith('```')){
             k += 1;
-            while (k < lines.length && !lines[k].startsWith('```')) {
+            while (k < lines.length && !lines[k].startsWith('```')){
               outputContent = outputContent + lines[k] + '\n';
               k += 1;
             }
@@ -844,7 +841,7 @@ const parseEditorialMarkdown = (markdown) => {
               k += 1;
             }
           } else {
-            while (k < lines.length && lines[k].trim() !== '' && !lines[k].startsWith('#') && !lines[k].startsWith('```')) {
+            while (k < lines.length && lines[k].trim() !== '' && !lines[k].startsWith('#') && !lines[k].startsWith('```')){
               outputContent = outputContent + lines[k] + '\n';
               k += 1;
             }
@@ -983,9 +980,6 @@ const parseEditorialMarkdown = (markdown) => {
   return result;
 };
 
-
-
-
   const switchCodeTab = (blockId, tab) => {
     setCodeTabStates(prev => ({
       ...prev,
@@ -1107,7 +1101,7 @@ const renderContentElements = (elements) => {
           key={element.key}
           src={element.src}
           alt="Editorial illustration"
-          className="w-full h-auto block"
+          className="max-w-full"
           style={inlineStyles}
           onError={() => {
             setImageLoadErrors((prev) => ({
@@ -1124,7 +1118,7 @@ const renderContentElements = (elements) => {
       return (
         <p
           key={`${element.key}-${lineIndex}`}
-          className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4"
+          className="text-gray-700 dark:text-gray-300 leading-relaxed text-base sm:text-lg mb-4"
         >
           {line}
         </p>
@@ -1142,8 +1136,8 @@ const renderContentElements = (elements) => {
     if (!editorialData?.specialThanks) return null;
 
     return (
-      <div className="mt-8 pt-6 border-t border-slate-200/60 dark:border-slate-700/60">
-        <p className="text-slate-600 dark:text-slate-400 text-base leading-relaxed">
+      <div className="mt-8 pt-6 border-t border-gray-200/60 dark:border-gray-700/60">
+        <p className="text-gray-600 dark:text-gray-400 text-base leading-relaxed">
           Special thanks to{' '}
           <a
             href={editorialData.specialThanks.url}
@@ -1154,7 +1148,7 @@ const renderContentElements = (elements) => {
             {editorialData.specialThanks.name}
           </a>
           {editorialData.specialThanks.additionalText && (
-            <span className="text-slate-600 dark:text-slate-400">
+            <span className="text-gray-600 dark:text-gray-400">
               {' '}{editorialData.specialThanks.additionalText}
             </span>
           )}
@@ -1207,494 +1201,468 @@ const renderContentElements = (elements) => {
     switch (block.type) {
       case 'text':
         return (
-          <div key={block.id} className="prose prose-slate dark:prose-invert prose-lg max-w-none mb-6">
+          <div key={block.id} className="prose prose-gray dark:prose-invert prose-lg max-w-none mb-6">
             <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
   components={{
     h1: ({node, ...props}) => {
       return (
-        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
-          {props.children}
-        </h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6 pb-3 border-b border-gray-200 dark:border-gray-700">
+    {props.children}
+  </h1>
       );
     },
     h2: ({node, ...props}) => {
       return (
-        <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-8 mb-4 pb-2 border-b border-slate-200 dark:border-slate-700">
-          {props.children}
-        </h2>
+        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mt-8 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
+    {props.children}
+  </h2>
       );
     },
     h3: ({node, ...props}) => {
       return (
-        <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 dark:text-white mt-6 mb-3">
-          {props.children}
-        </h3>
+        <h3 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mt-6 mb-3">
+    {props.children}
+  </h3>
       );
     },
     h4: ({node, ...props}) => {
       return (
-        <h4 className="text-lg sm:text-xl lg:text-2xl font-semibold text-slate-900 dark:text-white mt-4 mb-2">
-          {props.children}
-        </h4>
+        <h4 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 dark:text-white mt-4 mb-2">
+    {props.children}
+  </h4>
       );
     },
     h5: ({node, ...props}) => {
       return (
-        <h5 className="text-base sm:text-lg lg:text-xl font-semibold text-slate-900 dark:text-white mt-3 mb-2">
-          {props.children}
-        </h5>
+         <h5 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mt-3 mb-2">
+    {props.children}
+  </h5>
       );
     },
     h6: ({node, ...props}) => {
       return (
-        <h6 className="text-sm sm:text-base lg:text-lg font-semibold text-slate-700 dark:text-slate-300 mt-2 mb-1">
-          {props.children}
-        </h6>
+       <h6 className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2 mb-1">
+    {props.children}
+  </h6>
       );
     },
     p: ({node, ...props}) => {
       return (
-        <p className="text-slate-700 dark:text-slate-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
+        <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
           {props.children}
         </p>
       );
     },
     ul: ({node, ...props}) => {
       return (
-        <ul className="text-slate-700 dark:text-slate-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
+        <ul className="text-gray-700 dark:text-gray-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
           {props.children}
         </ul>
       );
     },
     ol: ({node, ...props}) => {
       return (
-        <ol className="text-slate-700 dark:text-slate-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
+        <ol className="text-gray-700 dark:text-gray-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
           {props.children}
         </ol>
       );
     },
     li: ({node, ...props}) => {
       return (
-        <li className="text-slate-700 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
+        <li className="text-gray-700 dark:text-gray-300 text-base sm:text-lg leading-relaxed">
           {props.children}
         </li>
       );
     },
     blockquote: ({node, ...props}) => {
       return (
-        <blockquote className="border-l-4 border-slate-300 dark:border-slate-600 pl-4 italic text-slate-600 dark:text-slate-400 my-4 lg:my-6">
+        <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-400 my-4 lg:my-6">
           {props.children}
         </blockquote>
       );
     },
     a: ({node, href, ...props}) => {
       return (
-        <a 
-          href={href} 
-          target="_blank" 
-          rel="noopener noreferrer" 
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
         >
           {props.children}
         </a>
       );
     },
-    table: ({node, ...props}) => {
-      return (
-        <div className="overflow-x-auto my-6">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700 border border-slate-200 dark:border-slate-700 rounded-lg">
-            {props.children}
-          </table>
-        </div>
-      );
-    },
-    thead: ({node, ...props}) => {
-      return (
-        <thead className="bg-slate-50 dark:bg-slate-800">
-          {props.children}
-        </thead>
-      );
-    },
-    tbody: ({node, ...props}) => {
-      return (
-        <tbody className="bg-white dark:bg-slate-900 divide-y divide-slate-200 dark:divide-slate-700">
-          {props.children}
-        </tbody>
-      );
-    },
-    tr: ({node, ...props}) => {
-      return (
-        <tr className="hover:bg-slate-50 dark:hover:bg-slate-800">
-          {props.children}
-        </tr>
-      );
-    },
-    th: ({node, ...props}) => {
-      return (
-        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-          {props.children}
-        </th>
-      );
-    },
-    td: ({node, ...props}) => {
-      return (
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 dark:text-slate-300">
-          {props.children}
-        </td>
-      );
-    },
+    table: ({ node, ...props }) => (
+  <div className="relative my-6 overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
+    <table className="min-w-full border-collapse text-sm text-left">
+      {props.children}
+    </table>
+  </div>
+),
+
+thead: ({ node, ...props }) => (
+  <thead className="bg-gray-100 dark:bg-gray-800">
+    {props.children}
+  </thead>
+),
+
+tbody: ({ node, ...props }) => (
+  <tbody className="bg-white dark:bg-[#030014]">
+    {props.children}
+  </tbody>
+),
+
+tr: ({ node, ...props }) => (
+  <tr className="border-t border-gray-200 dark:border-gray-700 odd:bg-white even:bg-gray-50 dark:odd:bg-[#030014] dark:even:bg-gray-900/40">
+    {props.children}
+  </tr>
+),
+
+th: ({ node, ...props }) => (
+  <th className="px-4 py-2 font-semibold text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-700 whitespace-nowrap">
+    {props.children}
+  </th>
+),
+
+td: ({ node, ...props }) => (
+  <td className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 whitespace-nowrap">
+    {props.children}
+  </td>
+),
+
     code: ({node, inline, ...props}) => {
       if (inline) {
         return (
-          <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono">
+          <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-sm font-mono">
             {props.children}
           </code>
         );
       }
       return (
-        <code className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 px-2 py-1 rounded text-sm font-mono">
+        <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-sm font-mono">
           {props.children}
         </code>
       );
-    }
+    },
   }}
 >
   {block.content}
 </ReactMarkdown>
-
-
           </div>
         );
 
       case 'code':
-  const hasValidLanguages = block.code && block.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
-  
-  // Single language or no valid languages path
-  if (!block.code || block.code.length === 0 || !hasValidLanguages || block.code.length === 1) {
-    const firstCode = block.code && block.code.length > 0 ? block.code[0] : null;
-    
-    return (
-      <div key={block.id} className="my-6 lg:my-8">
-        <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
-          
-          <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
-            <div className="flex gap-0.5 rounded-lg p-0.5">
-              <button
-                onClick={() => switchCodeTab(block.id, 'code')}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                  getCurrentTab(block.id) === 'code'
-                    ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                }`}
-              >
-                Code
-              </button>
-              <button
-                onClick={() => switchCodeTab(block.id, 'output')}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                  getCurrentTab(block.id) === 'output'
-                    ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                }`}
-              >
-                Output
-              </button>
-            </div>
-          </div>
+        const hasValidLanguages = block.code && block.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
 
-          {getCurrentTab(block.id) === 'output' ? (
-            <div className="bg-slate-900 dark:bg-black/80">
-              <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                <span className="text-slate-300 text-sm font-medium">OUTPUT</span>
-                <button
-                  onClick={() => copyCode(firstCode?.output || 'No output provided', `${block.id}-output`)}
-                  className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                >
-                  {copiedCode[`${block.id}-output`] ? (
-                    <FaCheck className="w-3 h-3 text-green-400" />
-                  ) : (
-                    <FaCopy className="w-3 h-3" />
-                  )}
-                </button>
-              </div>
-              <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
-                <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
-                  {firstCode?.output ? (
-                    <pre className="whitespace-pre-wrap text-green-400">{firstCode.output}</pre>
-                  ) : (
-                    <>
-                      <div className="text-amber-400 mb-2">No output provided</div>
-                      <div className="text-slate-400">Output will be shown here when available</div>
-                    </>
-                  )}
+        // Single language or no valid languages path
+        if (!block.code || block.code.length === 0 || !hasValidLanguages || block.code.length === 1) {
+          const firstCode = block.code && block.code.length > 0 ? block.code[0] : null;
+          return (
+            <div key={block.id} className="my-6 lg:my-8">
+              <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-200/50 dark:border-gray-600/30 overflow-hidden mb-6">
+                <div className="flex justify-start items-center p-3 border-b border-gray-200/30 dark:border-gray-600/30">
+                  <div className="flex gap-0.5 rounded-lg p-0.5">
+                    <button 
+                      onClick={() => switchCodeTab(block.id, 'code')}
+                      className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                        getCurrentTab(block.id) === 'code'
+                          ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-600'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                      }`}
+                    >
+                      Code
+                    </button>
+                    <button 
+                      onClick={() => switchCodeTab(block.id, 'output')}
+                      className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                        getCurrentTab(block.id) === 'output'
+                          ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
+                          : 'text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                      }`}
+                    >
+                      Output
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-slate-900 dark:bg-black/80">
-              <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                <span className="text-slate-300 text-sm font-medium">
-                  {firstCode?.language ? firstCode.language.toUpperCase() : 'CODE'}
-                </span>
-                <button
-                  onClick={() => copyCode(firstCode?.code || '', `${block.id}-simple`)}
-                  className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                >
-                  {copiedCode[`${block.id}-simple`] ? (
-                    <FaCheck className="w-3 h-3 text-green-400" />
-                  ) : (
-                    <FaCopy className="w-3 h-3" />
-                  )}
-                </button>
-              </div>
-              <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
-                <SyntaxHighlighter
-                  style={tomorrow}
-                  language={firstCode?.language ? firstCode.language.toLowerCase() : 'text'}
-                  PreTag="div"
-                  className="text-sm"
-                  customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
-                >
-                  {firstCode?.code?.trim() || '// No code available'}
-                </SyntaxHighlighter>
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Complexity Section */}
-        {block.complexity && (block.complexity.time || block.complexity.space) && (
-          <div className="space-y-4">
-            {block.complexity.time && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                  <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Time Complexity
-                </h4>
-                <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                  <ReactMarkdown>
-                    {block.complexity.time}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            )}
-            
-            {block.complexity.space && (
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-                <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                  <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                  Space Complexity
-                </h4>
-                <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                  <ReactMarkdown>
-                    {block.complexity.space}
-                  </ReactMarkdown>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Multi-language path - WITH SOLUTION-STYLE COPY BUTTON
-  return (
-    <div key={block.id} className="my-6 lg:my-8">
-      <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
-        <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
-          <div className="flex gap-0.5 rounded-lg p-0.5">
-            <button
-              onClick={() => switchCodeTab(block.id, 'code')}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                getCurrentTab(block.id) === 'code'
-                  ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-              }`}
-            >
-              Code
-            </button>
-            <button
-              onClick={() => switchCodeTab(block.id, 'output')}
-              className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                getCurrentTab(block.id) === 'output'
-                  ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-              }`}
-            >
-              Output
-            </button>
-          </div>
-        </div>
-
-        {getCurrentTab(block.id) === 'output' ? (
-          <div className="bg-slate-900 dark:bg-black/80">
-            <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-              <span className="text-slate-300 text-sm font-medium">OUTPUT</span>
-              <button
-                onClick={() => {
-                  const currentCode = block.code.find(codeItem => 
-                    codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
-                  );
-                  const outputToCopy = currentCode?.output || "No output provided";
-                  copyCode(outputToCopy, `${block.id}-output`);
-                }}
-                className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-              >
-                {copiedCode[`${block.id}-output`] ? (
-                  <FaCheck className="w-3 h-3 text-green-400" />
-                ) : (
-                  <FaCopy className="w-3 h-3" />
-                )}
-              </button>
-            </div>
-            <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
-              <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
-                {(() => {
-                  const currentCode = block.code.find(codeItem => 
-                    codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
-                  );
-                  const output = currentCode?.output;
-                  
-                  if (output && output.trim()) {
-                    return <pre className="whitespace-pre-wrap text-green-400">{output}</pre>;
-                  } else {
-                    return (
-                      <>
-                        <div className="text-amber-400 mb-2">No output provided for this code example</div>
-                        <div className="text-slate-400">Output will be shown here when available</div>
-                      </>
-                    );
-                  }
-                })()}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-slate-900 dark:bg-black/80 relative">
-            {block.code.length > 1 && (
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50 border-b border-slate-700/50 space-y-2 sm:space-y-0">
-                <div className="flex flex-wrap gap-1">
-                  {block.code.map((codeItem) => {
-                    if (!codeItem || !codeItem.language) return null;
-                    
-                    return (
+                {getCurrentTab(block.id) === 'output' ? (
+                  <div className="bg-gray-900 dark:bg-black/80">
+                    <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
+                      <span className="text-gray-300 text-sm font-medium">OUTPUT</span>
                       <button
-                        key={codeItem.language}
-                        onClick={() => changeLanguage(block.id, codeItem.language)}
-                        className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
-                          selectedLanguages[block.id] === codeItem.language
-                            ? 'bg-indigo-600 text-white shadow-md'
-                            : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50'
-                        }`}
+                        onClick={() => copyCode(firstCode?.output || 'No output provided', `${block.id}-output`)}
+                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
                       >
-                        {codeItem.language}
+                        {copiedCode[`${block.id}-output`] ? (
+                          <FaCheck className="w-3 h-3 text-green-400" />
+                        ) : (
+                          <FaCopy className="w-3 h-3" />
+                        )}
                       </button>
-                    );
-                  })}
+                    </div>
+                    <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500">
+                      <div className="p-4 text-gray-100 font-mono text-sm leading-relaxed">
+                        {firstCode?.output ? (
+                          <pre className="whitespace-pre-wrap text-green-400">{firstCode.output}</pre>
+                        ) : (
+                          <>
+                            <div className="text-amber-400 mb-2">No output provided</div>
+                            <div className="text-gray-400">Output will be shown here when available</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gray-900 dark:bg-black/80">
+                    <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
+                      <span className="text-gray-300 text-sm font-medium">
+                        {firstCode?.language ? firstCode.language.toUpperCase() : 'CODE'}
+                      </span>
+                      <button
+                        onClick={() => copyCode(firstCode?.code || '', `${block.id}-simple`)}
+                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
+                      >
+                        {copiedCode[`${block.id}-simple`] ? (
+                          <FaCheck className="w-3 h-3 text-green-400" />
+                        ) : (
+                          <FaCopy className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
+                    <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500">
+                      <SyntaxHighlighter
+                        style={tomorrow}
+                        language={firstCode?.language ? firstCode.language.toLowerCase() : 'text'}
+                        PreTag="div"
+                        className="text-sm"
+                        customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+                      >
+                        {firstCode?.code?.trim() || 'No code available'}
+                      </SyntaxHighlighter>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Complexity Section */}
+              {block.complexity && (block.complexity.time || block.complexity.space) && (
+                <div className="space-y-4">
+                  {block.complexity.time && (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                      <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                        <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
+                        Time Complexity
+                      </h4>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
+                        <ReactMarkdown>{block.complexity.time}</ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+
+                  {block.complexity.space && (
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
+                      <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
+                        <Database className="w-4 h-4 sm:w-5 sm:h-5" />
+                        Space Complexity
+                      </h4>
+                      <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
+                        <ReactMarkdown>{block.complexity.space}</ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        // Multi-language path - WITH SOLUTION-STYLE COPY BUTTON
+        return (
+          <div key={block.id} className="my-6 lg:my-8">
+            <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-200/50 dark:border-gray-600/30 overflow-hidden mb-6">
+              <div className="flex justify-start items-center p-3 border-b border-gray-200/30 dark:border-gray-600/30">
+                <div className="flex gap-0.5 rounded-lg p-0.5">
+                  <button 
+                    onClick={() => switchCodeTab(block.id, 'code')}
+                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                      getCurrentTab(block.id) === 'code'
+                        ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-600'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                    }`}
+                  >
+                    Code
+                  </button>
+                  <button 
+                    onClick={() => switchCodeTab(block.id, 'output')}
+                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                      getCurrentTab(block.id) === 'output'
+                        ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
+                        : 'text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                    }`}
+                  >
+                    Output
+                  </button>
                 </div>
               </div>
-            )}
-            
-            {block.code.length === 1 && block.code[0] && (
-              <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                <span className="text-slate-300 text-sm font-medium">
-                  {block.code[0].language ? block.code[0].language.toUpperCase() : 'CODE'}
-                </span>
-              </div>
-            )}
-            
-            <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
-              <SyntaxHighlighter
-                style={tomorrow}
-                language={(() => {
-                  const currentCode = block.code.find(codeItem => 
-                    codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
-                  );
-                  return (selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'text').toLowerCase();
-                })()}
-                PreTag="div"
-                className="text-sm"
-                customStyle={{ margin: 0, padding: '1rem', background: 'transparent', minHeight: 'auto' }}
-              >
-                {(() => {
-                  const currentCode = block.code.find(codeItem => 
-                    codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
-                  );
-                  return currentCode?.code?.trim() || '// No code available';
-                })()}
-              </SyntaxHighlighter>
-            </div>
 
-            {/* ABSOLUTE POSITIONED COPY BUTTON - SAME AS SOLUTION */}
-            <button
-              onClick={() => {
-                const currentCode = block.code.find(codeItem => 
-                  codeItem && codeItem.language === (selectedLanguages[block.id] || (block.code[0] && block.code[0].language))
-                );
-                copyCode(currentCode?.code || '', `${block.id}-${currentCode?.language || 'code'}`);
-              }}
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
-            >
-              {copiedCode[`${block.id}-${selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'code'}`] ? (
-                <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
+              {getCurrentTab(block.id) === 'output' ? (
+                <div className="bg-gray-900 dark:bg-black/80">
+                  <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
+                    <span className="text-gray-300 text-sm font-medium">OUTPUT</span>
+                    <button
+                      onClick={() => {
+                        const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
+                        const outputToCopy = currentCode?.output || 'No output provided';
+                        copyCode(outputToCopy, `${block.id}-output`);
+                      }}
+                      className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
+                    >
+                      {copiedCode[`${block.id}-output`] ? (
+                        <FaCheck className="w-3 h-3 text-green-400" />
+                      ) : (
+                        <FaCopy className="w-3 h-3" />
+                      )}
+                    </button>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500">
+                    <div className="p-4 text-gray-100 font-mono text-sm leading-relaxed">
+                      {(() => {
+                        const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
+                        const output = currentCode?.output;
+                        if (output && output.trim()) {
+                          return <pre className="whitespace-pre-wrap text-green-400">{output}</pre>;
+                        } else {
+                          return (
+                            <>
+                              <div className="text-amber-400 mb-2">No output provided for this code example</div>
+                              <div className="text-gray-400">Output will be shown here when available</div>
+                            </>
+                          );
+                        }
+                      })()}
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <FaCopy className="w-3 h-3 sm:w-4 sm:h-4" />
-              )}
-            </button>
-          </div>
-        )}
-      </div>
+                <div className="bg-gray-900 dark:bg-black/80 relative">
+                  {/* Language Tabs (only if multiple languages) */}
+                  {block.code.length > 1 && (
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50 border-b border-gray-700/50 space-y-2 sm:space-y-0">
+                      <div className="flex flex-wrap gap-1">
+                        {block.code.map(codeItem => {
+                          if (!codeItem || !codeItem.language) return null;
+                          return (
+                            <button
+                              key={codeItem.language}
+                              onClick={() => changeLanguage(block.id, codeItem.language)}
+                              className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                                selectedLanguages[block.id] === codeItem.language
+                                  ? 'bg-indigo-600 text-white shadow-md'
+                                  : 'text-gray-400 hover:text-indigo-400 hover:bg-gray-700/50'
+                              }`}
+                            >
+                              {codeItem.language}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
-      {/* Complexity Section */}
-      {block.complexity && (block.complexity.time || block.complexity.space) && (
-        <div className="space-y-4">
-          {block.complexity.time && (
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-              <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                Time Complexity
-              </h4>
-              <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                <ReactMarkdown>
-                  {block.complexity.time}
-                </ReactMarkdown>
-              </div>
+                  {/* Header for single language */}
+                  {block.code.length === 1 && block.code[0] && (
+                    <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
+                      <span className="text-gray-300 text-sm font-medium">
+                        {block.code[0].language ? block.code[0].language.toUpperCase() : 'CODE'}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Code Display */}
+                  <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500">
+                    <SyntaxHighlighter
+                      style={tomorrow}
+                      language={(() => {
+                        const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
+                        return (selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'text').toLowerCase();
+                      })()}
+                      PreTag="div"
+                      className="text-sm"
+                      customStyle={{ margin: 0, padding: '1rem', background: 'transparent', minHeight: 'auto' }}
+                    >
+                      {(() => {
+                        const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
+                        return currentCode?.code?.trim() || 'No code available';
+                      })()}
+                    </SyntaxHighlighter>
+                  </div>
+
+                  {/* ABSOLUTE POSITIONED COPY BUTTON - SAME AS SOLUTION */}
+                  <button
+                    onClick={() => {
+                      const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
+                      copyCode(currentCode?.code || '', `${block.id}-${currentCode?.language || 'code'}`);
+                    }}
+                    className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
+                  >
+                    {copiedCode[`${block.id}-${selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'code'}`] ? (
+                      <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
+                    ) : (
+                      <FaCopy className="w-3 h-3 sm:w-4 sm:h-4" />
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-          
-          {block.complexity.space && (
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-              <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                Space Complexity
-              </h4>
-              <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                <ReactMarkdown>
-                  {block.complexity.space}
-                </ReactMarkdown>
+
+            {/* Complexity Section */}
+            {block.complexity && (block.complexity.time || block.complexity.space) && (
+              <div className="space-y-4">
+                {block.complexity.time && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                    <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                      <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
+                      Time Complexity
+                    </h4>
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
+                      <ReactMarkdown>{block.complexity.time}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+
+                {block.complexity.space && (
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
+                    <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
+                      <Database className="w-4 h-4 sm:w-5 sm:h-5" />
+                      Space Complexity
+                    </h4>
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
+                      <ReactMarkdown>{block.complexity.space}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+            )}
+          </div>
+        );
 
       case 'image':
         return (
           <div key={block.id} className="my-6">
-            <SecureImage 
-              src={block.src} 
-              alt="Editorial illustration" 
-              className="w-full h-auto block" 
+            <SecureImage
+              src={block.src}
+              alt="Editorial illustration"
+              className="max-w-full"
               style={block.style ? (() => {
                 try {
                   const styleObj = {};
-                  block.style.split(';').forEach(rule => {
-                    const [key, value] = rule.split(':').map(s => s.trim());
+                  block.style.split(';').forEach((rule) => {
+                    const [key, value] = rule.split(':').map((s) => s.trim());
                     if (key && value) {
-                      const camelKey = key.replace(/-([a-z])/g, g => g[1].toUpperCase());
+                      const camelKey = key.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
                       styleObj[camelKey] = value;
                     }
                   });
@@ -1748,7 +1716,7 @@ const renderContentElements = (elements) => {
             <p className="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
               {error}
             </p>
-            <button 
+            <button
               onClick={() => window.close()}
               className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300"
             >
@@ -1762,12 +1730,11 @@ const renderContentElements = (elements) => {
   }
 
   return (
-    <div className="min-h-screen bg-[#a855f7]/10 dark:bg-slate-900">
-      
-      <div className="sticky top-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50 shadow-sm">
+    <div className="min-h-screen bg-white dark:bg-[#030014]">
+      {/* UPDATED: Header - matches navbar styling */}
+      <div className="sticky top-0 z-50 bg-white/95 dark:bg-[#030014]/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
-            
             <div className="flex items-start sm:items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
               <button
                 onClick={() => window.close()}
@@ -1791,27 +1758,23 @@ const renderContentElements = (elements) => {
                     <FaBook className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
                   )}
                 </div>
-                
+
                 <div className="min-w-0 flex-1">
                   {contentType === 'editorial' ? (
-                    <>
-                      <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold bg-gradient-to-r from-emerald-700 via-green-600 to-teal-600 bg-clip-text text-transparent dark:from-emerald-300 dark:via-green-300 dark:to-teal-300 leading-normal pb-1 break-words">
-                        {editorialData?.title || problem?.title || 'Concept Editorial'}
-                      </h1>
-                    </>
+                    <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold bg-gradient-to-r from-emerald-700 via-green-600 to-teal-600 bg-clip-text text-transparent dark:from-emerald-300 dark:via-green-300 dark:to-teal-300 leading-normal pb-1 break-words">
+                      {editorialData?.title || problem?.title || 'Concept Editorial'}
+                    </h1>
                   ) : (
-                    <>
-                      <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-slate-900 via-indigo-700 to-purple-600 bg-clip-text text-transparent dark:from-white dark:via-indigo-300 dark:to-purple-300 truncate">
-                        {editorialData?.title || problem?.title || 'Problem Solution'}
-                      </h1>
-                     
-                    </>
+                    <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-gray-900 via-indigo-700 to-purple-600 bg-clip-text text-transparent dark:from-white dark:via-indigo-300 dark:to-purple-300 truncate">
+                      {editorialData?.title || problem?.title || 'Problem Solution'}
+                    </h1>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center space-x-1 sm:space-x-2 bg-slate-100/60 dark:bg-slate-800/60 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 backdrop-blur-sm w-full sm:w-auto">
+            {/* Tab Navigation */}
+            <div className="flex items-center space-x-1 sm:space-x-2 bg-gray-100/60 dark:bg-gray-800/60 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 backdrop-blur-sm w-full sm:w-auto">
               <button
                 onClick={() => setActiveTab('editorial')}
                 className={`px-2 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial flex items-center justify-center space-x-1 sm:space-x-2 ${
@@ -1848,6 +1811,7 @@ const renderContentElements = (elements) => {
         </div>
       </div>
 
+      {/* UPDATED: Main Content Area - Full page, no boxes */}
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         {activeTab === 'editorial' && (
           <div>
@@ -1869,59 +1833,27 @@ const renderContentElements = (elements) => {
                   </div>
                 </div>
               </div>
-            )}
-
-            {contentType === 'editorial' && editorial && !loading && !error && (
-              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5">
-                {isEditing ? (
-                  <div className="space-y-4">
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
-                      Edit Editorial Content
-                    </h2>
-                    <textarea
-                      value={editorialContent}
-                      onChange={(e) => setEditorialContent(e.target.value)}
-                      className="w-full h-96 p-4 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700 dark:text-white font-mono text-sm resize-vertical"
-                      placeholder="Enter editorial content in Markdown format..."
-                    />
-                    <div className="flex justify-end space-x-2">
-                      <button
-                        onClick={handleCancelEdit}
-                        className="px-4 py-2 text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSaveEditorial}
-                        disabled={saving}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {saving ? 'Saving...' : 'Save Changes'}
-                      </button>
+            ) : contentType === 'editorial' && editorial && !loading && !error ? (
+              // Editorial content - DIRECTLY RENDERED WITHOUT BOXES
+              <div>
+                {(() => {
+                  const parsedEditorial = parseEditorialMarkdown(editorial);
+                  return (
+                    <div className="space-y-6">
+                      {parsedEditorial.title && (
+                        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6 pb-3 border-b border-gray-200 dark:border-gray-700">
+                          {parsedEditorial.title}
+                        </h1>
+                      )}
+                      {parsedEditorial.content.map(block => renderEditorialContentBlock(block))}
                     </div>
-                  </div>
-                ) : (
-                  (() => {
-                    const parsedEditorial = parseEditorialMarkdown(editorial);
-                    
-                    return (
-                      <div className="space-y-6">
-                        {parsedEditorial.title && (
-                          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-900 dark:text-white mb-6 pb-3 border-b border-slate-200 dark:border-slate-700">
-                            {parsedEditorial.title}
-                          </h1>
-                        )}
-                        
-                        {parsedEditorial.content.map(block => renderEditorialContentBlock(block))}
-                      </div>
-                    );
-                  })()
-                )}
+                  );
+                })()}
               </div>
-            )}
-
-            {contentType === 'solution' && editorialData && !loading && !error && (
+            ) : contentType === 'solution' && editorialData && !loading && !error ? (
+              // Solution content - DIRECTLY RENDERED WITHOUT BOXES
               <div className="space-y-4 sm:space-y-6 lg:space-y-8">
+                {/* Description */}
                 {editorialData.description && (
                   <div>
                     <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
@@ -1936,12 +1868,10 @@ const renderContentElements = (elements) => {
                   </div>
                 )}
 
+                {/* Approaches */}
                 <div className="space-y-4 sm:space-y-6 lg:space-y-8">
                   {editorialData.approaches.map((approach, index) => (
-                    <div
-                      key={approach.id}
-                      className="bg-white/70 dark:bg-slate-800/70 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5 overflow-hidden"
-                    >
+                    <div key={approach.id}>
                       <div
                         onClick={() => toggleSection(approach.id)}
                         className="cursor-pointer p-4 sm:p-6 lg:p-8 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-all duration-300 border-b border-gray-200/30 dark:border-gray-700/30"
@@ -1972,8 +1902,10 @@ const renderContentElements = (elements) => {
                         </div>
                       </div>
 
+                      {/* Expanded Content */}
                       {expandedSections[approach.id] && (
                         <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8">
+                          {/* Explanation */}
                           {approach.explanation && (
                             <div>
                               <h4 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center">
@@ -1986,284 +1918,77 @@ const renderContentElements = (elements) => {
                             </div>
                           )}
 
-                          {approach.code && approach.code.length > 0 && (
-                            <div>
-                              {(() => {
-                                const hasValidLanguages = approach.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
-                                
-                                if (!hasValidLanguages) {
-                                  return (
-                                    <div>
-                                      <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
-                                        {approach.code.map((codeItem, codeIndex) => (
-                                          <div key={codeIndex} className="relative">
-                                            <div className="bg-slate-900 dark:bg-black/80">
-                                              <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800 hover:scrollbar-thumb-slate-500">
-                                                <SyntaxHighlighter
-                                                  style={tomorrow}
-                                                  language="text"
-                                                  PreTag="div"
-                                                  className="text-sm"
-                                                  customStyle={{
-                                                    margin: 0,
-                                                    padding: '1rem',
-                                                    background: 'transparent',
-                                                    minHeight: 'auto'
-                                                  }}
-                                                >
-                                                  {codeItem.code.trim()}
-                                                </SyntaxHighlighter>
-                                              </div>
-                                              
-                                              <button
-                                                onClick={() => copyCode(codeItem.code, `${approach.id}-${codeIndex}`)}
-                                                className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
-                                              >
-                                                {copiedCode[`${approach.id}-${codeIndex}`] ? (
-                                                  <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
-                                                ) : (
-                                                  <FaCopy className="w-3 h-3 sm:w-4 sm:h-4" />
-                                                )}
-                                              </button>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
+                          {/* Code */}
+                          {approach.code && approach.code.length > 0 && (() => {
+                            const hasValidLanguages = approach.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
+                            if (!hasValidLanguages) return null;
 
-                                      {(approach.complexity.time || approach.complexity.space) && (
-                                        <div className="space-y-4">
-                                          {approach.complexity.time && (
-                                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                                              <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                                                <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                                                Time Complexity
-                                              </h4>
-                                              <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                                                <ReactMarkdown>
-                                                  {approach.complexity.time}
-                                                </ReactMarkdown>
-                                              </div>
-                                            </div>
+                            // Render code blocks directly without wrapping boxes
+                            return approach.code.map((codeItem, codeIndex) => {
+                              if (!codeItem || !codeItem.language) return null;
+                              return (
+                                <div key={codeIndex} className="my-6 lg:my-8">
+                                  <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-200/50 dark:border-gray-600/30 overflow-hidden mb-6">
+                                    <div className="bg-gray-900 dark:bg-black/80">
+                                      <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
+                                        <span className="text-gray-300 text-sm font-medium">
+                                          {codeItem.language ? codeItem.language.toUpperCase() : 'CODE'}
+                                        </span>
+                                        <button
+                                          onClick={() => copyCode(codeItem.code || '', `${approach.id}-${codeItem.language}-${codeIndex}`)}
+                                          className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
+                                        >
+                                          {copiedCode[`${approach.id}-${codeItem.language}-${codeIndex}`] ? (
+                                            <FaCheck className="w-3 h-3 text-green-400" />
+                                          ) : (
+                                            <FaCopy className="w-3 h-3" />
                                           )}
-                                          
-                                          {approach.complexity.space && (
-                                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-                                              <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                                                <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                                                Space Complexity
-                                              </h4>
-                                              <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                                                <ReactMarkdown>
-                                                  {approach.complexity.space}
-                                                </ReactMarkdown>
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
+                                        </button>
+                                      </div>
+                                      <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+                                        <SyntaxHighlighter
+                                          style={tomorrow}
+                                          language={(codeItem.language || 'text').toLowerCase()}
+                                          PreTag="div"
+                                          className="text-sm"
+                                          customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
+                                        >
+                                          {codeItem.code?.trim() || 'No code available'}
+                                        </SyntaxHighlighter>
+                                      </div>
                                     </div>
-                                  );
-                                }
-
-                                return (
-                                  <div>
-                                    <div className="bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800/50 dark:to-gray-800/50 rounded-xl sm:rounded-2xl border border-slate-200/50 dark:border-slate-600/30 overflow-hidden mb-6">
-                                      
-                                      <div className="flex justify-start items-center p-3 border-b border-slate-200/30 dark:border-slate-600/30">
-                                        <div className="flex gap-0.5 rounded-lg p-0.5">
-                                          <button
-                                            onClick={() => switchCodeTab(approach.id, 'code')}
-                                            className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
-                                              getCurrentTab(approach.id) === 'code'
-                                                ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600'
-                                                : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                                            }`}
-                                          >
-                                            <Code className="w-3 h-3" />
-                                            Code
-                                          </button>
-                                          <button
-                                            onClick={() => switchCodeTab(approach.id, 'output')}
-                                            className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 flex items-center gap-1 ${
-                                              getCurrentTab(approach.id) === 'output'
-                                                ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
-                                                : 'text-slate-600 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-slate-50 dark:hover:bg-slate-700/30'
-                                            }`}
-                                          >
-                                            Output
-                                          </button>
-                                        </div>
-                                      </div>
-
-                                      {getCurrentTab(approach.id) === 'output' ? (
-                                        <div className="bg-slate-900 dark:bg-black/80">
-                                          <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                                            <span className="text-slate-300 text-sm font-medium">OUTPUT</span>
-                                            <button
-                                              onClick={() => {
-                                                const currentCode = approach.code.find(codeItem => 
-                                                  codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code && approach.code.language))
-                                                );
-                                                copyCode(currentCode?.output || "No output provided", `${approach.id}-output`);
-                                              }}
-                                              className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                                            >
-                                              {copiedCode[`${approach.id}-output`] ? (
-                                                <FaCheck className="w-3 h-3 text-green-400" />
-                                              ) : (
-                                                <FaCopy className="w-3 h-3" />
-                                              )}
-                                            </button>
-                                          </div>
-                                          
-                                          <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-                                            <div className="p-4 text-slate-100 font-mono text-sm leading-relaxed">
-                                              {(() => {
-                                                const currentCode = approach.code.find(codeItem => 
-                                                  codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code && approach.code.language))
-                                                );
-                                                const output = currentCode?.output;
-                                                
-                                                if (output && output.trim()) {
-                                                  return (
-                                                    <pre className="whitespace-pre-wrap text-green-400">
-                                                      {output}
-                                                    </pre>
-                                                  );
-                                                } else {
-                                                  return (
-                                                    <>
-                                                      <div className="text-amber-400 mb-2">No output provided</div>
-                                                      <div className="text-slate-400">
-                                                        Output will be shown here when available
-                                                      </div>
-                                                    </>
-                                                  );
-                                                }
-                                              })()}
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <div className="bg-slate-900 dark:bg-black/80">
-                                          
-                                          {approach.code.length > 1 && (
-                                            <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50 border-b border-slate-700/50">
-                                              <div className="flex flex-wrap gap-1">
-                                                {approach.code.map((codeItem) => {
-                                                  if (!codeItem || !codeItem.language) return null;
-                                                  
-                                                  return (
-                                                    <button
-                                                      key={codeItem.language}
-                                                      onClick={() => changeLanguage(approach.id, codeItem.language)}
-                                                      className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
-                                                        selectedLanguages[approach.id] === codeItem.language
-                                                          ? 'bg-indigo-600 text-white shadow-md'
-                                                          : 'text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50'
-                                                      }`}
-                                                    >
-                                                      {codeItem.language}
-                                                    </button>
-                                                  );
-                                                })}
-                                              </div>
-                                              
-                                              <button
-                                                onClick={() => {
-                                                  const currentCode = approach.code.find(codeItem => 
-                                                    codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code && approach.code.language))
-                                                  );
-                                                  copyCode(currentCode?.code || '', `${approach.id}-${currentCode?.language || 'code'}`);
-                                                }}
-                                                className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                                              >
-                                                {copiedCode[`${approach.id}-${selectedLanguages[approach.id] || (approach.code && approach.code.language) || 'code'}`] ? (
-                                                  <FaCheck className="w-3 h-3 text-green-400" />
-                                                ) : (
-                                                  <FaCopy className="w-3 h-3" />
-                                                )}
-                                              </button>
-                                            </div>
-                                          )}
-                                          
-                                          {approach.code.length === 1 && approach.code && (
-                                            <div className="flex justify-between items-center px-4 py-2 bg-slate-800 dark:bg-slate-700/50">
-                                              <span className="text-slate-300 text-sm font-medium">
-                                                {approach.code.language ? approach.code.language.toUpperCase() : 'CODE'}
-                                              </span>
-                                              <button
-                                                onClick={() => copyCode(approach.code.code || '', `${approach.id}-${approach.code.language || 'code'}`)}
-                                                className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                                              >
-                                                {copiedCode[`${approach.id}-${approach.code.language || 'code'}`] ? (
-                                                  <FaCheck className="w-3 h-3 text-green-400" />
-                                                ) : (
-                                                  <FaCopy className="w-3 h-3" />
-                                                )}
-                                              </button>
-                                            </div>
-                                          )}
-                                          
-                                          <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
-                                            <SyntaxHighlighter
-                                              style={tomorrow}
-                                              language={(selectedLanguages[approach.id] || (approach.code && approach.code.language) || 'text').toLowerCase()}
-                                              PreTag="div"
-                                              className="text-sm"
-                                              customStyle={{
-                                                margin: 0,
-                                                padding: '1rem',
-                                                background: 'transparent',
-                                                minHeight: 'auto'
-                                              }}
-                                            >
-                                              {(() => {
-                                                const currentCode = approach.code.find(codeItem => 
-                                                  codeItem && codeItem.language === (selectedLanguages[approach.id] || (approach.code && approach.code.language))
-                                                );
-                                                return currentCode?.code?.trim() || '// No code available';
-                                              })()}
-                                            </SyntaxHighlighter>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {(approach.complexity.time || approach.complexity.space) && (
-                                      <div className="space-y-4">
-                                        {approach.complexity.time && (
-                                          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                                            <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                                              <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                                              Time Complexity
-                                            </h4>
-                                            <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                                              <ReactMarkdown>
-                                                {approach.complexity.time}
-                                              </ReactMarkdown>
-                                            </div>
-                                          </div>
-                                        )}
-                                        
-                                        {approach.complexity.space && (
-                                          <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-                                            <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                                              <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                                              Space Complexity
-                                            </h4>
-                                                                                        <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                                              <ReactMarkdown>
-                                                {approach.complexity.space}
-                                              </ReactMarkdown>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
                                   </div>
-                                );
-                              })()}
+                                </div>
+                              );
+                            });
+                          })()}
+
+                          {/* Complexity */}
+                          {(approach.complexity.time || approach.complexity.space) && (
+                            <div className="space-y-4">
+                              {approach.complexity.time && (
+                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
+                                  <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
+                                    <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    Time Complexity
+                                  </h4>
+                                  <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
+                                    <ReactMarkdown>{approach.complexity.time}</ReactMarkdown>
+                                  </div>
+                                </div>
+                              )}
+
+                              {approach.complexity.space && (
+                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
+                                  <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
+                                    <Database className="w-4 h-4 sm:w-5 sm:h-5" />
+                                    Space Complexity
+                                  </h4>
+                                  <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
+                                    <ReactMarkdown>{approach.complexity.space}</ReactMarkdown>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -2274,10 +1999,9 @@ const renderContentElements = (elements) => {
 
                 {renderSpecialThanks()}
               </div>
-            )}
-
-            {contentType === 'solution' && editorial && !editorialData && !loading && !error && (
-              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 border border-slate-200/50 dark:border-slate-700/50 shadow-xl shadow-slate-900/5">
+            ) : (contentType === 'solution' && !editorial && !editorialData && !loading && !error) ? (
+              // No editorial/solution content
+              <div>
                 {isEditing ? (
                   <div className="space-y-4">
                     <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Edit Editorial Content</h2>
@@ -2304,10 +2028,8 @@ const renderContentElements = (elements) => {
                     </div>
                   </div>
                 ) : (
-                  <div className="prose prose-slate dark:prose-invert prose-lg max-w-none">
-                    <ReactMarkdown>
-                      {editorial}
-                    </ReactMarkdown>
+                  <div className="prose prose-gray dark:prose-invert prose-lg max-w-none">
+                    <ReactMarkdown>{editorial}</ReactMarkdown>
                   </div>
                 )}
               </div>
@@ -2360,6 +2082,7 @@ const renderContentElements = (elements) => {
         )}
       </div>
 
+      {/* Back to top button */}
       <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 space-y-2 sm:space-y-3">
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -2370,96 +2093,74 @@ const renderContentElements = (elements) => {
         </button>
       </div>
 
+      {/* Custom styles */}
       <style jsx>{`
-  .complexity-code {
-    background-color: rgb(241 245 249);
-    color: rgb(51 65 85);
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.375rem;
-    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
-    font-size: 0.875rem;
-    border: 1px solid rgb(226 232 240);
-  }
-  
-  .dark .complexity-code {
-    background-color: rgb(30 41 59);
-    color: rgb(203 213 225);
-    border: 1px solid rgb(51 65 85);
-  }
-  
-  .w-full-bleed {
-    width: 100vw;
-    max-width: 100vw;
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
-  }
-  
-  @media (max-width: 640px) {
-    .w-full-bleed {
-      width: 100%;
-      max-width: 100%;
-      margin-left: 0;
-      margin-right: 0;
-    }
-  }
-  
-  /* Minimal Themed Scrollbar Styling */
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgba(100, 116, 139, 0.3);
-    border-radius: 3px;
-    transition: background-color 0.2s;
-  }
-  
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(100, 116, 139, 0.5);
-  }
-  
-  /* Dark theme scrollbar */
-  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgba(148, 163, 184, 0.2);
-  }
-  
-  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(148, 163, 184, 0.4);
-  }
-  
-  /* Firefox scrollbar styling */
+        .complexity-code {
+          background-color: rgb(241, 245, 249);
+          color: rgb(51, 65, 85);
+          padding: 0.25rem 0.5rem;
+          border-radius: 0.375rem;
+          font-family: ui-monospace, 'SFMono-Regular', 'SF Mono', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+          font-size: 0.875rem;
+          border: 1px solid rgb(226, 232, 240);
+        }
+        .dark .complexity-code {
+          background-color: rgb(30, 41, 59);
+          color: rgb(203, 213, 225);
+          border: 1px solid rgb(51, 65, 85);
+        }
+
+        .w-full-bleed {
+          width: 100vw;
+          max-width: 100vw;
+          margin-left: calc(50% - 50vw);
+          margin-right: calc(50% - 50vw);
+        }
+
+        @media (max-width: 640px) {
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
   }
-  
-  .dark .scrollbar-thin {
-    scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
   }
-  
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  .animate-fadeIn {
-    animation: fadeIn 0.3s ease-out;
-  }
-`}</style>
+}
 
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(107, 114, 128) rgba(31, 41, 55, 0.3);
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(31, 41, 55, 0.3);
+  border-radius: 3px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgb(75, 85, 99), rgb(107, 114, 128));
+  border-radius: 3px;
+  border: 1px solid rgba(156, 163, 175, 0.1);
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgb(107, 114, 128), rgb(156, 163, 175));
+}
+.dark .scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(17, 24, 39, 0.5);
+}
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, rgb(55, 65, 81), rgb(75, 85, 99));
+  border: 1px solid rgba(107, 114, 128, 0.2);
+}
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, rgb(75, 85, 99), rgb(107, 114, 128));
+}
 
-      
+    
+
+      `}</style>
     </div>
   );
 };
