@@ -139,45 +139,24 @@ export const progressAPI = {
   getStats: (userId) => api.get(`/progress/stats/${userId}`),
   getRevisionProblems: (userId) => api.get(`/progress/revision/${userId}`)
 };
-export const problemAPI = {
-   delete: (problemId) => api.delete(`/problems/${problemId}`),
-  getBatch: (problemIds) => api.post('/problems/batch', { problemIds }),
-  getAll: (filters) => api.get('/problems', { params: filters }),
-  search: (params) => api.get('/problems/search', { params }),
-  getById: (problemId) => api.get(`/problems/${problemId}`),
-  getByIds: (problemIds) => api.post('/problems/batch', { problemIds }),
-  create: (problemData) => api.post('/problems', problemData),
-  update: (problemId, data) => api.put(`/problems/${problemId}`, data),
-  delete: (problemId) => api.delete(`/problems/${problemId}`)
-};
-// Sheet API
-export const sheetAPI = {
-   getAllWithProblems: () => api.get('/sheets/with-problems'),
-  getAll: () => api.get('/sheets'),
-  getById: (sheetId) => api.get(`/sheets/${sheetId}`),
-  create: (sheetData) => api.post('/sheets', sheetData),
-  update: (sheetId, sheetData) => api.put(`/sheets/${sheetId}`, sheetData),
-  delete: (sheetId) => api.delete(`/sheets/${sheetId}`),
-  
-  // Section management
-  addSection: (sheetId, sectionData) => api.post(`/sheets/${sheetId}/sections`, sectionData),
-  updateSection: (sheetId, sectionId, sectionData) => api.put(`/sheets/${sheetId}/sections/${sectionId}`, sectionData),
-  deleteSection: (sheetId, sectionId) => api.delete(`/sheets/${sheetId}/sections/${sectionId}`),
-  
-  // Subsection management
-  addSubsection: (sheetId, sectionId, subsectionData) => api.post(`/sheets/${sheetId}/sections/${sectionId}/subsections`, subsectionData),
-  updateSubsection: (sheetId, sectionId, subsectionId, subsectionData) => api.put(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}`, subsectionData),
-  deleteSubsection: (sheetId, sectionId, subsectionId) => api.delete(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}`),
-  
-  // ✅ NEW: Unlink problem from subsection (doesn't delete globally)
-  unlinkProblem: (sheetId, sectionId, subsectionId, problemId) => 
-    api.delete(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}/problems/${problemId}/unlink`),
-  
-  // Link existing problem to subsection
-  linkProblem: (sheetId, sectionId, subsectionId, problemId) => 
-    api.post(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}/link-problem`, { problemId })
-};
 
+export const sheetAPI = {
+  getAll: () => api.get('/sheets'),
+  getById: (id) => api.get(`/sheets/${id}`),
+  create: (data) => api.post('/sheets', data),
+  update: (id, data) => api.put(`/sheets/${id}`, data),
+  delete: (id) => api.delete(`/sheets/${id}`),
+  addSection: (sheetId, data) => api.post(`/sheets/${sheetId}/sections`, data),
+  updateSection: (sheetId, sectionId, data) => api.put(`/sheets/${sheetId}/sections/${sectionId}`, data),
+  deleteSection: (sheetId, sectionId) => api.delete(`/sheets/${sheetId}/sections/${sectionId}`),
+  addSubsection: (sheetId, sectionId, data) => api.post(`/sheets/${sheetId}/sections/${sectionId}/subsections`, data),
+  updateSubsection: (sheetId, sectionId, subsectionId, data) => api.put(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}`, data),
+  deleteSubsection: (sheetId, sectionId, subsectionId) => api.delete(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}`),
+  addProblem: (sheetId, sectionId, subsectionId, data) => api.post(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}/problems`, data),
+  updateProblem: (sheetId, sectionId, subsectionId, problemId, data) => api.put(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}/problems/${problemId}`, data),
+  updateProblemField: (sheetId, sectionId, subsectionId, problemId, data) => api.patch(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}/problems/${problemId}`, data),
+  deleteProblem: (sheetId, sectionId, subsectionId, problemId) => api.delete(`/sheets/${sheetId}/sections/${sectionId}/subsections/${subsectionId}/problems/${problemId}`),
+};
 
 export const announcementAPI = {
   getAll: () => api.get('/announcements'),

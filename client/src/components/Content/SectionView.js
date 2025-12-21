@@ -1,24 +1,22 @@
-import React, { useState } from 'react';
-import { useProgress } from '../../context/ProgressContext';
+import React, { useState, useEffect } from 'react';
 import SubsectionView from './SubsectionView';
+import { useProgress } from '../../hooks/useProgress';
 import toast from 'react-hot-toast';
 import { 
+  FaChevronDown, 
   FaChevronRight, 
-  FaChevronDown,
+  FaTrophy, 
+  FaFire, 
+  FaClock,
   FaPlus,
   FaEdit,
   FaTrash,
   FaSave,
   FaTimes,
-  FaSpinner,
-  FaFolder,
-  FaFolderOpen,
-  FaTrophy,
-  FaFire,
-  FaClock
+  FaSpinner
 } from 'react-icons/fa';
 
-// ============= INLINE EDITABLE TEXT COMPONENT =============
+// Inline Editable Component
 const InlineEditableText = ({ 
   value, 
   onSave, 
@@ -32,13 +30,13 @@ const InlineEditableText = ({
   const [tempValue, setTempValue] = useState(value || '');
   const [saving, setSaving] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setTempValue(value || '');
   }, [value]);
 
   const startEdit = (e) => {
     if (e) {
-      e.stopPropagation();
+      e.stopPropagation(); // Prevent parent click handlers
     }
     if (isEditable && !disabled) {
       setTempValue(value || '');
@@ -55,7 +53,7 @@ const InlineEditableText = ({
         toast.success('Section updated successfully!');
       } catch (error) {
         console.error('Save failed:', error);
-        toast.error(`Failed to save changes: ${error.response?.data?.message || error.message}`);
+        toast.error('Failed to save changes. Please try again.');
       } finally {
         setSaving(false);
       }
@@ -85,13 +83,13 @@ const InlineEditableText = ({
 
   if (isEditing) {
     return (
-      <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center space-x-2" onClick={e => e.stopPropagation()}>
         {multiline ? (
           <textarea
             value={tempValue}
             onChange={(e) => setTempValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm resize-none min-w-0 disabled:opacity-50 disabled:cursor-not-allowed w-full"
+            className="flex-1 px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm resize-none min-w-0 disabled:opacity-50"
             placeholder={placeholder}
             autoFocus
             rows={2}
@@ -103,32 +101,28 @@ const InlineEditableText = ({
             value={tempValue}
             onChange={(e) => setTempValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="flex-1 px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm min-w-0 disabled:opacity-50 disabled:cursor-not-allowed w-full"
+            className="flex-1 px-3 py-2 border border-indigo-300 dark:border-indigo-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-700 dark:text-white text-sm min-w-0 disabled:opacity-50"
             placeholder={placeholder}
             autoFocus
             disabled={saving}
           />
         )}
-        <div className="flex space-x-2 w-full sm:w-auto">
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 sm:flex-none px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center justify-center space-x-1"
-            title="Save"
-          >
-            {saving ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaSave className="w-3 h-3" />}
-            <span>Save</span>
-          </button>
-          <button
-            onClick={handleCancel}
-            disabled={saving}
-            className="flex-1 sm:flex-none px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs flex items-center justify-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
-            title="Cancel"
-          >
-            <FaTimes className="w-3 h-3" />
-            <span>Cancel</span>
-          </button>
-        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs flex items-center space-x-1"
+          title="Save"
+        >
+          {saving ? <FaSpinner className="w-3 h-3 animate-spin" /> : <FaSave className="w-3 h-3" />}
+        </button>
+        <button
+          onClick={handleCancel}
+          disabled={saving}
+          className="px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs flex items-center space-x-1 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Cancel"
+        >
+          <FaTimes className="w-3 h-3" />
+        </button>
       </div>
     );
   }
@@ -149,10 +143,9 @@ const InlineEditableText = ({
   );
 };
 
-// ============= ADD SUBSECTION FORM COMPONENT =============
+// Add Subsection Form
 const AddSubsectionForm = ({ onSubmit, onCancel }) => {
   const [subsectionName, setSubsectionName] = useState('');
-  const [subsectionDescription, setSubsectionDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e) => {
@@ -165,11 +158,10 @@ const AddSubsectionForm = ({ onSubmit, onCancel }) => {
     try {
       setSubmitting(true);
       await onSubmit({
-        name: subsectionName.trim(),
-        description: subsectionDescription.trim()
+        name: subsectionName.trim()
       });
       setSubsectionName('');
-      setSubsectionDescription('');
+      toast.success('Subsection added successfully!');
     } catch (error) {
       console.error('Submit error:', error);
       toast.error('Failed to add subsection. Please try again.');
@@ -180,55 +172,22 @@ const AddSubsectionForm = ({ onSubmit, onCancel }) => {
 
   return (
     <div className="p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-xl border-2 border-dashed border-green-300 dark:border-green-600 mb-4">
-      <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-        <FaPlus className="w-3 h-3 text-green-600" />
-        Add New Subsection
-      </h4>
-      <form onSubmit={handleSubmit}>
-        <div className="grid grid-cols-1 gap-3 mb-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Subsection Name *
-            </label>
-            <input
-              type="text"
-              value={subsectionName}
-              onChange={(e) => setSubsectionName(e.target.value)}
-              className="w-full px-3 py-2 border border-green-300 dark:border-green-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-white text-sm"
-              required
-              placeholder="Enter subsection name"
-              autoFocus
-              disabled={submitting}
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Description
-            </label>
-            <input
-              type="text"
-              value={subsectionDescription}
-              onChange={(e) => setSubsectionDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-green-300 dark:border-green-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-white text-sm"
-              placeholder="Optional description"
-              disabled={submitting}
-            />
-          </div>
-        </div>
-        <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={submitting}
-            className="w-full sm:w-auto px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            <FaTimes className="w-3 h-3" />
-            <span>Cancel</span>
-          </button>
+      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+        <input
+          type="text"
+          value={subsectionName}
+          onChange={(e) => setSubsectionName(e.target.value)}
+          placeholder="Enter subsection name..."
+          className="flex-1 px-3 py-2 border border-green-300 dark:border-green-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-slate-700 dark:text-white disabled:opacity-50"
+          autoFocus
+          required
+          disabled={submitting}
+        />
+        <div className="flex space-x-2">
           <button
             type="submit"
             disabled={submitting || !subsectionName.trim()}
-            className="w-full sm:w-auto px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            className="flex-1 sm:flex-none px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             {submitting ? (
               <>
@@ -238,9 +197,18 @@ const AddSubsectionForm = ({ onSubmit, onCancel }) => {
             ) : (
               <>
                 <FaPlus className="w-3 h-3" />
-                <span>Add Subsection</span>
+                <span>Add</span>
               </>
             )}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="flex-1 sm:flex-none px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+          >
+            <FaTimes className="w-3 h-3" />
+            <span>Cancel</span>
           </button>
         </div>
       </form>
@@ -248,40 +216,36 @@ const AddSubsectionForm = ({ onSubmit, onCancel }) => {
   );
 };
 
-// ============= MAIN SECTION VIEW COMPONENT =============
 const SectionView = ({ 
   section, 
   sheetId, 
   onUpdateSection, 
   onDeleteSection, 
-  onAddSubsection,
-  onUpdateSubsection,
-  onDeleteSubsection,
-  onRefresh,
-  canManageSheets,
-  problemsMap = {} // ✅ CHANGE #1: ADD THIS LINE
+  onAddSubsection, 
+  onUpdateSubsection, 
+  onDeleteSubsection, 
+  onAddProblem,
+  onUpdateProblem,
+  onDeleteProblem,
+  canManageSheets 
 }) => {
-  const { stats } = useProgress();
+  const { stats, refreshStats } = useProgress();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showAddSubsection, setShowAddSubsection] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(false); // Track editing state
 
-  if (!section) {
-    console.error('SectionView: section is undefined');
-    return null;
-  }
+  useEffect(() => {
+    if (refreshStats) {
+      refreshStats();
+    }
+  }, [refreshStats]);
 
   const getSectionProgress = () => {
-    if (!section.subsections || !Array.isArray(section.subsections)) {
-      return { completed: 0, total: 0 };
-    }
-
     const totalProblems = section.subsections.reduce((total, subsection) => {
-      return total + (subsection.problemIds?.length || 0);
+      return total + subsection.problems.length;
     }, 0);
-
-    const completedProblems = stats?.sectionStats?.[section.id] || 0;
+    const completedProblems = stats.sectionStats?.[section.id] || 0;
     return { completed: completedProblems, total: totalProblems };
   };
 
@@ -294,7 +258,7 @@ const SectionView = ({
   const handleDeleteSectionInternal = async () => {
     if (!canManageSheets) return;
     
-    if (!window.confirm(`Are you sure you want to delete section "${section.name}"? This will remove all subsections and problem references (but not delete global problems).`)) {
+    if (!window.confirm(`Are you sure you want to delete section "${section.name}"? This will delete all subsections, problems, and user progress in this section.`)) {
       return;
     }
 
@@ -314,10 +278,10 @@ const SectionView = ({
     if (onAddSubsection) {
       await onAddSubsection(section.id, subsectionData);
       setShowAddSubsection(false);
-      toast.success('Subsection added successfully!');
     }
   };
 
+  // FIXED: Handle expansion - only expand if not editing
   const handleExpansionClick = (e) => {
     if (!editing && !deleting) {
       setIsExpanded(!isExpanded);
@@ -327,45 +291,48 @@ const SectionView = ({
   const progress = getSectionProgress();
   const percentage = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
 
-  const getStatusConfig = () => {
-    if (percentage === 100) {
-      return {
-        color: 'green',
-        gradient: 'from-green-500 to-green-600',
-        bg: 'from-green-50/50 via-white to-green-50/30 dark:from-green-500/10 dark:via-white/5 dark:to-green-500/5',
-        border: 'border-green-200/50 dark:border-green-500/30',
-        progressBg: 'bg-green-500',
-        progressColor: 'text-green-600 dark:text-green-400',
-        icon: FaTrophy,
-        status: 'COMPLETED',
-        accent: 'text-green-700 dark:text-green-400'
-      };
-    } else if (percentage > 0) {
-      return {
-        color: 'blue',
-        gradient: 'from-[#6366f1] to-[#a855f7]',
-        bg: 'from-[#6366f1]/10 via-white to-[#a855f7]/10 dark:from-[#6366f1]/10 dark:via-white/5 dark:to-[#a855f7]/10',
-        border: 'border-[#6366f1]/20 dark:border-[#a855f7]/30',
-        progressBg: 'bg-green-500',
-        progressColor: 'text-green-600 dark:text-green-400',
-        icon: FaFire,
-        status: 'IN PROGRESS',
-        accent: 'text-[#6366f1] dark:text-[#a855f7]'
-      };
-    } else {
-      return {
-        color: 'gray',
-        gradient: 'from-gray-500 to-gray-600',
-        bg: 'from-gray-50/50 via-white to-gray-50/30 dark:from-white/5 dark:via-white/5 dark:to-white/5',
-        border: 'border-gray-200/50 dark:border-white/10',
-        progressBg: 'bg-gray-400',
-        progressColor: 'text-gray-600 dark:text-gray-400',
-        icon: FaClock,
-        status: 'NOT STARTED',
-        accent: 'text-gray-700 dark:text-gray-400'
-      };
-    }
-  };
+  // UPDATED: Status configuration with your theme colors (indigo/purple + green progress)
+ // UPDATED: Status configuration with lighter center colors for ALL STATUS TYPES
+const getStatusConfig = () => {
+  if (percentage === 100) {
+    return {
+      color: 'green',
+      gradient: 'from-green-500 to-green-600',
+      bg: 'from-green-50/50 via-white to-green-50/30 dark:from-green-500/10 dark:via-white/5 dark:to-green-500/5', // UPDATED
+      border: 'border-green-200/50 dark:border-green-500/30',
+      progressBg: 'bg-green-500',
+      progressColor: 'text-green-600 dark:text-green-400',
+      icon: FaTrophy,
+      status: 'COMPLETED',
+      accent: 'text-green-700 dark:text-green-400'
+    };
+  } else if (percentage > 0) {
+    return {
+      color: 'blue',
+      gradient: 'from-[#6366f1] to-[#a855f7]',
+      bg: 'from-[#6366f1]/10 via-white to-[#a855f7]/10 dark:from-[#6366f1]/10 dark:via-white/5 dark:to-[#a855f7]/10', // UPDATED
+      border: 'border-[#6366f1]/20 dark:border-[#a855f7]/30',
+      progressBg: 'bg-green-500',
+      progressColor: 'text-green-600 dark:text-green-400',
+      icon: FaFire,
+      status: 'IN PROGRESS',
+      accent: 'text-[#6366f1] dark:text-[#a855f7]'
+    };
+  } else {
+    return {
+      color: 'gray',
+      gradient: 'from-gray-500 to-gray-600',
+      bg: 'from-gray-50/50 via-white to-gray-50/30 dark:from-white/5 dark:via-white/5 dark:to-white/5', // UPDATED
+      border: 'border-gray-200/50 dark:border-white/10',
+      progressBg: 'bg-gray-400',
+      progressColor: 'text-gray-600 dark:text-gray-400',
+      icon: FaClock,
+      status: 'NOT STARTED',
+      accent: 'text-gray-700 dark:text-gray-400'
+    };
+  }
+};
+
 
   const statusConfig = getStatusConfig();
   const StatusIcon = statusConfig.icon;
@@ -476,12 +443,12 @@ const SectionView = ({
             
             {/* Section Info */}
             <p className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-              {section.subsections?.length || 0} subsections • {progress.total} problems
+              {section.subsections.length} subsections • {progress.total} problems
             </p>
           </div>
         </div>
 
-        {/* DESKTOP LAYOUT (sm and above) */}
+        {/* DESKTOP LAYOUT (sm and above) - Original Layout */}
         <div className="hidden sm:flex justify-between items-center" onClick={handleExpansionClick}>
           {/* Left Section */}
           <div className="flex items-center gap-4 z-10 relative">
@@ -513,7 +480,7 @@ const SectionView = ({
                 </h2>
               )}
               <p className="text-sm text-gray-600 dark:text-gray-400 font-medium flex items-center gap-2 flex-wrap">
-                <span>{section.subsections?.length || 0} subsections</span>
+                <span>{section.subsections.length} subsections</span>
                 <span className="hidden sm:inline">•</span>
                 <span>{progress.total} problems</span>
               </p>
@@ -599,52 +566,38 @@ const SectionView = ({
       )}
 
       {/* Section Content */}
-      {isExpanded && !deleting && (
-        <div className={`
-          border border-t-0 rounded-b-2xl shadow-lg backdrop-blur-md
-          bg-white/98 dark:bg-white/5 overflow-hidden
-          animate-in slide-in-from-top duration-300 ease-out
-          ${statusConfig.border}
-        `}>
-          <div className="divide-y divide-gray-100 dark:divide-white/10">
-            {section.subsections && section.subsections.length > 0 ? (
-              section.subsections.map((subsection, index) => (
-                <div 
-                  key={subsection.id}
-                  className="transition-colors duration-200"
-                >
-                  <SubsectionView
-                    subsection={subsection}
-                    sheetId={sheetId}
-                    sectionId={section.id}
-                    index={index}
-                    onUpdateSubsection={onUpdateSubsection}
-                    onDeleteSubsection={onDeleteSubsection}
-                    onRefresh={onRefresh}
-                    canManageSheets={canManageSheets}
-                    problemsMap={problemsMap} 
-                  />
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-12 px-6">
-                <div className="text-gray-500 dark:text-gray-400 mb-4">
-                  No subsections yet.
-                </div>
-                {canManageSheets && (
-                  <button
-                    onClick={() => setShowAddSubsection(true)}
-                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 shadow-lg flex items-center gap-2 mx-auto"
-                  >
-                    <FaPlus className="w-4 h-4" />
-                    Add First Subsection
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+      {/* Section Content */}
+{isExpanded && !deleting && (
+  <div className={`
+    border border-t-0 rounded-b-2xl shadow-lg backdrop-blur-md
+    bg-white/98 dark:bg-white/5 overflow-hidden
+    animate-in slide-in-from-top duration-300 ease-out
+    ${statusConfig.border}
+  `}>
+    <div className="divide-y divide-gray-100 dark:divide-white/10">
+      {section.subsections.map((subsection, index) => (
+        <div 
+          key={subsection.id}
+          className="transition-colors duration-200"
+        >
+          <SubsectionView
+            subsection={subsection}
+            sheetId={sheetId}
+            sectionId={section.id}
+            index={index}
+            onUpdateSubsection={onUpdateSubsection}
+            onDeleteSubsection={onDeleteSubsection}
+            onAddProblem={onAddProblem}
+            onUpdateProblem={onUpdateProblem}
+            onDeleteProblem={onDeleteProblem}
+            canManageSheets={canManageSheets}
+          />
         </div>
-      )}
+      ))}
+    </div>
+  </div>
+)}
+
     </div>
   );
 };

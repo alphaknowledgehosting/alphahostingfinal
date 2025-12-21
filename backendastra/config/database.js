@@ -33,14 +33,12 @@ const createCollectionsIfNeeded = async () => {
     
     console.log('📋 Existing collections:', collectionNames);
     
-    // ✅ Include all required collections
+    // UPDATED: Include all required collections based on your models
     const requiredCollections = [
       'users',           // For user authentication and management
       'progress',        // For tracking user progress on problems
       'announcements',   // For admin announcements
-      'sheets',          // For problem sheets
-      'problems',        // For global problems
-      'jobs'             // ✅ For job postings from Indian API
+      'sheets'           // For problem sheets (ADDED THIS)
     ];
     
     // Create each collection if it doesn't exist
@@ -52,6 +50,7 @@ const createCollectionsIfNeeded = async () => {
           console.log(`✅ Successfully created collection: ${collectionName}`);
         } catch (createError) {
           console.error(`❌ Error creating collection ${collectionName}:`, createError);
+          // Continue with other collections even if one fails
           console.log(`⚠️  Collection ${collectionName} may already exist or have permission issues`);
         }
       } else {
@@ -63,16 +62,6 @@ const createCollectionsIfNeeded = async () => {
     const finalCollections = await db.listCollections({ nameOnly: true });
     const finalCollectionNames = finalCollections.map(c => c.name);
     console.log('📊 Final collection list:', finalCollectionNames);
-    
-    // Log collection purposes for clarity
-    console.log('\n📚 Collection Structure:');
-    console.log('  • users         → User authentication & profiles');
-    console.log('  • progress      → User problem-solving progress');
-    console.log('  • announcements → Admin announcements');
-    console.log('  • sheets        → Problem sheets/collections');
-    console.log('  • problems      → Global problem library');
-    console.log('  • jobs          → Tech job postings (India)');
-    console.log('');
     
   } catch (error) {
     console.error('❌ Error in createCollectionsIfNeeded:', error);

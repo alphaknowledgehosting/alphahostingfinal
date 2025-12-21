@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useProgress } from '../../context/ProgressContext';
-import { sheetAPI, problemAPI } from '../../services/api';
+import { sheetAPI } from '../../services/api';
 import SectionView from './SectionView';
 import toast from 'react-hot-toast';
 import { 
@@ -23,8 +23,7 @@ import {
   FaTimes
 } from 'react-icons/fa';
 
-
-// ============= INLINE EDITABLE TEXT COMPONENT =============
+// Inline Editable Component - Enhanced for Mobile
 const InlineEditableText = ({ 
   value, 
   onSave, 
@@ -151,8 +150,7 @@ const InlineEditableText = ({
   );
 };
 
-
-// ============= ADD SECTION FORM COMPONENT =============
+// Add Section Form - Mobile Optimized
 const AddSectionForm = ({ onSubmit, onCancel }) => {
   const [sectionName, setSectionName] = useState('');
   const [sectionDescription, setSectionDescription] = useState('');
@@ -256,8 +254,6 @@ const AddSectionForm = ({ onSubmit, onCancel }) => {
   );
 };
 
-
-// ============= MAIN SHEET VIEW COMPONENT =============
 const SheetView = ({ sheetId, onBack }) => {
   const { user, canManageSheets } = useAuth();
   const { stats, getSheetDifficultyProgress, refreshStats } = useProgress();
@@ -265,8 +261,6 @@ const SheetView = ({ sheetId, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showAddSection, setShowAddSection] = useState(false);
-  const [problemsMap, setProblemsMap] = useState({});
-  const [loadingProblems, setLoadingProblems] = useState(false);
 
   useEffect(() => {
     if (sheetId) {
@@ -274,13 +268,11 @@ const SheetView = ({ sheetId, onBack }) => {
     }
   }, [sheetId]);
 
-  // ✅ REMOVED CACHING - Direct API call with real-time data
   const loadSheet = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // ✅ Direct API call - No caching
       const response = await sheetAPI.getById(sheetId);
       const sheetData = response.data?.sheet;
       
@@ -289,10 +281,6 @@ const SheetView = ({ sheetId, onBack }) => {
       }
       
       setSheet(sheetData);
-      
-      // ✅ Load problems immediately in background
-      loadSheetProblems(sheetData);
-      
       if (refreshStats) {
         refreshStats();
       }
@@ -305,47 +293,7 @@ const SheetView = ({ sheetId, onBack }) => {
     }
   };
 
-  // ✅ REMOVED CACHING - Load all problems in one batch call (no cache)
-  const loadSheetProblems = async (sheetData) => {
-    try {
-      setLoadingProblems(true);
-      
-      // Collect all unique problem IDs
-      const allProblemIds = new Set();
-      sheetData.sections?.forEach(section => {
-        section.subsections?.forEach(subsection => {
-          subsection.problemIds?.forEach(id => allProblemIds.add(id));
-        });
-      });
-
-      if (allProblemIds.size === 0) {
-        setProblemsMap({});
-        setLoadingProblems(false);
-        return;
-      }
-
-      // ✅ Direct BATCH API CALL - No caching
-      const response = await problemAPI.getBatch(Array.from(allProblemIds));
-      const problems = response.data?.problems || [];
-      
-      // Create problems map
-      const problemsMapData = {};
-      problems.forEach(problem => {
-        if (problem && problem.id) {
-          problemsMapData[problem.id] = problem;
-        }
-      });
-      
-      setProblemsMap(problemsMapData);
-      
-    } catch (error) {
-      console.error('Error loading sheet problems:', error);
-      // Don't show error toast, not critical
-    } finally {
-      setLoadingProblems(false);
-    }
-  };
-
+  // All the handler functions remain the same...
   const handleUpdateSheet = async (field, value) => {
     if (!canManageSheets) return;
     
@@ -355,7 +303,6 @@ const SheetView = ({ sheetId, onBack }) => {
         ...prev,
         [field]: value
       }));
-      // ✅ Direct refresh - No cache clearing needed
     } catch (error) {
       console.error('Error updating sheet:', error);
       toast.error('Failed to update sheet. Please try again.');
@@ -379,7 +326,6 @@ const SheetView = ({ sheetId, onBack }) => {
     }));
     
     setShowAddSection(false);
-    // ✅ Direct refresh - No cache clearing needed
     toast.success('Section added successfully!');
   };
 
@@ -396,7 +342,6 @@ const SheetView = ({ sheetId, onBack }) => {
             : section
         )
       }));
-      // ✅ Direct refresh - No cache clearing needed
     } catch (error) {
       console.error('Error updating section:', error);
       toast.error('Failed to update section. Please try again.');
@@ -414,13 +359,7 @@ const SheetView = ({ sheetId, onBack }) => {
         sections: prev.sections.filter(section => section.id !== sectionId)
       }));
       
-      // ✅ Direct refresh - No cache clearing needed
       toast.success(`Section "${sectionName}" deleted successfully!`);
-      
-      // Reload problems after section deletion
-      if (sheet) {
-        loadSheetProblems(sheet);
-      }
     } catch (error) {
       console.error('Error deleting section:', error);
       toast.error('Failed to delete section. Please try again.');
@@ -434,7 +373,7 @@ const SheetView = ({ sheetId, onBack }) => {
     const newSubsection = response.data?.subsection || {
       id: Date.now().toString(),
       ...subsectionData,
-      problemIds: []
+      problems: []
     };
     
     setSheet(prev => ({
@@ -448,8 +387,6 @@ const SheetView = ({ sheetId, onBack }) => {
           : section
       )
     }));
-    
-    // ✅ Direct refresh - No cache clearing needed
   };
 
   const handleUpdateSubsection = async (sectionId, subsectionId, field, value) => {
@@ -472,7 +409,6 @@ const SheetView = ({ sheetId, onBack }) => {
             : section
         )
       }));
-      // ✅ Direct refresh - No cache clearing needed
     } catch (error) {
       console.error('Error updating subsection:', error);
       toast.error('Failed to update subsection. Please try again.');
@@ -497,16 +433,100 @@ const SheetView = ({ sheetId, onBack }) => {
         )
       }));
       
-      // ✅ Direct refresh - No cache clearing needed
       toast.success(`Subsection "${subsectionName}" deleted successfully!`);
-      
-      // Reload problems after subsection deletion
-      if (sheet) {
-        loadSheetProblems(sheet);
-      }
     } catch (error) {
       console.error('Error deleting subsection:', error);
       toast.error('Failed to delete subsection. Please try again.');
+    }
+  };
+
+  const handleAddProblem = async (sectionId, subsectionId, problemData) => {
+    if (!canManageSheets) return;
+    
+    const response = await sheetAPI.addProblem(sheetId, sectionId, subsectionId, problemData);
+    const newProblem = response.data?.problem || {
+      id: Date.now().toString(),
+      ...problemData
+    };
+    
+    setSheet(prev => ({
+      ...prev,
+      sections: prev.sections.map(section => 
+        section.id === sectionId 
+          ? {
+              ...section,
+              subsections: section.subsections.map(subsection =>
+                subsection.id === subsectionId
+                  ? {
+                      ...subsection,
+                      problems: [...(subsection.problems || []), newProblem]
+                    }
+                  : subsection
+              )
+            }
+          : section
+      )
+    }));
+    
+    toast.success('Problem added successfully!');
+  };
+
+  const handleUpdateProblem = async (sectionId, subsectionId, problemId, field, value) => {
+    try {
+      await sheetAPI.updateProblemField(sheetId, sectionId, subsectionId, problemId, { [field]: value });
+      setSheet(prev => ({
+        ...prev,
+        sections: prev.sections.map(section => 
+          section.id === sectionId 
+            ? {
+                ...section,
+                subsections: section.subsections.map(subsection =>
+                  subsection.id === subsectionId
+                    ? {
+                        ...subsection,
+                        problems: subsection.problems.map(problem =>
+                          problem.id === problemId
+                            ? { ...problem, [field]: value }
+                            : problem
+                        )
+                      }
+                    : subsection
+                )
+              }
+            : section
+        )
+      }));
+    } catch (error) {
+      console.error('Error updating problem:', error);
+      toast.error('Failed to update problem. Please try again.');
+      throw error;
+    }
+  };
+
+  const handleDeleteProblem = async (sectionId, subsectionId, problemId) => {
+    try {
+      await sheetAPI.deleteProblem(sheetId, sectionId, subsectionId, problemId);
+      setSheet(prev => ({
+        ...prev,
+        sections: prev.sections.map(section => 
+          section.id === sectionId 
+            ? {
+                ...section,
+                subsections: section.subsections.map(subsection =>
+                  subsection.id === subsectionId
+                    ? {
+                        ...subsection,
+                        problems: subsection.problems.filter(problem => problem.id !== problemId)
+                      }
+                    : subsection
+                )
+              }
+            : section
+        )
+      }));
+    } catch (error) {
+      console.error('Error deleting problem:', error);
+      toast.error('Failed to delete problem. Please try again.');
     }
   };
 
@@ -515,7 +535,7 @@ const SheetView = ({ sheetId, onBack }) => {
     
     const totalProblems = sheet.sections.reduce((total, section) => {
       return total + section.subsections.reduce((sectionTotal, subsection) => {
-        return sectionTotal + (subsection.problemIds?.length || 0);
+        return sectionTotal + subsection.problems.length;
       }, 0);
     }, 0);
 
@@ -524,11 +544,7 @@ const SheetView = ({ sheetId, onBack }) => {
   };
 
   const getDifficultyBreakdown = () => {
-    if (!sheet) return { 
-      Easy: { completed: 0, total: 0 }, 
-      Medium: { completed: 0, total: 0 }, 
-      Hard: { completed: 0, total: 0 } 
-    };
+    if (!sheet) return { Easy: { completed: 0, total: 0 }, Medium: { completed: 0, total: 0 }, Hard: { completed: 0, total: 0 } };
     
     const breakdown = { 
       Easy: { completed: 0, total: 0 }, 
@@ -536,22 +552,16 @@ const SheetView = ({ sheetId, onBack }) => {
       Hard: { completed: 0, total: 0 } 
     };
     
-    // Calculate totals from the problems map
     sheet.sections.forEach(section => {
-      section.subsections?.forEach(subsection => {
-        subsection.problemIds?.forEach(problemId => {
-          const problem = problemsMap[problemId];
-          if (problem && problem.difficulty) {
-            const difficulty = problem.difficulty;
-            if (breakdown[difficulty]) {
-              breakdown[difficulty].total++;
-            }
+      section.subsections.forEach(subsection => {
+        subsection.problems.forEach(problem => {
+          if (problem.difficulty && breakdown[problem.difficulty]) {
+            breakdown[problem.difficulty].total++;
           }
         });
       });
     });
     
-    // Get completed counts from ProgressContext
     if (getSheetDifficultyProgress) {
       breakdown.Easy.completed = getSheetDifficultyProgress(sheet.id, 'Easy');
       breakdown.Medium.completed = getSheetDifficultyProgress(sheet.id, 'Medium');
@@ -648,7 +658,7 @@ const SheetView = ({ sheetId, onBack }) => {
 
       <div className="max-w-7xl mx-auto relative z-10">
         
-        {/* Back Button */}
+        {/* Back Button - Mobile Optimized */}
         <div className="mb-4 md:mb-6">
           <button
             onClick={onBack}
@@ -659,12 +669,13 @@ const SheetView = ({ sheetId, onBack }) => {
           </button>
         </div>
         
-        {/* Sheet Header */}
+        {/* Sheet Header - Mobile Optimized */}
         <div className="mb-6 md:mb-8 p-4 md:p-6 lg:p-8 bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl md:rounded-3xl shadow-xl border border-gray-200/50 dark:border-white/10 relative overflow-hidden">
           
+          {/* Header Content */}
           <div className="relative z-10">
             
-            {/* Title Section */}
+            {/* Title Section - Mobile Optimized */}
             <div className="mb-6 md:mb-8">
               <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-4 md:mb-6">
                 <div className="flex items-start space-x-3 md:space-x-4 flex-1">
@@ -711,7 +722,7 @@ const SheetView = ({ sheetId, onBack }) => {
                   </div>
                 </div>
                 
-                {/* Add Section Button */}
+                {/* Add Section Button - Mobile Optimized */}
                 {canManageSheets && (
                   <button
                     onClick={() => setShowAddSection(!showAddSection)}
@@ -723,7 +734,7 @@ const SheetView = ({ sheetId, onBack }) => {
                 )}
               </div>
               
-              {/* Status Message */}
+              {/* Status Message - Mobile Optimized */}
               <div className="inline-flex items-center space-x-2 bg-gray-50/80 dark:bg-white/5 backdrop-blur-sm px-3 md:px-4 py-2 rounded-xl border border-gray-200/50 dark:border-white/10">
                 <StatusIcon className={`w-3 h-3 md:w-4 md:h-4 ${statusConfig.color}`} />
                 <span className="text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -732,25 +743,31 @@ const SheetView = ({ sheetId, onBack }) => {
               </div>
             </div>
             
-            {/* Progress Dashboard */}
+            {/* Progress Dashboard - Mobile Optimized */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 lg:gap-8">
               
-              {/* Total Progress Section */}
+              {/* Total Progress Section - Mobile Optimized */}
               <div className="bg-gray-50/80 dark:bg-white/5 backdrop-blur-sm rounded-xl md:rounded-2xl p-4 md:p-6 border border-gray-200/50 dark:border-white/10">
                 <div className="flex items-center space-x-4 md:space-x-6">
                   
-                  {/* Circular Progress */}
+                  {/* Circular Progress - Mobile Optimized */}
                   <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24">
                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                      {/* Background circle */}
                       <path
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
                         className="text-gray-200 dark:text-gray-600"
                       />
+                      {/* Progress circle */}
                       <path
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        d="M18 2.0845
+                          a 15.9155 15.9155 0 0 1 0 31.831
+                          a 15.9155 15.9155 0 0 1 0 -31.831"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
@@ -760,6 +777,7 @@ const SheetView = ({ sheetId, onBack }) => {
                       />
                     </svg>
                     
+                    {/* Percentage Text - Mobile Optimized */}
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className={`text-sm sm:text-base md:text-lg lg:text-xl font-bold ${statusConfig.color}`}>
                         {percentage}%
@@ -767,7 +785,7 @@ const SheetView = ({ sheetId, onBack }) => {
                     </div>
                   </div>
                   
-                  {/* Progress Details */}
+                  {/* Progress Details - Mobile Optimized */}
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <FaChartBar className="w-3 h-3 md:w-4 md:h-4 text-[#6366f1]" />
@@ -785,16 +803,13 @@ const SheetView = ({ sheetId, onBack }) => {
                 </div>
               </div>
 
-              {/* Difficulty Breakdown */}
+              {/* Difficulty Breakdown - Mobile Optimized */}
               <div className="bg-gray-50/80 dark:bg-white/5 backdrop-blur-sm rounded-xl md:rounded-2xl p-4 md:p-6 border border-gray-200/50 dark:border-white/10">
                 <div className="flex items-center space-x-2 mb-4">
                   <FaGraduationCap className="w-3 h-3 md:w-4 md:h-4 text-[#a855f7]" />
                   <span className="text-xs md:text-sm font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">
                     Difficulty Breakdown
                   </span>
-                  {loadingProblems && (
-                    <FaSpinner className="w-3 h-3 animate-spin text-gray-400" />
-                  )}
                 </div>
                 
                 <div className="space-y-3 md:space-y-4">
@@ -850,7 +865,7 @@ const SheetView = ({ sheetId, onBack }) => {
             </div>
           </div>
 
-          {/* Completion Badge */}
+          {/* Completion Badge - Mobile Optimized */}
           {percentage === 100 && (
             <div className="absolute top-2 right-2 md:top-4 md:right-4 animate-bounce">
               <div className="bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow-900 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs font-bold uppercase tracking-wide shadow-lg flex items-center space-x-1">
@@ -862,7 +877,7 @@ const SheetView = ({ sheetId, onBack }) => {
           )}
         </div>
 
-        {/* Add Section Form */}
+        {/* Add Section Form - Mobile Optimized */}
         {showAddSection && canManageSheets && (
           <AddSectionForm
             onSubmit={handleAddSection}
@@ -883,9 +898,10 @@ const SheetView = ({ sheetId, onBack }) => {
                 onAddSubsection={handleAddSubsection}
                 onUpdateSubsection={handleUpdateSubsection}
                 onDeleteSubsection={handleDeleteSubsection}
-                onRefresh={loadSheet}
+                onAddProblem={handleAddProblem}
+                onUpdateProblem={handleUpdateProblem}
+                onDeleteProblem={handleDeleteProblem}
                 canManageSheets={canManageSheets}
-                problemsMap={problemsMap}
               />
             ))}
           </div>

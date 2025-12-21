@@ -15,18 +15,10 @@ router.get('/:userId', authenticateUser, async (req, res) => {
   }
 });
 
-// ✅ UPDATED: Toggle problem completion with all required parameters
+// Toggle problem completion
 router.post('/toggle', authenticateUser, async (req, res) => {
   try {
-    const { userId, problemId, sheetId, sectionId, subsectionId, difficulty, completed } = req.body;
-    
-    // Verify required fields
-    if (!userId || !problemId || !sheetId || !sectionId || !subsectionId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Missing required fields: userId, problemId, sheetId, sectionId, subsectionId' 
-      });
-    }
+    const { userId, problemId, sheetId, sectionId, subsectionId, completed } = req.body;
     
     // Verify user can only update their own progress
     if (req.user._id.toString() !== userId) {
@@ -41,30 +33,20 @@ router.post('/toggle', authenticateUser, async (req, res) => {
       problemId, 
       sheetId, 
       sectionId, 
-      subsectionId,
-      difficulty,
+      subsectionId, 
       completed
     );
     
     res.json(result);
   } catch (error) {
-    console.error('Error toggling problem:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
-// ✅ UPDATED: Toggle revision marking with all required parameters
+// Toggle revision marking
 router.post('/toggle-revision', authenticateUser, async (req, res) => {
   try {
-    const { userId, problemId, sheetId, sectionId, subsectionId, difficulty, markedForRevision } = req.body;
-    
-    // Verify required fields
-    if (!userId || !problemId || !sheetId || !sectionId || !subsectionId) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Missing required fields: userId, problemId, sheetId, sectionId, subsectionId' 
-      });
-    }
+    const { userId, problemId, sheetId, sectionId, subsectionId, markedForRevision } = req.body;
     
     // Verify user can only update their own progress
     if (req.user._id.toString() !== userId) {
@@ -79,14 +61,12 @@ router.post('/toggle-revision', authenticateUser, async (req, res) => {
       problemId, 
       sheetId, 
       sectionId, 
-      subsectionId,
-      difficulty,
+      subsectionId, 
       markedForRevision
     );
     
     res.json(result);
   } catch (error) {
-    console.error('Error toggling revision:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });

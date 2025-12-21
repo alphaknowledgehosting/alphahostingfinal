@@ -31,64 +31,16 @@ class Sheet {
     }
   }
 
-  // ✅ UPDATED: Sort sheets by creation time (oldest first)
   async getAllSheets() {
     try {
       const cursor = this.collection.find({});
-      let sheets = await cursor.toArray();
-      
-      // Sort by createdAt in ascending order (oldest first)
-      sheets.sort((a, b) => {
-        const dateA = new Date(a.createdAt || 0);
-        const dateB = new Date(b.createdAt || 0);
-        return dateA - dateB;
-      });
-      
+      const sheets = await cursor.toArray();
       return sheets;
     } catch (error) {
       console.error('Error fetching sheets:', error);
       throw new Error('Failed to fetch sheets');
     }
   }
-
- // ✅ FIXED: Unlink problem from subsection and clean up progress
-async unlinkProblem(sheetId, sectionId, subsectionId, problemId) {
-  try {
-    const sheet = await this.getSheetById(sheetId);
-    if (!sheet) {
-      throw new Error('Sheet not found');
-    }
-    
-    const section = sheet.sections?.find(s => s.id === sectionId);
-    if (!section) {
-      throw new Error('Section not found');
-    }
-    
-    const subsection = section.subsections?.find(ss => ss.id === subsectionId);
-    if (!subsection) {
-      throw new Error('Subsection not found');
-    }
-    
-    // Remove problem ID from subsection
-    subsection.problemIds = subsection.problemIds?.filter(id => id !== problemId) || [];
-    
-    await this.updateSheet(sheetId, sheet);
-    
-    // ✅ NEW: Clean up progress contexts for this location
-    const Progress = require('./Progress');
-    const progressModel = new Progress();
-    await progressModel.cleanupProgressForUnlinkedProblem(problemId, {
-      sheetId,
-      sectionId,
-      subsectionId
-    });
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error unlinking problem:', error);
-    throw error;
-  }
-}
 
   async getSheetById(sheetId) {
     try {
@@ -102,15 +54,12 @@ async unlinkProblem(sheetId, sectionId, subsectionId, problemId) {
 
   async updateSheet(sheetId, updateData) {
     try {
-      // Remove _id if present in updateData to avoid MongoDB/Astra update error
-      const { _id, ...dataToUpdate } = updateData;
-
       const result = await this.collection.updateOne(
         { id: sheetId },
         { 
           $set: { 
-            ...dataToUpdate,
-            updatedAt: new Date().toISOString()
+            ...updateData, 
+            updatedAt: new Date().toISOString() 
           }
         }
       );
@@ -148,6 +97,7 @@ async unlinkProblem(sheetId, sectionId, subsectionId, problemId) {
         }
       );
       
+      // console.log(`Added section ${section.name} to sheet ${sheetId}:`, result);
       return { success: true, section };
     } catch (error) {
       console.error('Error adding section:', error);
@@ -187,44 +137,64 @@ async unlinkProblem(sheetId, sectionId, subsectionId, problemId) {
   }
 
   async deleteSection(sheetId, sectionId) {
-    try {
-      const currentSheet = await this.collection.findOne({ id: sheetId });
-      if (!currentSheet) {
-        throw new Error('Sheet not found');
-      }
-
-      const sectionExists = currentSheet.sections && currentSheet.sections.some(section => section.id === sectionId);
-      if (!sectionExists) {
-        throw new Error('Section not found in the sheet');
-      }
-
-      const updatedSections = currentSheet.sections.filter(section => section.id !== sectionId);
-
-      const result = await this.collection.updateOne(
-        { id: sheetId },
-        { 
-          $set: { 
-            sections: updatedSections,
-            updatedAt: new Date().toISOString()
-          }
-        }
-      );
-
-      if (result.modifiedCount === 0) {
-        throw new Error('Failed to delete section - no documents were modified');
-      }
-
-      return { 
-        success: true, 
-        modifiedCount: result.modifiedCount,
-        matchedCount: result.matchedCount,
-        deletedSectionId: sectionId
-      };
-    } catch (error) {
-      console.error('Error in deleteSection:', error.message);
-      throw new Error(`Failed to delete section: ${error.message}`);
+  try {
+    // console.log('Sheet model: Deleting section', sectionId, 'from sheet', sheetId);
+    
+    // First verify the sheet exists and get current data
+    const currentSheet = await this.collection.findOne({ id: sheetId });
+    if (!currentSheet) {
+      // console.log('Sheet not found:', sheetId);
+      throw new Error('Sheet not found');
     }
+
+    // console.log('Found sheet, sections count:', currentSheet.sections ? currentSheet.sections.length : 0);
+
+    // Check if section exists in the sheet
+    const sectionExists = currentSheet.sections && currentSheet.sections.some(section => section.id === sectionId);
+    if (!sectionExists) {
+      // console.log('Section not found in sheet:', sectionId);
+      throw new Error('Section not found in the sheet');
+    }
+
+    // console.log('Section exists, proceeding with deletion');
+
+    // Use the array filter approach instead of $pull for DataStax compatibility
+    const updatedSections = currentSheet.sections.filter(section => section.id !== sectionId);
+    
+    // console.log('Filtered sections count:', updatedSections.length);
+
+    const result = await this.collection.updateOne(
+      { id: sheetId },
+      { 
+        $set: { 
+          sections: updatedSections,
+          updatedAt: new Date().toISOString()
+        }
+      }
+    );
+
+    // console.log('Section deletion result:', result);
+
+    // Check if the update was successful
+    if (result.modifiedCount === 0) {
+      // console.log('No documents were modified during section deletion');
+      throw new Error('Failed to delete section - no documents were modified');
+    }
+
+    // console.log('Section deleted successfully');
+    return { 
+      success: true, 
+      modifiedCount: result.modifiedCount,
+      matchedCount: result.matchedCount,
+      deletedSectionId: sectionId
+    };
+
+  } catch (error) {
+    console.error('Error in deleteSection:', error.message);
+    throw new Error(`Failed to delete section: ${error.message}`);
   }
+}
+
 
   async addSubsection(sheetId, sectionId, subsectionData) {
     try {
@@ -235,7 +205,11 @@ async unlinkProblem(sheetId, sectionId, subsectionId, problemId) {
         problems: []
       };
 
+      // console.log(`Attempting to add subsection to sheet ${sheetId}, section ${sectionId}`);
+
+      // First, let's fetch the current sheet to debug
       const currentSheet = await this.collection.findOne({ id: sheetId });
+      // console.log('Current sheet found:', !!currentSheet);
 
       if (!currentSheet) {
         throw new Error('Sheet not found');
@@ -246,11 +220,14 @@ async unlinkProblem(sheetId, sectionId, subsectionId, problemId) {
       }
 
       const targetSection = currentSheet.sections.find(s => s.id === sectionId);
+      // console.log('Target section found:', !!targetSection);
 
       if (!targetSection) {
+        // console.log('Available section IDs:', currentSheet.sections.map(s => s.id));
         throw new Error(`Section with ID ${sectionId} not found`);
       }
 
+      // Use a different approach - update the entire sections array
       const updatedSections = currentSheet.sections.map(section => {
         if (section.id === sectionId) {
           return {
@@ -270,6 +247,8 @@ async unlinkProblem(sheetId, sectionId, subsectionId, problemId) {
           }
         }
       );
+
+      // console.log(`Added subsection ${subsection.name} to section ${sectionId}:`, result);
       
       if (result.modifiedCount === 0) {
         throw new Error('Failed to update sheet with new subsection');
@@ -319,28 +298,6 @@ async unlinkProblem(sheetId, sectionId, subsectionId, problemId) {
     }
   }
 
-  // Add this method to your Sheet model
-async cleanOrphanedProblems(sheetId) {
-  const sheet = await this.getSheetById(sheetId);
-  const problemModel = new Problem();
-  await problemModel.getAllProblemsCache();
-  
-  // Filter out sections/subsections/problems that don't exist
-  sheet.sections = sheet.sections.map(section => ({
-    ...section,
-    subsections: section.subsections.map(subsection => ({
-      ...subsection,
-      problems: subsection.problems.filter(pId => 
-        problemModel.cache.has(pId)
-      )
-    }))
-  }));
-  
-  // Update sheet
-  await this.updateSheet(sheetId, sheet);
-  console.log(`✅ Cleaned orphaned problems from sheet ${sheetId}`);
-}
-
   async deleteSubsection(sheetId, sectionId, subsectionId) {
     try {
       const currentSheet = await this.collection.findOne({ id: sheetId });
@@ -375,86 +332,6 @@ async cleanOrphanedProblems(sheetId) {
     }
   }
 
-  async addProblemToSubsection(sheetId, sectionId, subsectionId, problemId) {
-    try {
-      const currentSheet = await this.collection.findOne({ id: sheetId });
-      if (!currentSheet) throw new Error('Sheet not found');
-
-      const updatedSections = currentSheet.sections.map(section => {
-        if (section.id === sectionId) {
-          const updatedSubsections = section.subsections.map(subsection => {
-            if (subsection.id === subsectionId) {
-              return {
-                ...subsection,
-                problemIds: [...(subsection.problemIds || []), problemId]
-              };
-            }
-            return subsection;
-          });
-          return { ...section, subsections: updatedSubsections };
-        }
-        return section;
-      });
-
-      const result = await this.collection.updateOne(
-        { id: sheetId },
-        {
-          $set: {
-            sections: updatedSections,
-            updatedAt: new Date().toISOString()
-          }
-        }
-      );
-
-      // ✅ NEW: Sync progress for all users who completed this problem
-      const Progress = require('./Progress');
-      const progressModel = new Progress();
-      await progressModel.syncProblemProgress(problemId, {
-        sheetId,
-        sectionId,
-        subsectionId
-      });
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error adding problem to subsection:', error);
-      throw new Error('Failed to add problem reference');
-    }
-  }
-
-  async removeProblemFromSubsection(sheetId, sectionId, subsectionId, problemId) {
-    try {
-      const currentSheet = await this.collection.findOne({ id: sheetId });
-      if (!currentSheet) throw new Error('Sheet not found');
-
-      const updatedSections = currentSheet.sections.map(section => {
-        if (section.id === sectionId) {
-          const updatedSubsections = section.subsections.map(subsection => {
-            if (subsection.id === subsectionId) {
-              return {
-                ...subsection,
-                problemIds: (subsection.problemIds || []).filter(id => id !== problemId)
-              };
-            }
-            return subsection;
-          });
-          return { ...section, subsections: updatedSubsections };
-        }
-        return section;
-      });
-
-      await this.collection.updateOne(
-        { id: sheetId },
-        { $set: { sections: updatedSections, updatedAt: new Date().toISOString() } }
-      );
-
-      return { success: true };
-    } catch (error) {
-      console.error('Error removing problem reference:', error);
-      throw new Error('Failed to remove problem reference');
-    }
-  }
-
   async addProblem(sheetId, sectionId, subsectionId, problemData) {
     try {
       const problem = {
@@ -470,11 +347,13 @@ async cleanOrphanedProblems(sheetId) {
         createdBy: problemData.createdBy
       };
 
+      // Fetch current sheet
       const currentSheet = await this.collection.findOne({ id: sheetId });
       if (!currentSheet) {
         throw new Error('Sheet not found');
       }
 
+      // Update the sections array
       const updatedSections = currentSheet.sections.map(section => {
         if (section.id === sectionId) {
           const updatedSubsections = section.subsections.map(subsection => {
@@ -514,11 +393,13 @@ async cleanOrphanedProblems(sheetId) {
 
   async updateProblem(sheetId, sectionId, subsectionId, problemId, updateData) {
     try {
+      // Fetch current sheet
       const currentSheet = await this.collection.findOne({ id: sheetId });
       if (!currentSheet) {
         throw new Error('Sheet not found');
       }
 
+      // Update the sections array
       const updatedSections = currentSheet.sections.map(section => {
         if (section.id === sectionId) {
           const updatedSubsections = section.subsections.map(subsection => {
@@ -557,11 +438,13 @@ async cleanOrphanedProblems(sheetId) {
 
   async deleteProblem(sheetId, sectionId, subsectionId, problemId) {
     try {
+      // Fetch current sheet
       const currentSheet = await this.collection.findOne({ id: sheetId });
       if (!currentSheet) {
         throw new Error('Sheet not found');
       }
 
+      // Update the sections array
       const updatedSections = currentSheet.sections.map(section => {
         if (section.id === sectionId) {
           const updatedSubsections = section.subsections.map(subsection => {

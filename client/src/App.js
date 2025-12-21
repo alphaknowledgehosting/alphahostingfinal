@@ -7,7 +7,6 @@ import { AuthProvider } from './context/AuthContext';
 import { ProgressProvider } from './context/ProgressContext';
 import { ThemeProvider } from './context/ThemeContext';
 import './App.css';
-
 import { 
   Home as HomeIcon, 
   AlertTriangle, 
@@ -40,10 +39,7 @@ const Announcements = lazy(() => import('./components/Pages/Announcements'));
 const EditorialPage = lazy(() => import('./components/Pages/EditorialPage'));
 const UserManagement = lazy(() => import('./components/Admin/UserManagement'));
 const SheetManagement = lazy(() => import('./components/Admin/SheetManagement'));
-const EditorialModalPage = lazy(() => import('./components/Common/EditorialModalPage'));
-const LiveCodeEditor = lazy(() => import('./components/Pages/LiveCodeEditor'));
-const QuickCompiler = lazy(() => import('./components/Pages/QuickCompiler'));
-const Jobs = lazy(() => import('./components/Pages/Jobs'));
+
 // Loading component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -73,9 +69,8 @@ function SingleToaster(props) {
 function App() {
   const [showWelcome, setShowWelcome] = useState(() => {
     const welcomeShown = sessionStorage.getItem('welcomeShown');
-    // Check if we're on editorial or create-editorial routes - if so, don't show welcome
-    const isEditorialRoute = window.location.pathname.startsWith('/editorial') || 
-                            window.location.pathname.startsWith('/create-editorial');
+    // Check if we're on editorial route - if so, don't show welcome
+    const isEditorialRoute = window.location.pathname.startsWith('/editorial');
     return !welcomeShown && !isEditorialRoute;
   });
 
@@ -85,8 +80,7 @@ function App() {
   };
 
   // Don't show welcome screen for editorial routes
-  if (showWelcome && !window.location.pathname.startsWith('/editorial') && 
-      !window.location.pathname.startsWith('/create-editorial')) {
+  if (showWelcome && !window.location.pathname.startsWith('/editorial')) {
     return (
       <Suspense fallback={<PageLoader />}>
         <WelcomeScreen onLoadingComplete={handleWelcomeComplete} />
@@ -172,15 +166,9 @@ function App() {
                     <Route path="/editorial/:problemId" element={<EditorialPageWrapper />} />
                     <Route path="/sheets" element={<SheetsPage />} />
                     <Route path="/sheet/:sheetId" element={<SheetDetailsPage />} />
-
-                    <Route path="/jobs" element={<Jobs />} />
                     <Route path="/contact" element={<ContactUsPage />} />
                     <Route path="/admin/users" element={<AdminUsersPage />} />
                     <Route path="/admin/sheets" element={<AdminSheetsPage />} />
-                    <Route path="/live-code-editor" element={<LiveCodeEditor />} />
-                    <Route path="/compiler" element={<QuickCompiler />} />
-                    {/* NEW: Create Editorial Route - Admin/Instructor Only */}
-                    <Route path="/create-editorial" element={<CreateEditorialPage />} />
                     <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                 </Suspense>
@@ -197,17 +185,6 @@ function App() {
 const EditorialPageWrapper = () => {
   return <EditorialPage />;
 };
-
-// NEW: Create Editorial Page Component - Wraps EditorialModalPage
-const CreateEditorialPage = React.memo(() => {
-  return (
-    <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <EditorialModalPage />
-      </div>
-    </MainLayout>
-  );
-});
 
 // Keep all your existing page components unchanged
 const HomePage = React.memo(() => (

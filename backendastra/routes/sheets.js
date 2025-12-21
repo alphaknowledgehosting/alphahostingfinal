@@ -1,73 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const Problem = require('../models/Problem');
 const Sheet = require('../models/Sheet');
 const Progress = require('../models/Progress');
 const { authenticateUser, requireRole } = require('../middleware/auth');
 
 const sheetModel = new Sheet();
 const progressModel = new Progress();
-const problemModel = new Problem();
 
-// ✅ NEW: Get all sheets with embedded problems in ONE call
-router.get('/with-problems', async (req, res) => {
-  try {
-    const sheets = await sheetModel.getAllSheets();
-    
-    // Collect all unique problem IDs across all sheets
-    const allProblemIds = new Set();
-    sheets.forEach(sheet => {
-      sheet.sections?.forEach(section => {
-        section.subsections?.forEach(subsection => {
-          subsection.problemIds?.forEach(id => allProblemIds.add(id));
-        });
-      });
-    });
-    
-    // Fetch all problems in one batch query
-    let allProblems = [];
-    if (allProblemIds.size > 0) {
-      allProblems = await problemModel.getBatch(Array.from(allProblemIds));
-    }
-    
-    // Create problem lookup map for O(1) access
-    const problemMap = {};
-    allProblems.forEach(problem => {
-      problemMap[problem.id] = problem;
-    });
-    
-    // Attach problems to each sheet
-    const sheetsWithProblems = sheets.map(sheet => {
-      const sheetProblemIds = new Set();
-      sheet.sections?.forEach(section => {
-        section.subsections?.forEach(subsection => {
-          subsection.problemIds?.forEach(id => sheetProblemIds.add(id));
-        });
-      });
-      
-      // Get all problems for this sheet
-      const sheetProblems = Array.from(sheetProblemIds)
-        .map(id => problemMap[id])
-        .filter(Boolean);
-      
-      return {
-        ...sheet,
-        problems: sheetProblems
-      };
-    });
-    
-    res.json({ 
-      success: true, 
-      sheets: sheetsWithProblems,
-      totalProblems: allProblems.length 
-    });
-  } catch (error) {
-    console.error('Error getting sheets with problems:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Get all sheets (public) - Keep for backward compatibility
+// Get all sheets (public)
 router.get('/', async (req, res) => {
   try {
     const sheets = await sheetModel.getAllSheets();
@@ -77,88 +17,6 @@ router.get('/', async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 });
-
-// ✅ NEW: Unlink problem from subsection (doesn't delete globally)
-router.delete(
-  '/:sheetId/sections/:sectionId/subsections/:subsectionId/problems/:problemId/unlink',
-  authenticateUser,
-  requireRole(['admin']),
-  async (req, res) => {
-    try {
-      const { sheetId, sectionId, subsectionId, problemId } = req.params;
-      
-      await sheetModel.unlinkProblem(sheetId, sectionId, subsectionId, problemId);
-      
-      res.json({ 
-        success: true, 
-        message: 'Problem unlinked from subsection successfully' 
-      });
-    } catch (error) {
-      console.error('Error unlinking problem:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: error.message 
-      });
-    }
-  }
-);
-
-// Link existing problem to subsection
-router.post(
-  '/:sheetId/sections/:sectionId/subsections/:subsectionId/link-problem',
-  authenticateUser,
-  requireRole('admin'),
-  async (req, res) => {
-    try {
-      const { sheetId, sectionId, subsectionId } = req.params;
-      const { problemId } = req.body;
-
-      // Verify problem exists
-      const problemModel = new Problem();
-      const problem = await problemModel.getProblemById(problemId);
-      if (!problem) {
-        return res.status(404).json({ success: false, message: 'Problem not found' });
-      }
-
-      // Add problem reference to subsection
-      await sheetModel.addProblemToSubsection(sheetId, sectionId, subsectionId, problemId);
-      
-      // ✅ Progress sync now happens automatically inside addProblemToSubsection
-      
-      res.json({ 
-        success: true, 
-        message: 'Problem linked successfully and progress synced for all users', 
-        problem 
-      });
-    } catch (error) {
-      console.error('Error linking problem:', error);
-      res.status(500).json({ success: false, message: error.message });
-    }
-  }
-);
-
-// UPDATE: Remove problem reference (not delete the problem itself)
-router.delete(
-  '/:sheetId/sections/:sectionId/subsections/:subsectionId/problems/:problemId',
-  authenticateUser,
-  requireRole('admin'),
-  async (req, res) => {
-    try {
-      const { sheetId, sectionId, subsectionId, problemId } = req.params;
-      
-      // Remove reference from subsection (problem still exists globally)
-      await sheetModel.removeProblemFromSubsection(sheetId, sectionId, subsectionId, problemId);
-      
-      res.json({ 
-        success: true, 
-        message: 'Problem unlinked from subsection (problem still exists globally)' 
-      });
-    } catch (error) {
-      console.error('Error unlinking problem:', error);
-      res.status(500).json({ success: false, message: error.message });
-    }
-  }
-);
 
 // Get sheet by ID (public)
 router.get('/:sheetId', async (req, res) => {
@@ -208,6 +66,7 @@ router.delete('/:sheetId', authenticateUser, requireRole(['admin']), async (req,
     // Delete all progress for this sheet first
     try {
       await progressModel.deleteBySheetId(sheetId);
+      // console.log('Deleted all progress for sheet:', sheetId);
     } catch (progressError) {
       console.error('Error deleting progress for sheet:', sheetId, progressError);
     }
@@ -224,7 +83,9 @@ router.delete('/:sheetId', authenticateUser, requireRole(['admin']), async (req,
 // Add section (admin only)
 router.post('/:sheetId/sections', authenticateUser, requireRole(['admin']), async (req, res) => {
   try {
+    // console.log('Adding section to sheet:', req.params.sheetId, 'Data:', req.body);
     const result = await sheetModel.addSection(req.params.sheetId, req.body);
+    // console.log('Section added successfully:', result);
     res.json(result);
   } catch (error) {
     console.error('Error adding section:', error);
@@ -235,7 +96,9 @@ router.post('/:sheetId/sections', authenticateUser, requireRole(['admin']), asyn
 // Update section (admin only)
 router.put('/:sheetId/sections/:sectionId', authenticateUser, requireRole(['admin']), async (req, res) => {
   try {
+    // console.log('Updating section:', req.params.sectionId, 'Data:', req.body);
     const result = await sheetModel.updateSection(req.params.sheetId, req.params.sectionId, req.body);
+    // console.log('Section updated successfully:', result);
     res.json({ success: true, result });
   } catch (error) {
     console.error('Error updating section:', error);
@@ -243,32 +106,43 @@ router.put('/:sheetId/sections/:sectionId', authenticateUser, requireRole(['admi
   }
 });
 
-// Delete section (admin only)
+// Delete section (admin only) - FIXED
 router.delete('/:sheetId/sections/:sectionId', authenticateUser, requireRole(['admin']), async (req, res) => {
   const { sheetId, sectionId } = req.params;
+  // console.log('Starting deletion for section:', sectionId, 'from sheet:', sheetId);
 
   try {
     // First verify the sheet exists
     const sheetExists = await sheetModel.getSheetById(sheetId);
     if (!sheetExists) {
+      // console.log('Sheet not found:', sheetId);
       return res.status(404).json({ success: false, message: 'Sheet not found' });
     }
 
+    // console.log('Sheet found, proceeding with section deletion');
+
     // Delete all progress for this section first (non-blocking)
     try {
+      // console.log('Attempting to delete progress for section:', sectionId);
       await progressModel.deleteBySectionId(sectionId);
+      // console.log('Successfully deleted progress for section:', sectionId);
     } catch (progressError) {
-      console.error('Warning: Error deleting progress for section:', sectionId, progressError.message);
+      // console.error('Warning: Error deleting progress for section:', sectionId, progressError.message);
+      // Continue with section deletion even if progress deletion fails
     }
 
     // Delete the section from the sheet
+    // console.log('Attempting to delete section data for section:', sectionId);
     const result = await sheetModel.deleteSection(sheetId, sectionId);
+    // console.log('Raw deletion result:', result);
 
     // Check if deletion was successful
     if (!result || !result.success || (result.modifiedCount !== undefined && result.modifiedCount === 0)) {
+      // console.error('Section deletion failed - no documents were modified');
       throw new Error('Section not found or could not be deleted from the sheet');
     }
 
+    // console.log('Section deleted successfully:', sectionId);
     res.json({ 
       success: true, 
       message: 'Section and all associated progress deleted successfully',
@@ -278,9 +152,12 @@ router.delete('/:sheetId/sections/:sectionId', authenticateUser, requireRole(['a
 
   } catch (error) {
     console.error('Failed to delete section:', sectionId, 'Error:', error.message);
+    console.error('Full error stack:', error.stack);
     
+    // Return more specific error messages
     let errorMessage = error.message || 'Unknown error occurred while deleting section';
     
+    // Handle specific database errors
     if (error.message.includes('Cast to ObjectId failed')) {
       errorMessage = 'Invalid section ID format';
     } else if (error.message.includes('not found')) {
@@ -297,11 +174,16 @@ router.delete('/:sheetId/sections/:sectionId', authenticateUser, requireRole(['a
   }
 });
 
-// Add subsection (admin only)
+
+
+// Add subsection (admin only) - FIXED
 router.post('/:sheetId/sections/:sectionId/subsections', authenticateUser, requireRole(['admin']), async (req, res) => {
   try {
     const { sheetId, sectionId } = req.params;
+    // console.log('Adding subsection to sheet:', sheetId, 'section:', sectionId, 'Data:', req.body);
+    
     const result = await sheetModel.addSubsection(sheetId, sectionId, req.body);
+    // console.log('Subsection added successfully:', result);
     res.json(result);
   } catch (error) {
     console.error('Error adding subsection:', error);
@@ -333,6 +215,7 @@ router.delete('/:sheetId/sections/:sectionId/subsections/:subsectionId', authent
     // Delete all progress for this subsection first
     try {
       await progressModel.deleteBySubsectionId(subsectionId);
+      // console.log('Deleted all progress for subsection:', subsectionId);
     } catch (progressError) {
       console.error('Error deleting progress for subsection:', subsectionId, progressError);
     }
@@ -349,11 +232,13 @@ router.delete('/:sheetId/sections/:sectionId/subsections/:subsectionId', authent
   }
 });
 
-// Add problem (admin only)
+// Add problem (admin only) - FIXED
 router.post('/:sheetId/sections/:sectionId/subsections/:subsectionId/problems', 
   authenticateUser, requireRole(['admin']), async (req, res) => {
   try {
     const { sheetId, sectionId, subsectionId } = req.params;
+    // console.log('Adding problem to sheet:', sheetId, 'section:', sectionId, 'subsection:', subsectionId);
+    // console.log('Problem data:', req.body);
     
     const problemData = {
       ...req.body,
@@ -361,6 +246,7 @@ router.post('/:sheetId/sections/:sectionId/subsections/:subsectionId/problems',
     };
     
     const result = await sheetModel.addProblem(sheetId, sectionId, subsectionId, problemData);
+    // console.log('Problem added successfully:', result);
     res.json(result);
   } catch (error) {
     console.error('Error adding problem:', error);
@@ -406,6 +292,7 @@ router.delete('/:sheetId/sections/:sectionId/subsections/:subsectionId/problems/
     // Delete all progress records for this problem
     try {
       await progressModel.deleteByProblemId(problemId);
+      // console.log('Deleted progress records for problem:', problemId);
     } catch (progressError) {
       console.error('Error deleting progress for problem:', problemId, progressError);
     }
@@ -425,12 +312,14 @@ router.delete('/:sheetId/sections/:sectionId/subsections/:subsectionId/problems/
   }
 });
 
-// Patch problem for inline updates
+// Patch problem for inline updates - FIXED
 router.patch('/:sheetId/sections/:sectionId/subsections/:subsectionId/problems/:problemId', 
   authenticateUser, requireRole(['admin', 'mentor']), async (req, res) => {
   try {
     const { sheetId, sectionId, subsectionId, problemId } = req.params;
     const updateData = req.body;
+
+    // console.log('Patching problem:', problemId, 'with data:', updateData);
 
     // Restrict mentors to only update editorial and notes fields
     if (req.user.role === 'mentor') {
@@ -451,6 +340,7 @@ router.patch('/:sheetId/sections/:sectionId/subsections/:subsectionId/problems/:
 
     const result = await sheetModel.updateProblem(sheetId, sectionId, subsectionId, problemId, updateData);
     
+    // console.log('Problem patch result:', result);
     res.json({ success: true, message: 'Problem updated successfully' });
   } catch (error) {
     console.error('Error patching problem:', error);

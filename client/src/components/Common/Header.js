@@ -15,114 +15,12 @@ import {
   Loader2,
   LogOut,
   Bell,
-  building,
   Settings,
-  ChevronDown,
-  Compass,
-  Code,
-  Layout,
-  FileEdit,
-  Building2
+  ChevronDown
 } from 'lucide-react';
-// Explore Dropdown Component - DESKTOP
-const ExploreDropdown = ({ onNavigate, isActive, isInstructor }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const exploreItems = [
-    { path: '/sheets', label: 'Sheets', icon: List },
-    { path: '/compiler', label: 'Quick Compiler', icon: Code },
-    { path: '/live-code-editor', label: 'WebDev Editor', icon: Layout },
-    { path: '/jobs', label: 'Jobs', icon: Building2 }
-  ];
-
-  return (
-    <div 
-      ref={dropdownRef}
-      className="relative group"
-      onMouseEnter={() => setIsOpen(true)}
-      onMouseLeave={() => setIsOpen(false)}
-    >
-      <button
-        className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
-          isActive 
-            ? 'text-[#6366f1] dark:text-[#a855f7]' 
-            : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
-        }`}
-      >
-        <span className="relative flex items-center gap-1">
-          <Compass className="w-4 h-4" />
-          <span>Explore</span>
-          <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-          <span
-            className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
-              isActive ? 'w-full' : 'w-0 group-hover:w-full'
-            }`}
-          />
-        </span>
-      </button>
-
-      <div
-        className={`absolute top-full left-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 backdrop-blur-xl transition-all duration-300 transform origin-top ${
-          isOpen 
-            ? 'opacity-100 visible translate-y-0 scale-100' 
-            : 'opacity-0 invisible -translate-y-2 scale-95'
-        }`}
-        style={{ zIndex: 1000 }}
-      >
-        <div className="py-2">
-          {exploreItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.path}
-                onClick={() => {
-                  onNavigate(item.path);
-                  setIsOpen(false);
-                }}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-[#6366f1] dark:hover:text-[#a855f7] transition-all duration-200"
-              >
-                <Icon className="w-4 h-4" />
-                <span className="font-medium">{item.label}</span>
-              </button>
-            );
-          })}
-          
-          {/* Create Editorial - Only for Instructors */}
-          {isInstructor && (
-            <>
-              <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
-              <button
-                onClick={() => {
-                  onNavigate('/create-editorial');
-                  setIsOpen(false);
-                }}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-[#6366f1] dark:hover:text-[#a855f7] transition-all duration-200"
-              >
-                <FileEdit className="w-4 h-4" />
-                <span className="font-medium">Create Editorial</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Admin Dropdown Component - DESKTOP
-const AdminDropdown = ({ onNavigate, isActive, isAdmin }) => {
+// Admin Dropdown Component (unchanged)
+const AdminDropdown = ({ onNavigate, isActive }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -172,23 +70,6 @@ const AdminDropdown = ({ onNavigate, isActive, isAdmin }) => {
         style={{ zIndex: 1000 }}
       >
         <div className="py-2">
-          {/* Create Editorial - Only for Admins */}
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => {
-                  onNavigate('/create-editorial');
-                  setIsOpen(false);
-                }}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-[#6366f1] dark:hover:text-[#a855f7] transition-all duration-200"
-              >
-                <FileEdit className="w-4 h-4" />
-                <span className="font-medium">Create Editorial</span>
-              </button>
-              <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
-            </>
-          )}
-          
           <button
             onClick={() => {
               onNavigate('/admin/users');
@@ -216,169 +97,6 @@ const AdminDropdown = ({ onNavigate, isActive, isAdmin }) => {
   );
 };
 
-// MOBILE Explore Accordion Component
-const MobileExploreAccordion = ({ onNavigate, isInstructor, currentPath }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const exploreItems = [
-    { path: '/sheets', label: 'Sheets', icon: List },
-    { path: '/compiler', label: 'Quick Compiler', icon: Code },
-    { path: '/live-code-editor', label: 'WebDev Editor', icon: Layout },
-    {path : '/jobs', label: 'Jobs', icon: Building2}
-  ];
-
-  const isExploreActive = exploreItems.some(item => currentPath.startsWith(item.path)) || 
-                         (isInstructor && currentPath === '/create-editorial');
-
-  return (
-    <div className="space-y-1">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
-          isExploreActive
-            ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]'
-            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-        }`}
-      >
-        <div className="flex items-center space-x-3">
-          <Compass className={`w-5 h-5 ${isExploreActive ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
-          <span>Explore</span>
-        </div>
-        <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {/* Accordion Content */}
-      <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
-        <div className="pl-4 space-y-1 py-1">
-          {exploreItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentPath === item.path;
-            return (
-              <button
-                key={item.path}
-                onClick={() => onNavigate(item.path)}
-                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-all duration-200 ${
-                  isActive
-                    ? 'bg-[#6366f1]/5 text-[#6366f1] dark:text-[#a855f7]'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-
-          {/* Create Editorial for Instructors */}
-          {isInstructor && (
-            <>
-              <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
-              <button
-                onClick={() => onNavigate('/create-editorial')}
-                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-all duration-200 ${
-                  currentPath === '/create-editorial'
-                    ? 'bg-[#6366f1]/5 text-[#6366f1] dark:text-[#a855f7]'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                }`}
-              >
-                <FileEdit className="w-4 h-4" />
-                <span>Create Editorial</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// MOBILE Admin Accordion Component
-const MobileAdminAccordion = ({ onNavigate, isAdmin, canManageUsers, canManageSheets, currentPath }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const isAdminActive = currentPath.startsWith('/admin/') || (isAdmin && currentPath === '/create-editorial');
-
-  if (!canManageUsers && !canManageSheets) return null;
-
-  return (
-    <div className="space-y-1">
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
-          isAdminActive
-            ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]'
-            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-        }`}
-      >
-        <div className="flex items-center space-x-3">
-          <Settings className={`w-5 h-5 ${isAdminActive ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
-          <span>Admin</span>
-        </div>
-        <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-
-      {/* Accordion Content */}
-      <div
-        className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
-        <div className="pl-4 space-y-1 py-1">
-          {/* Create Editorial for Admins */}
-          {isAdmin && (
-            <>
-              <button
-                onClick={() => onNavigate('/create-editorial')}
-                className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-all duration-200 ${
-                  currentPath === '/create-editorial'
-                    ? 'bg-[#6366f1]/5 text-[#6366f1] dark:text-[#a855f7]'
-                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                }`}
-              >
-                <FileEdit className="w-4 h-4" />
-                <span>Create Editorial</span>
-              </button>
-              <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
-            </>
-          )}
-
-          {canManageUsers && (
-            <button
-              onClick={() => onNavigate('/admin/users')}
-              className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-all duration-200 ${
-                currentPath === '/admin/users'
-                  ? 'bg-[#6366f1]/5 text-[#6366f1] dark:text-[#a855f7]'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-              }`}
-            >
-              <User className="w-4 h-4" />
-              <span>Users</span>
-            </button>
-          )}
-
-          {canManageSheets && (
-            <button
-              onClick={() => onNavigate('/admin/sheets')}
-              className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-lg text-sm font-medium text-left transition-all duration-200 ${
-                currentPath === '/admin/sheets'
-                  ? 'bg-[#6366f1]/5 text-[#6366f1] dark:text-[#a855f7]'
-                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-              }`}
-            >
-              <Settings className="w-4 h-4" />
-              <span>Manage Sheets</span>
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 const Header = () => {
   const { 
     user, 
@@ -397,27 +115,29 @@ const Header = () => {
   const [scrolled, setScrolled] = useState(false);
   const [badgeCleared, setBadgeCleared] = useState(false);
 
-  // Check user roles
-  const isAdmin = user && user.role === 'admin';
-  const isInstructor = user && user.role === 'mentor';
-
-  // Base navigation items
   const baseNavigationItems = [
     { path: '/', label: 'Home', icon: Home },
+    { path: '/sheets', label: 'Sheets', icon: List },
     { path: '/announcements', label: 'Announcements', icon: Bell },
     { path: '/contact', label: 'Contact', icon: Mail },
   ];
 
-  const isAdminPathActive = location.pathname.startsWith('/admin/') || (isAdmin && location.pathname === '/create-editorial');
-  const isExplorePathActive = ['/sheets', '/compiler', '/live-code-editor', ...(isInstructor ? ['/create-editorial'] : [])].some(path => location.pathname.startsWith(path));
+  const mobileNavigationItems = [
+    ...baseNavigationItems,
+    ...(user && canManageUsers ? [{ path: '/admin/users', label: 'Users', icon: User }] : []),
+    ...(user && canManageSheets ? [{ path: '/admin/sheets', label: 'Manage', icon: Settings }] : [])
+  ];
 
-  // Badge clearing when visiting announcements
+  const isAdminPathActive = location.pathname.startsWith('/admin/');
+
+  // FIXED: Enhanced badge clearing when visiting announcements
   useEffect(() => {
     if (user && location.pathname === '/announcements' && unreadCount > 0) {
       const timer = setTimeout(() => {
         markAllAsRead();
         setBadgeCleared(true);
         localStorage.setItem('announcementsBadgeCleared', 'true');
+        // console.log('🔔 Announcement badge cleared after visiting page');
       }, 1000);
 
       return () => clearTimeout(timer);
@@ -479,6 +199,7 @@ const Header = () => {
     setIsMobileMenuOpen(false);
   };
 
+  // FIXED: Only show badge if there are actually unread announcements
   const shouldShowBadge = user && unreadCount > 0 && !badgeCleared && location.pathname !== '/announcements';
 
   // Show loading spinner during auth initialization
@@ -509,7 +230,7 @@ const Header = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 lg:h-20">
             
-            {/* Logo */}
+            {/* FIXED: Logo with proper sizing and spacing for title fix */}
             <div 
               className="flex items-center cursor-pointer space-x-3 group relative z-60"
               onClick={() => handleNavigation('/')}
@@ -519,11 +240,12 @@ const Header = () => {
                 alt="AlphaKnowledge Logo"
                 className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 lg:w-12 lg:h-12 object-contain"
               />
+              {/* FIXED: Title with proper line-height and size adjustments for large screens only */}
               <h1 
                 className="text-base sm:text-lg md:text-xl lg:text-xl xl:text-2xl font-bold bg-gradient-to-r from-[#6366f1] to-[#a855f7] bg-clip-text text-transparent group-hover:from-[#5855eb] group-hover:to-[#9333ea] transition-all leading-tight"
                 style={{ 
                   lineHeight: '1.2',
-                  paddingBottom: '2px'
+                  paddingBottom: '2px' // Extra padding to prevent cutting of descenders like 'g'
                 }}
               >
                 AlphaKnowledge
@@ -533,99 +255,49 @@ const Header = () => {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex">
               <ul className="flex items-center space-x-1">
-                {/* Home */}
-                <li key={baseNavigationItems[0].path}>
-                  <button
-                    onClick={() => handleNavigation(baseNavigationItems[0].path)}
-                    className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
-                      location.pathname === baseNavigationItems[0].path
-                        ? 'text-[#6366f1] dark:text-[#a855f7]' 
-                        : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
-                    }`}
-                  >
-                    <span className="relative flex items-center gap-1">
-                      <div className="relative">
-                        <Home className="w-4 h-4 m-0 p-0" />
-                      </div>
-                      <span>{baseNavigationItems[0].label}</span>
-                      <span
-                        className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
-                          location.pathname === baseNavigationItems[0].path ? 'w-full' : 'w-0 group-hover:w-full'
+                {baseNavigationItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.path;
+                  const isAnnouncements = item.path === '/announcements';
+                  
+                  return (
+                    <li key={item.path}>
+                      <button
+                        onClick={() => handleNavigation(item.path)}
+                        className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
+                          isActive 
+                            ? 'text-[#6366f1] dark:text-[#a855f7]' 
+                            : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
                         }`}
-                      />
-                    </span>
-                  </button>
-                </li>
-
-                {/* Explore Dropdown */}
-                <li>
-                  <ExploreDropdown 
-                    onNavigate={handleNavigation}
-                    isActive={isExplorePathActive}
-                    isInstructor={isInstructor}
-                  />
-                </li>
-
-                {/* Announcements */}
-                <li key={baseNavigationItems[1].path}>
-                  <button
-                    onClick={() => handleNavigation(baseNavigationItems[1].path)}
-                    className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
-                      location.pathname === baseNavigationItems[1].path
-                        ? 'text-[#6366f1] dark:text-[#a855f7]' 
-                        : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
-                    }`}
-                  >
-                    <span className="relative flex items-center gap-1">
-                      <div className="relative">
-                        <Bell className="w-4 h-4 m-0 p-0" />
-                        {shouldShowBadge && (
-                          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
-                            {unreadCount > 9 ? '9+' : unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      <span>{baseNavigationItems[1].label}</span>
-                      <span
-                        className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
-                          location.pathname === baseNavigationItems[1].path ? 'w-full' : 'w-0 group-hover:w-full'
-                        }`}
-                      />
-                    </span>
-                  </button>
-                </li>
-
-                {/* Contact */}
-                <li key={baseNavigationItems[2].path}>
-                  <button
-                    onClick={() => handleNavigation(baseNavigationItems[2].path)}
-                    className={`group relative px-4 py-2 rounded-lg font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
-                      location.pathname === baseNavigationItems[2].path
-                        ? 'text-[#6366f1] dark:text-[#a855f7]' 
-                        : 'text-gray-600 dark:text-gray-300 hover:text-[#6366f1] dark:hover:text-[#a855f7]'
-                    }`}
-                  >
-                    <span className="relative flex items-center gap-1">
-                      <div className="relative">
-                        <Mail className="w-4 h-4 m-0 p-0" />
-                      </div>
-                      <span>{baseNavigationItems[2].label}</span>
-                      <span
-                        className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
-                          location.pathname === baseNavigationItems[2].path ? 'w-full' : 'w-0 group-hover:w-full'
-                        }`}
-                      />
-                    </span>
-                  </button>
-                </li>
+                      >
+                        <span className="relative flex items-center gap-1">
+                          <div className="relative">
+                            <Icon className="w-4 h-4 m-0 p-0" />
+                            {/* FIXED: Only show badge when truly needed */}
+                            {isAnnouncements && shouldShowBadge && (
+                              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                              </span>
+                            )}
+                          </div>
+                          <span>{item.label}</span>
+                          <span
+                            className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-[#6366f1] to-[#a855f7] transition-all duration-300 ${
+                              isActive ? 'w-full' : 'w-0 group-hover:w-full'
+                            }`}
+                          />
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
                 
-                {/* Admin Dropdown */}
+                {/* Admin Dropdown for Desktop */}
                 {user && (canManageUsers || canManageSheets) && (
                   <li>
                     <AdminDropdown 
                       onNavigate={handleNavigation}
                       isActive={isAdminPathActive}
-                      isAdmin={isAdmin}
                     />
                   </li>
                 )}
@@ -700,6 +372,7 @@ const Header = () => {
                   )}
                 </div>
                 
+                {/* FIXED: Mobile menu badge - only show when needed */}
                 {!isMobileMenuOpen && shouldShowBadge && (
                   <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -710,7 +383,7 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile Navigation Overlay - WITH ACCORDION DROPDOWNS */}
+        {/* Mobile Navigation Overlay */}
         {isMobileMenuOpen && (
           <>
             <div 
@@ -718,75 +391,44 @@ const Header = () => {
               style={{ top: '64px' }}
               onClick={() => setIsMobileMenuOpen(false)}
             />
-            <div className="absolute top-full left-0 right-0 bg-white dark:bg-[#030014] shadow-2xl border-t border-gray-200 dark:border-gray-800 z-50 md:hidden max-h-[calc(100vh-64px)] overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 bg-white dark:bg-[#030014] shadow-2xl border-t border-gray-200 dark:border-gray-800 z-50 md:hidden">
               <div className="max-w-7xl mx-auto px-4 py-6">
                 
                 <nav className="mb-6">
-                  <div className="space-y-2">
-                    {/* Home */}
-                    <button
-                      onClick={() => handleNavigation('/')}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
-                        location.pathname === '/'
-                          ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                      }`}
-                    >
-                      <Home className={`w-5 h-5 ${location.pathname === '/' ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
-                      <span>Home</span>
-                    </button>
-
-                    {/* Explore Accordion */}
-                    <MobileExploreAccordion 
-                      onNavigate={handleNavigation}
-                      isInstructor={isInstructor}
-                      currentPath={location.pathname}
-                    />
-
-                    {/* Announcements */}
-                    <button
-                      onClick={() => handleNavigation('/announcements')}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
-                        location.pathname === '/announcements'
-                          ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                      }`}
-                    >
-                      <div className="relative">
-                        <Bell className={`w-5 h-5 ${location.pathname === '/announcements' ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
-                        {shouldShowBadge && (
-                          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
-                            {unreadCount > 9 ? '9+' : unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      <span>Announcements</span>
-                    </button>
-
-                    {/* Contact */}
-                    <button
-                      onClick={() => handleNavigation('/contact')}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
-                        location.pathname === '/contact'
-                          ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                      }`}
-                    >
-                      <Mail className={`w-5 h-5 ${location.pathname === '/contact' ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
-                      <span>Contact</span>
-                    </button>
-
-                    {/* Admin Accordion */}
-                    {user && (canManageUsers || canManageSheets) && (
-                      <MobileAdminAccordion
-                        onNavigate={handleNavigation}
-                        isAdmin={isAdmin}
-                        canManageUsers={canManageUsers}
-                        canManageSheets={canManageSheets}
-                        currentPath={location.pathname}
-                      />
-                    )}
-                  </div>
+                  <ul className="space-y-2">
+                    {mobileNavigationItems.map((item, index) => {
+                      const Icon = item.icon;
+                      const isActive = location.pathname === item.path;
+                      const isAnnouncements = item.path === '/announcements';
+                      
+                      return (
+                        <li key={item.path}>
+                          <button
+                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
+                              isActive 
+                                ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]' 
+                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
+                            }`}
+                            onClick={() => handleNavigation(item.path)}
+                            style={{
+                              transitionDelay: `${index * 50}ms`,
+                            }}
+                          >
+                            <div className="relative">
+                              <Icon className={`w-5 h-5 ${isActive ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
+                              {/* FIXED: Mobile navigation badge */}
+                              {isAnnouncements && shouldShowBadge && (
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
+                                  {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                              )}
+                            </div>
+                            <span>{item.label}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </nav>
 
                 {/* Mobile Auth Section */}
@@ -807,6 +449,7 @@ const Header = () => {
                             {user.email}
                           </div>
                         </div>
+                        {/* FIXED: Mobile user section badge */}
                         {shouldShowBadge && (
                           <div className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold">
                             {unreadCount} unread
