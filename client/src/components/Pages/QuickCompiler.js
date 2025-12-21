@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
   ArrowLeft, RotateCcw, Settings, Copy, Download, Upload,
   FileCode2, FilePlus2, Wand2, BookOpen, Sparkles, Zap,
-  TerminalSquare, Share2, X, ChevronDown, Monitor, Smartphone
+  TerminalSquare, Share2, X, ChevronDown
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Editor, { useMonaco } from '@monaco-editor/react';
@@ -11,17 +11,43 @@ const PISTON_API = 'https://emkc.org/api/v2/piston';
 
 const BASE_LANGS = [
   { id: 'cpp', name: 'C++', version: '10.2.0', ext: 'cpp', main: 'main.cpp',
-    template: `#include <bits/stdc++.h>\nusing namespace std;\n\nint main() {\n    ios::sync_with_stdio(false);\n    cin.tie(nullptr);\n    cout << "Hello World!\\n";\n    return 0;\n}` },
+    template: `#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    cout << "Hello World!\\n";
+    return 0;
+}` },
   { id: 'c', name: 'C', version: '10.2.0', ext: 'c', main: 'main.c',
-    template: `#include <stdio.h>\n\nint main() {\n    printf("Hello World!\\n");\n    return 0;\n}` },
+    template: `#include <stdio.h>
+
+int main() {
+    printf("Hello World!\\n");
+    return 0;
+}` },
   { id: 'java', name: 'Java', version: '15.0.2', ext: 'java', main: 'Main.java',
-    template: `import java.io.*;\nimport java.util.*;\n\npublic class Main {\n    public static void main(String[] args) throws Exception {\n        System.out.println("Hello World!");\n    }\n}` },
+    template: `import java.io.*;
+import java.util.*;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        System.out.println("Hello World!");
+    }
+}` },
   { id: 'python', name: 'Python', version: '3.10.0', ext: 'py', main: 'main.py',
     template: `print("Hello World!")` },
   { id: 'javascript', name: 'JavaScript', version: '18.15.0', ext: 'js', main: 'main.js',
     template: `console.log("Hello World!");` },
   { id: 'csharp', name: 'C#', version: '6.12.0', ext: 'cs', main: 'main.cs',
-    template: `using System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine("Hello World!");\n    }\n}` },
+    template: `using System;
+
+class Program {
+    static void Main() {
+        Console.WriteLine("Hello World!");
+    }
+}` },
 ];
 
 const EDITOR_THEMES = [
@@ -53,7 +79,6 @@ const STORAGE_KEYS = {
   stdin: 'qcmp.stdin',
   args: 'qcmp.args',
   splitPos: 'qcmp.splitPos',
-  viewMode: 'qcmp.viewMode',
 };
 
 const defaultLang = BASE_LANGS[0];
@@ -66,105 +91,106 @@ const QuickCompiler = () => {
   const splitContainerRef = useRef(null);
   const isDraggingRef = useRef(false);
 
-  // Device detection - no screen size restrictions
+  // Device detection with initialization state
+  const [isMobile, setIsMobile] = useState(null);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-  const [isSmallScreen, setIsSmallScreen] = useState(false);
-  
-  // View mode for mobile/tablet: 'editor', 'io', 'output'
-  const [mobileView, setMobileView] = useState('editor');
   
   // Split pane position (percentage)
   const [splitPosition, setSplitPosition] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.splitPos);
     return saved ? Number(saved) : 60;
   });
-
-  // Error suppression effect
-  useEffect(() => {
-    const handleRejection = (event) => {
-      try {
-        const reason = event.reason;
-        
-        if (reason && typeof reason === 'object') {
-          if (reason.type === 'cancelation' || reason.type === 'cancellation') {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            return;
-          }
-        }
-        
-        let msg = '';
-        try {
-          if (typeof reason === 'string') {
-            msg = reason.toLowerCase();
-          } else if (reason && typeof reason === 'object') {
-            msg = String(reason.message || reason.msg || '').toLowerCase();
-          }
-        } catch {
-          return;
-        }
-        
-        if (
-          msg.includes('cancel') || 
-          msg.includes('operation is manually canceled') ||
-          msg.includes('inmemory://') || 
-          msg.includes('monaco') ||
-          msg.includes('worker') || 
-          msg.includes('disposed')
-        ) {
+  // Add this COMPLETE error suppression effect right after all your useState declarations
+useEffect(() => {
+  // Comprehensive error suppression for Monaco Editor
+  const handleRejection = (event) => {
+    try {
+      const reason = event.reason;
+      
+      // Direct object check for cancelation
+      if (reason && typeof reason === 'object') {
+        if (reason.type === 'cancelation' || reason.type === 'cancellation') {
           event.preventDefault();
           event.stopImmediatePropagation();
-        }
-      } catch {}
-    };
-
-    const originalError = console.error;
-    const originalWarn = console.warn;
-    
-    console.error = function(...args) {
-      try {
-        const str = args.map(a => {
-          if (typeof a === 'string') return a;
-          if (a && typeof a === 'object') {
-            if (a.type === 'cancelation') return 'cancelation';
-            if (a.message) return String(a.message);
-          }
-          return '';
-        }).join(' ').toLowerCase();
-        
-        if (str.includes('cancel') || str.includes('monaco') || str.includes('worker')) {
           return;
         }
-      } catch {}
-      originalError.apply(console, args);
-    };
-
-    console.warn = function(...args) {
+      }
+      
+      // String message check
+      let msg = '';
       try {
-        const str = args.map(a => typeof a === 'string' ? a : '').join(' ').toLowerCase();
-        if (str.includes('cancel') || str.includes('monaco')) {
-          return;
+        if (typeof reason === 'string') {
+          msg = reason.toLowerCase();
+        } else if (reason && typeof reason === 'object') {
+          msg = String(reason.message || reason.msg || '').toLowerCase();
         }
-      } catch {}
-      originalWarn.apply(console, args);
-    };
+      } catch {
+        return;
+      }
+      
+      // Suppress Monaco/editor errors
+      if (
+        msg.includes('cancel') || 
+        msg.includes('operation is manually canceled') ||
+        msg.includes('inmemory://') || 
+        msg.includes('monaco') ||
+        msg.includes('worker') || 
+        msg.includes('disposed')
+      ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      }
+    } catch {}
+  };
 
-    window.addEventListener('unhandledrejection', handleRejection, true);
+  // Override console methods to suppress Monaco warnings
+  const originalError = console.error;
+  const originalWarn = console.warn;
+  
+  console.error = function(...args) {
+    try {
+      const str = args.map(a => {
+        if (typeof a === 'string') return a;
+        if (a && typeof a === 'object') {
+          if (a.type === 'cancelation') return 'cancelation';
+          if (a.message) return String(a.message);
+        }
+        return '';
+      }).join(' ').toLowerCase();
+      
+      if (str.includes('cancel') || str.includes('monaco') || str.includes('worker')) {
+        return; // suppress
+      }
+    } catch {}
+    originalError.apply(console, args);
+  };
 
-    return () => {
-      window.removeEventListener('unhandledrejection', handleRejection, true);
-      console.error = originalError;
-      console.warn = originalWarn;
-    };
-  }, []);
+  console.warn = function(...args) {
+    try {
+      const str = args.map(a => typeof a === 'string' ? a : '').join(' ').toLowerCase();
+      if (str.includes('cancel') || str.includes('monaco')) {
+        return; // suppress
+      }
+    } catch {}
+    originalWarn.apply(console, args);
+  };
 
-  // Dynamic resize handler - works for all screen sizes
+  window.addEventListener('unhandledrejection', handleRejection, true);
+
+  return () => {
+    window.removeEventListener('unhandledrejection', handleRejection, true);
+    console.error = originalError;
+    console.warn = originalWarn;
+  };
+}, []);
+
+  // Dynamic resize handler
   useEffect(() => {
     const handleResize = () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
       setWindowSize({ width, height });
-      setIsSmallScreen(width < 768); // Breakpoint for mobile/tablet layout
+      setIsMobile(width < 1024);
     };
 
     handleResize();
@@ -191,7 +217,7 @@ const QuickCompiler = () => {
   const [executionTime, setExecutionTime] = useState(null);
   const [runCode, setRunCode] = useState(0);
 
-  // Editor settings
+  // Editor settings - Load with proper defaults
   const [editorTheme, setEditorTheme] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.editorTheme);
     return saved || 'vs-dark';
@@ -199,7 +225,7 @@ const QuickCompiler = () => {
   
   const [fontSize, setFontSize] = useState(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.fontSize);
-    return saved ? Number(saved) : (windowSize.width < 768 ? 13 : 15);
+    return saved ? Number(saved) : 15;
   });
   
   const [fontFamilyId, setFontFamilyId] = useState(() => {
@@ -217,7 +243,7 @@ const QuickCompiler = () => {
   const [showToast, setShowToast] = useState(null);
   const [showShare, setShowShare] = useState(false);
 
-  // Persist settings
+  // Persist settings immediately on change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.editorTheme, editorTheme);
   }, [editorTheme]);
@@ -238,7 +264,7 @@ const QuickCompiler = () => {
     localStorage.setItem(STORAGE_KEYS.splitPos, String(splitPosition));
   }, [splitPosition]);
 
-  // Load from localStorage
+  // Load from localStorage on mount
   useEffect(() => {
     const savedTabs = localStorage.getItem(STORAGE_KEYS.tabs);
     const savedActiveTab = localStorage.getItem(STORAGE_KEYS.activeTab);
@@ -329,7 +355,7 @@ const QuickCompiler = () => {
     monaco.editor.setModelLanguage(model, monacoLang);
   }, [monaco, activeTab?.id, activeTab?.languageId]);
 
-  // Debounced content update
+  // Debounced content update for smooth typing
   const setTabContent = useCallback((id, content) => {
     if (changeTimeoutRef.current) {
       clearTimeout(changeTimeoutRef.current);
@@ -351,7 +377,7 @@ const QuickCompiler = () => {
     return `${name}.${lang.ext}`;
   };
 
-  // Change tab language
+  // Change tab language and update extension + template
   const setTabLanguage = (id, languageId) => {
     const newLang = BASE_LANGS.find(l => l.id === languageId);
     if (!newLang) return;
@@ -396,7 +422,7 @@ const QuickCompiler = () => {
     }
   };
 
-  // Resizable split pane handler (desktop only)
+  // Resizable split pane handler
   const handleMouseDown = useCallback((e) => {
     e.preventDefault();
     isDraggingRef.current = true;
@@ -412,6 +438,7 @@ const QuickCompiler = () => {
       const rect = container.getBoundingClientRect();
       const newPosition = ((e.clientX - rect.left) / rect.width) * 100;
       
+      // Constrain between 30% and 80%
       if (newPosition >= 30 && newPosition <= 80) {
         setSplitPosition(newPosition);
       }
@@ -435,67 +462,62 @@ const QuickCompiler = () => {
   }, []);
 
   const handleRun = async () => {
-    if (!activeTab) return;
-    setIsRunning(true);
-    setStdout('');
-    setStderr('');
-    setExecutionTime(null);
-    setRunCode(0);
+  if (!activeTab) return;
+  setIsRunning(true);
+  setStdout('');
+  setStderr('');
+  setExecutionTime(null);
+  setRunCode(0);
 
-    const tabLang = BASE_LANGS.find(l => l.id === activeTab.languageId) || defaultLang;
-    const start = performance.now();
-    try {
-      const entryName = activeTab.name || tabLang.main;
-      const files = [{ name: entryName, content: activeTab.content ?? '' }];
+  const tabLang = BASE_LANGS.find(l => l.id === activeTab.languageId) || defaultLang;
+  const start = performance.now();
+  try {
+    const entryName = activeTab.name || tabLang.main;
+    const files = [{ name: entryName, content: activeTab.content ?? '' }];
 
-      const payload = {
-        language: tabLang.id,
-        version: tabLang.version,
-        files,
-        stdin,
-        args: args.trim() ? args.trim().split(' ') : [],
-        compile_timeout: 10000,
-        run_timeout: 4000,
-        compile_memory_limit: -1,
-        run_memory_limit: -1,
-      };
+    const payload = {
+      language: tabLang.id,
+      version: tabLang.version,
+      files,
+      stdin,
+      args: args.trim() ? args.trim().split(' ') : [],
+      compile_timeout: 10000,
+      run_timeout: 4000,
+      compile_memory_limit: -1,
+      run_memory_limit: -1,
+    };
 
-      const res = await fetch(`${PISTON_API}/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+    const res = await fetch(`${PISTON_API}/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Piston error ${res.status}: ${text}`);
-      }
-
-      const result = await res.json();
-      const end = performance.now();
-      setExecutionTime(Math.round(end - start));
-
-      const run = result?.run || {};
-      const cstderr = result?.compile?.stderr || '';
-      setStdout(run.stdout || '');
-      setStderr([run.stderr || '', cstderr].filter(Boolean).join('\n'));
-      setRunCode(typeof run.code === 'number' ? run.code : 0);
-      
-      // Auto-switch to output view on mobile after running
-      if (isSmallScreen) {
-        setMobileView('output');
-      }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : typeof e === 'string' ? e : JSON.stringify(e);
-      setStderr(`Error: ${message}`);
-      if (isSmallScreen) {
-        setMobileView('output');
-      }
-    } finally {
-      setIsRunning(false);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Piston error ${res.status}: ${text}`);
     }
-  };
 
+    const result = await res.json();
+    const end = performance.now();
+    setExecutionTime(Math.round(end - start));
+
+    const run = result?.run || {};
+    const cstderr = result?.compile?.stderr || '';
+    setStdout(run.stdout || '');
+    setStderr([run.stderr || '', cstderr].filter(Boolean).join('\n'));
+    setRunCode(typeof run.code === 'number' ? run.code : 0);
+  } catch (e) {
+    const message =
+      e instanceof Error ? e.message : typeof e === 'string' ? e : JSON.stringify(e);
+    setStderr(`Error: ${message}`);
+  } finally {
+    setIsRunning(false);
+  }
+};
+
+
+  // Reset ONLY the current file's code to template
   const handleReset = () => {
     const currentLang = BASE_LANGS.find(l => l.id === activeTab?.languageId) || defaultLang;
     setTabs(prev => prev.map(t => 
@@ -542,13 +564,13 @@ const QuickCompiler = () => {
     const blob = new Blob([activeTab?.content || ''], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const copyLink = async () => {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast('Share link copied');
-      } catch (e) {
-        toast(`Copy failed: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    };
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Share link copied');
+  } catch (e) {
+    toast(`Copy failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+};
 
     return { mail, whatsapp, url, copyLink };
   };
@@ -565,505 +587,373 @@ const QuickCompiler = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeTab, stdin, args]);
 
+  // Show loading or mobile screen
+  if (isMobile === null) {
+    return (
+      <div className="h-screen w-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 flex items-center justify-center">
+        <div className="text-slate-400 text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (isMobile) {
+    return (
+      <div className="h-screen w-screen bg-gradient-to-br from-gray-950 via-slate-900 to-gray-950 flex items-center justify-center p-6">
+        <div className="relative z-10 bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl p-8 border border-white/10 max-w-md text-center">
+          <Settings className="w-20 h-20 mx-auto text-[#6366f1]" />
+          <h2 className="text-3xl font-bold mt-4" style={{ backgroundImage: 'linear-gradient(45deg, #6366f1 10%, #a855f7 93%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            Desktop Required
+          </h2>
+          <p className="text-gray-300 mt-2">Use a larger screen for the best coding experience.</p>
+          <p className="text-gray-500 text-sm mt-4">Current: {windowSize.width}px × {windowSize.height}px</p>
+          <button onClick={() => navigate('/')} className="mt-6 inline-flex items-center gap-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] hover:from-[#5855eb] hover:to-[#9333ea] text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105">
+            <ArrowLeft className="w-5 h-5" /> Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const currentLang = BASE_LANGS.find(l => l.id === activeTab?.languageId) || defaultLang;
 
   return (
     <div className="h-screen w-screen overflow-hidden relative bg-gradient-to-br from-gray-950 via-slate-950 to-gray-950 text-slate-200 flex flex-col" style={{ fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system' }}>
       {/* Header */}
-      <div className="relative z-10 bg-slate-900/70 backdrop-blur-xl border-b border-white/10 px-2 sm:px-4 lg:px-6 py-2 sm:py-3 flex-shrink-0">
+      <div className="relative z-10 bg-slate-900/70 backdrop-blur-xl border-b border-white/10 px-4 lg:px-6 py-3 flex-shrink-0">
         <div className="max-w-[1800px] mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-1 sm:gap-3">
-            <button onClick={() => navigate('/')} className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-all">
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-all">
+              <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg sm:text-2xl font-bold" style={{ backgroundImage: 'linear-gradient(45deg, #6366f1 10%, #a855f7 93%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              <h1 className="text-2xl font-bold" style={{ backgroundImage: 'linear-gradient(45deg, #6366f1 10%, #a855f7 93%)', WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                 Code & Conquer
-              </h1>
+            </h1>
             </div>
           </div>
-          <div className="flex items-center gap-1 sm:gap-2">
-            <button onClick={() => setShowShare(s => !s)} className="p-1.5 sm:p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-all" title="Share code">
-              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowShare(s => !s)} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-all" title="Share code">
+              <Share2 className="w-4 h-4" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile View Switcher */}
-      {isSmallScreen && (
-        <div className="bg-slate-900/60 border-b border-white/10 px-2 py-2 flex gap-1 flex-shrink-0">
-          <button 
-            onClick={() => setMobileView('editor')} 
-            className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${mobileView === 'editor' ? 'bg-fuchsia-600 text-white' : 'bg-slate-800/60 text-slate-300'}`}
-          >
-            <FileCode2 className="w-3.5 h-3.5 inline mr-1" /> Editor
-          </button>
-          <button 
-            onClick={() => setMobileView('io')} 
-            className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${mobileView === 'io' ? 'bg-fuchsia-600 text-white' : 'bg-slate-800/60 text-slate-300'}`}
-          >
-            <TerminalSquare className="w-3.5 h-3.5 inline mr-1" /> Input
-          </button>
-          <button 
-            onClick={() => setMobileView('output')} 
-            className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${mobileView === 'output' ? 'bg-fuchsia-600 text-white' : 'bg-slate-800/60 text-slate-300'}`}
-          >
-            <Sparkles className="w-3.5 h-3.5 inline mr-1" /> Output
-          </button>
-        </div>
-      )}
-
-      {/* Main Content */}
-      {isSmallScreen ? (
-        // Mobile/Tablet Layout - Single View
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Editor View */}
-          {mobileView === 'editor' && (
-            <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Tabs */}
-              <div className="px-2 py-1.5 bg-slate-900/60 border-b border-white/10 flex items-center justify-between flex-shrink-0 overflow-x-auto">
-                <div className="flex items-center gap-1 overflow-auto scrollbar-hide">
-                  {tabs.map(tab => (
-                    <div key={tab.id} className={`group flex items-center gap-1.5 px-2 py-1 rounded-md cursor-pointer transition-colors text-xs ${tab.id === activeTabId ? 'bg-slate-800/80 text-white' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'}`}
-                      onClick={() => setActiveTabId(tab.id)}>
-                      <FileCode2 className="w-3 h-3" />
-                      <span className="whitespace-nowrap">{tab.name}</span>
-                      {tab.dirty && <span className="text-fuchsia-300 text-xs">●</span>}
-                      {tabs.length > 1 && (
-                        <button onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} className="opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-white ml-0.5 text-sm">×</button>
-                      )}
-                    </div>
-                  ))}
-                  <button onClick={addNewTab} className="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 flex-shrink-0 transition-colors text-xs">
-                    <FilePlus2 className="w-3 h-3" />
-                  </button>
+      {/* Main - Resizable Split Layout */}
+      <div ref={splitContainerRef} className="relative flex-1 flex overflow-hidden">
+        {/* Left: Editor with tabs */}
+        <div className="flex flex-col overflow-hidden" style={{ width: `${splitPosition}%` }}>
+          {/* Tabs */}
+          <div className="px-3 py-2 bg-slate-900/60 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-1 overflow-auto scrollbar-hide">
+              {tabs.map(tab => (
+                <div key={tab.id} className={`group flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer mr-1 transition-colors ${tab.id === activeTabId ? 'bg-slate-800/80 text-white' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'}`}
+                  onClick={() => setActiveTabId(tab.id)}>
+                  <FileCode2 className="w-4 h-4" />
+                  <span className="text-sm whitespace-nowrap">{tab.name}</span>
+                  {tab.dirty && <span className="text-fuchsia-300 text-xs">●</span>}
+                  {tabs.length > 1 && (
+                    <button onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} className="opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-white ml-1">×</button>
+                  )}
                 </div>
-              </div>
-
-              {/* Controls */}
-              <div className="px-2 py-1.5 bg-slate-900/60 border-b border-white/10 flex items-center gap-1 flex-shrink-0 overflow-x-auto">
+              ))}
+              <button onClick={addNewTab} className="ml-1 inline-flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 flex-shrink-0 transition-colors">
+                <FilePlus2 className="w-4 h-4" /> New
+              </button>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Clean Language Dropdown */}
+              <div className="relative">
                 <select
                   value={activeTab?.languageId || defaultLang.id}
                   onChange={(e) => setTabLanguage(activeTabId, e.target.value)}
-                  className="appearance-none bg-slate-800/70 text-slate-200 text-xs font-medium rounded-lg pl-2 pr-6 py-1.5 cursor-pointer hover:bg-slate-800 focus:outline-none"
+                  className="appearance-none bg-slate-800/70 text-slate-200 text-sm font-medium rounded-lg pl-3 pr-8 py-2 cursor-pointer hover:bg-slate-800 focus:outline-none focus:bg-slate-800 transition-colors"
+                  title="Change file language"
                 >
                   {BASE_LANGS.map((lang) => (
-                    <option key={lang.id} value={lang.id}>{lang.name}</option>
+                    <option key={lang.id} value={lang.id} className="bg-slate-800 text-slate-100">
+                      {lang.name}
+                    </option>
                   ))}
                 </select>
-                <button onClick={handleCopyCode} className="p-1.5 rounded-lg hover:bg-slate-800/60 text-slate-300" title="Copy">
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => setShowEditorSettings(true)} className="p-1.5 rounded-lg hover:bg-slate-800/60 text-slate-300" title="Settings">
-                  <Settings className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={handleDownloadCode} className="p-1.5 rounded-lg hover:bg-slate-800/60 text-slate-300" title="Download">
-                  <Download className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={handleReset} className="p-1.5 rounded-lg hover:bg-slate-800/60 text-slate-300" title="Reset">
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={handleRun}
-                  disabled={isRunning}
-                  className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg text-xs font-semibold shadow-lg transition-all disabled:opacity-50"
-                >
-                  <Zap className="w-3.5 h-3.5" /> {isRunning ? 'Running...' : 'Run'}
-                </button>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
 
-              {/* Editor */}
-              <div className="flex-1 overflow-hidden">
-                <Editor
-                  height="100%"
-                  language={getMonacoLanguage(activeTab?.languageId || defaultLang.id)}
-                  value={activeTab?.content || ''}
-                  onChange={(value) => setTabContent(activeTabId, value || '')}
-                  theme={editorTheme}
-                  options={{
-                    minimap: { enabled: false },
-                    fontSize: fontSize,
-                    fontFamily: codeFont,
-                    fontLigatures: ligatures,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: false,
-                    automaticLayout: true,
-                    tabSize: 2,
-                    wordWrap: 'on',
-                    formatOnPaste: true,
-                    formatOnType: true,
-                  }}
-                  onMount={(editor) => { 
-                    editorRef.current = editor;
-                    editor.focus();
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Input View */}
-          {mobileView === 'io' && (
-            <div className="flex-1 flex flex-col bg-slate-900/40 overflow-hidden">
-              <div className="px-3 py-2 bg-slate-900/60 border-b border-white/10 flex-shrink-0">
-                <h3 className="text-xs font-semibold tracking-wide text-slate-300">INPUT</h3>
-              </div>
-              <div className="p-2 flex flex-col gap-2 border-b border-white/10 bg-slate-900/40 flex-shrink-0">
-                <input
-                  value={args}
-                  onChange={(e) => setArgs(e.target.value)}
-                  placeholder="Runtime arguments (space-separated)"
-                  className="w-full px-3 py-2 bg-slate-800/80 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
-                  style={{ fontFamily: codeFont }}
-                />
-              </div>
-              <textarea
-                value={stdin}
-                onChange={(e) => setStdin(e.target.value)}
-                className="flex-1 w-full p-3 bg-slate-950/60 text-slate-200 text-sm resize-none focus:outline-none placeholder-slate-500 custom-scrollbar"
-                placeholder="Enter stdin..."
-                style={{ fontFamily: codeFont }}
-              />
-              <div className="p-2 bg-slate-900/60 border-t border-white/10 flex gap-2">
-                <button
-                  onClick={handleRun}
-                  disabled={isRunning}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg font-semibold shadow-lg transition-all disabled:opacity-50"
-                >
-                  <Zap className="w-4 h-4" /> {isRunning ? 'Running...' : 'Run Code'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Output View */}
-          {mobileView === 'output' && (
-            <div className="flex-1 flex flex-col bg-slate-900/40 overflow-hidden">
-              <div className="px-3 py-2 bg-slate-900/60 border-b border-white/10 flex items-center justify-between flex-shrink-0">
-                <div>
-                  <h3 className="text-xs font-semibold tracking-wide text-slate-300">OUTPUT</h3>
-                  {executionTime != null && (
-                    <p className={`text-[10px] mt-0.5 ${runCode === 0 ? 'text-emerald-400' : 'text-rose-400'}`}>Exit {runCode} · {executionTime}ms</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={handleCopyOutput} className="px-2 py-1 rounded-lg hover:bg-slate-800/60 text-xs text-slate-300" title="Copy">
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                  <button onClick={() => { setStdout(''); setStderr(''); }} className="px-2 py-1 rounded-lg hover:bg-slate-800/60 text-xs text-slate-300">
-                    Clear
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-3 bg-slate-950/60 text-sm custom-scrollbar" style={{ fontFamily: codeFont }}>
-                {!stdout && !stderr && !isRunning && (
-                  <div className="text-slate-500 text-xs">Output will appear here after running your code…</div>
-                )}
-                {isRunning && (
-                  <div className="text-amber-300 animate-pulse text-sm">⏳ Executing code…</div>
-                )}
-                {stdout && (
-                  <pre className="text-emerald-300 whitespace-pre-wrap break-words text-xs sm:text-sm">{stdout}</pre>
-                )}
-                {stderr && (
-                  <pre className="text-rose-300 whitespace-pre-wrap break-words mt-2 text-xs sm:text-sm">{stderr}</pre>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : (
-        // Desktop Layout - Split View
-        <div ref={splitContainerRef} className="relative flex-1 flex overflow-hidden">
-          {/* Left: Editor */}
-          <div className="flex flex-col overflow-hidden" style={{ width: `${splitPosition}%` }}>
-            {/* Tabs */}
-            <div className="px-3 py-2 bg-slate-900/60 border-b border-white/10 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-1 overflow-auto scrollbar-hide">
-                {tabs.map(tab => (
-                  <div key={tab.id} className={`group flex items-center gap-2 px-3 py-1.5 rounded-md cursor-pointer mr-1 transition-colors ${tab.id === activeTabId ? 'bg-slate-800/80 text-white' : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'}`}
-                    onClick={() => setActiveTabId(tab.id)}>
-                    <FileCode2 className="w-4 h-4" />
-                    <span className="text-sm whitespace-nowrap">{tab.name}</span>
-                    {tab.dirty && <span className="text-fuchsia-300 text-xs">●</span>}
-                    {tabs.length > 1 && (
-                      <button onClick={(e) => { e.stopPropagation(); closeTab(tab.id); }} className="opacity-0 group-hover:opacity-100 transition text-slate-400 hover:text-white ml-1">×</button>
-                    )}
-                  </div>
-                ))}
-                <button onClick={addNewTab} className="ml-1 inline-flex items-center gap-1 px-2 py-1.5 rounded-md hover:bg-slate-800/40 text-slate-400 hover:text-slate-200 flex-shrink-0 transition-colors">
-                  <FilePlus2 className="w-4 h-4" /> New
-                </button>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <div className="relative">
-                  <select
-                    value={activeTab?.languageId || defaultLang.id}
-                    onChange={(e) => setTabLanguage(activeTabId, e.target.value)}
-                    className="appearance-none bg-slate-800/70 text-slate-200 text-sm font-medium rounded-lg pl-3 pr-8 py-2 cursor-pointer hover:bg-slate-800 focus:outline-none"
-                  >
-                    {BASE_LANGS.map((lang) => (
-                      <option key={lang.id} value={lang.id}>{lang.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-                <button onClick={handleCopyCode} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors" title="Copy code">
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button onClick={() => setShowEditorSettings(true)} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors" title="Editor settings">
-                  <Settings className="w-4 h-4" />
-                </button>
-                <button onClick={handleDownloadCode} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors" title="Download file">
-                  <Download className="w-4 h-4" />
-                </button>
-                <label className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors cursor-pointer" title="Upload file">
-                  <Upload className="w-4 h-4" />
-                  <input type="file" className="hidden" onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = (evt) => {
-                        const ext = (file.name.split('.').pop() || '').toLowerCase();
-                        const mapExtToLang = { 
-                          cpp: 'cpp', cc: 'cpp', cxx: 'cpp', hpp: 'cpp', c: 'c',
-                          java: 'java', py: 'python', js: 'javascript', cs: 'csharp'
-                        };
-                        const langId = mapExtToLang[ext] || defaultLang.id;
-                        const id = `tab-${Date.now()}`;
-                        setTabs(prev => [...prev, { id, name: file.name, content: String(evt.target?.result || ''), dirty: false, languageId: langId }]);
-                        setActiveTabId(id);
+              <button onClick={handleCopyCode} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors" title="Copy code">
+                <Copy className="w-4 h-4" />
+              </button>
+              <button onClick={() => setShowEditorSettings(true)} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors" title="Editor settings">
+                <Settings className="w-4 h-4" />
+              </button>
+              <button onClick={handleDownloadCode} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors" title="Download file">
+                <Download className="w-4 h-4" />
+              </button>
+              <label className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors cursor-pointer" title="Upload file">
+                <Upload className="w-4 h-4" />
+                <input type="file" className="hidden" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                      const ext = (file.name.split('.').pop() || '').toLowerCase();
+                      const mapExtToLang = { 
+                        cpp: 'cpp', cc: 'cpp', cxx: 'cpp', hpp: 'cpp', c: 'c',
+                        java: 'java', py: 'python', js: 'javascript', cs: 'csharp'
                       };
-                      reader.readAsText(file);
-                      e.target.value = '';
-                    }
-                  }} accept=".cpp,.c,.cc,.cxx,.hpp,.java,.py,.js,.cs,.txt" />
-                </label>
-                <button onClick={() => {
-                  const newName = prompt('Rename current file:', activeTab?.name || '');
-                  if (newName?.trim()) renameActiveTab(newName.trim());
-                }} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors" title="Rename file">
-                  <Wand2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Editor */}
-            <div className="flex-1 overflow-hidden">
-              <Editor
-                height="100%"
-                language={getMonacoLanguage(activeTab?.languageId || defaultLang.id)}
-                value={activeTab?.content || ''}
-                onChange={(value) => setTabContent(activeTabId, value || '')}
-                theme={editorTheme}
-                options={{
-                  minimap: { enabled: windowSize.width >= 1536 },
-                  fontSize,
-                  fontFamily: codeFont,
-                  fontLigatures: ligatures,
-                  lineNumbers: 'on',
-                  roundedSelection: true,
-                  scrollBeyondLastLine: false,
-                  automaticLayout: true,
-                  tabSize: 2,
-                  wordWrap: 'on',
-                  formatOnPaste: true,
-                  formatOnType: true,
-                }}
-                onMount={(editor) => { 
-                  editorRef.current = editor;
-                  editor.focus();
-                }}
-              />
-            </div>
-
-            {/* Status bar */}
-            <div className="h-8 bg-slate-900/70 border-t border-white/10 text-xs px-3 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <TerminalSquare className={`w-4 h-4 ${runCode === 0 ? 'text-emerald-400' : 'text-rose-400'}`} />
-                <span>{currentLang.name}</span>
-                <span className="text-slate-400">v{currentLang.version}</span>
-                {executionTime != null && <span>· {executionTime}ms</span>}
-                {activeTab && <span>· {activeTab.name}</span>}
-              </div>
-              <div className="flex items-center gap-3">
-                <span>{editorTheme}</span>
-                <span>{fontSize}px</span>
-              </div>
+                      const langId = mapExtToLang[ext] || defaultLang.id;
+                      const id = `tab-${Date.now()}`;
+                      setTabs(prev => [...prev, { id, name: file.name, content: String(evt.target?.result || ''), dirty: false, languageId: langId }]);
+                      setActiveTabId(id);
+                    };
+                    reader.readAsText(file);
+                    e.target.value = '';
+                  }
+                }} accept=".cpp,.c,.cc,.cxx,.hpp,.java,.py,.js,.cs,.txt" />
+              </label>
+              <button onClick={() => {
+                const newName = prompt('Rename current file:', activeTab?.name || '');
+                if (newName?.trim()) renameActiveTab(newName.trim());
+              }} className="p-2 rounded-lg hover:bg-slate-800/60 text-slate-300 hover:text-white transition-colors" title="Rename file">
+                <Wand2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          {/* Resizer */}
-          <div 
-            className="w-1 bg-slate-800/40 hover:bg-slate-700/60 cursor-col-resize transition-colors relative group flex-shrink-0 flex items-center justify-center"
-            onMouseDown={handleMouseDown}
-          >
-            <div className="flex flex-col gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
-              <div className="w-1 h-1 rounded-full bg-slate-500 group-hover:bg-fuchsia-400"></div>
-              <div className="w-1 h-1 rounded-full bg-slate-500 group-hover:bg-fuchsia-400"></div>
-              <div className="w-1 h-1 rounded-full bg-slate-500 group-hover:bg-fuchsia-400"></div>
-            </div>
+          {/* Editor */}
+          <div className="flex-1 overflow-hidden">
+            <Editor
+              height="100%"
+              language={getMonacoLanguage(activeTab?.languageId || defaultLang.id)}
+              value={activeTab?.content || ''}
+              onChange={(value) => setTabContent(activeTabId, value || '')}
+              theme={editorTheme}
+              options={{
+                minimap: { enabled: windowSize.width >= 1536 },
+                fontSize,
+                fontFamily: codeFont,
+                fontLigatures: ligatures,
+                lineNumbers: 'on',
+                roundedSelection: true,
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                tabSize: 2,
+                wordWrap: 'on',
+                formatOnPaste: true,
+                formatOnType: true,
+                suggestOnTriggerCharacters: true,
+                snippetSuggestions: 'inline',
+                parameterHints: { enabled: true },
+                acceptSuggestionOnEnter: 'on',
+                tabCompletion: 'on',
+                autoClosingBrackets: 'always',
+                autoClosingQuotes: 'always',
+                renderWhitespace: 'selection',
+                smoothScrolling: true,
+                quickSuggestions: true,
+                wordBasedSuggestions: 'matchingDocuments',
+                cursorBlinking: 'smooth',
+                cursorSmoothCaretAnimation: 'on',
+              }}
+              onMount={(editor) => { 
+                editorRef.current = editor;
+                editor.focus();
+              }}
+            />
           </div>
 
-          {/* Right: IO & Output */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Controls */}
-            <div className="px-4 py-2 bg-slate-900/60 border-b border-white/10 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <FileCode2 className="w-5 h-5 text-fuchsia-400" />
-                <span className="text-sm font-medium text-slate-300">Running: {activeTab?.name || 'untitled'}</span>
-              </div>
-              <div className="flex items-center gap-2">
+          {/* Status bar */}
+          <div className="h-8 bg-slate-900/70 border-t border-white/10 text-xs px-3 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <TerminalSquare className={`w-4 h-4 ${runCode === 0 ? 'text-emerald-400' : 'text-rose-400'}`} />
+              <span>{BASE_LANGS.find(l => l.id === activeTab?.languageId)?.name || defaultLang.name}</span>
+              <span className="text-slate-400">v{BASE_LANGS.find(l => l.id === activeTab?.languageId)?.version || defaultLang.version}</span>
+              {executionTime != null && <span>· {executionTime}ms</span>}
+              {activeTab && <span>· {activeTab.name}</span>}
+            </div>
+            <div className="flex items-center gap-3">
+              <span>{editorTheme}</span>
+              <span>{fontSize}px</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Minimal Dot Resizer */}
+        <div 
+          className="w-1 bg-slate-800/40 hover:bg-slate-700/60 cursor-col-resize transition-colors relative group flex-shrink-0 flex items-center justify-center"
+          onMouseDown={handleMouseDown}
+          title="Drag to resize"
+        >
+          <div className="flex flex-col gap-1 opacity-40 group-hover:opacity-100 transition-opacity">
+            <div className="w-1 h-1 rounded-full bg-slate-500 group-hover:bg-fuchsia-400"></div>
+            <div className="w-1 h-1 rounded-full bg-slate-500 group-hover:bg-fuchsia-400"></div>
+            <div className="w-1 h-1 rounded-full bg-slate-500 group-hover:bg-fuchsia-400"></div>
+          </div>
+        </div>
+
+        {/* Right: Controls + IO + Output */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Top controls */}
+          <div className="px-4 py-2 bg-slate-900/60 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <FileCode2 className="w-5 h-5 text-fuchsia-400" />
+              <span className="text-sm font-medium text-slate-300">Running: {activeTab?.name || 'untitled'}</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <div className="relative group">
                 <button
                   onClick={handleRun}
                   disabled={isRunning}
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg font-semibold shadow-lg transition-all hover:scale-105 disabled:opacity-50"
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg font-semibold shadow-lg transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Zap className="w-4 h-4" /> {isRunning ? 'Running...' : 'Run'}
                 </button>
-                <button onClick={handleReset} className="px-3 py-2 hover:bg-slate-800/60 text-slate-300 hover:text-white rounded-lg transition-colors">
-                  <RotateCcw className="w-4 h-4" />
-                </button>
+                <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 pointer-events-none transition bg-slate-800 text-slate-200 text-[11px] px-2 py-1 rounded-md whitespace-nowrap z-10">
+                  Ctrl/Cmd+Enter
+                </div>
               </div>
+              <button onClick={handleReset} className="px-3 py-2 hover:bg-slate-800/60 text-slate-300 hover:text-white rounded-lg transition-colors" title="Reset current file to template">
+                <RotateCcw className="w-4 h-4" />
+              </button>
             </div>
+          </div>
 
-            {/* INPUT */}
-            <div className="h-[30%] border-b border-white/10 flex flex-col bg-slate-900/40 flex-shrink-0">
-              <div className="px-4 py-2 bg-slate-900/60 border-b border-white/10 flex-shrink-0">
-                <h3 className="text-xs font-semibold tracking-wide text-slate-300">INPUT</h3>
-              </div>
-              <div className="p-2 flex items-center gap-2 border-b border-white/10 bg-slate-900/40 flex-shrink-0">
-                <input
-                  value={args}
-                  onChange={(e) => setArgs(e.target.value)}
-                  placeholder="Runtime arguments (space-separated)"
-                  className="flex-1 px-3 py-1.5 bg-slate-800/80 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none"
-                  style={{ fontFamily: codeFont }}
-                />
-              </div>
-              <textarea
-                value={stdin}
-                onChange={(e) => setStdin(e.target.value)}
-                className="flex-1 w-full p-4 bg-slate-950/60 text-slate-200 text-sm resize-none focus:outline-none placeholder-slate-500 custom-scrollbar"
-                placeholder="Enter stdin..."
+          {/* INPUT */}
+          <div className="h-[30%] border-b border-white/10 flex flex-col bg-slate-900/40 flex-shrink-0">
+            <div className="px-4 py-2 bg-slate-900/60 border-b border-white/10 flex-shrink-0">
+              <h3 className="text-xs font-semibold tracking-wide text-slate-300">INPUT</h3>
+            </div>
+            <div className="p-2 flex items-center gap-2 border-b border-white/10 bg-slate-900/40 flex-shrink-0">
+              <input
+                value={args}
+                onChange={(e) => setArgs(e.target.value)}
+                placeholder="Runtime arguments (space-separated)"
+                className="flex-1 px-3 py-1.5 bg-slate-800/80 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:bg-slate-800 transition-colors"
                 style={{ fontFamily: codeFont }}
               />
             </div>
+            <textarea
+              value={stdin}
+              onChange={(e) => setStdin(e.target.value)}
+              className="flex-1 w-full p-4 bg-slate-950/60 text-slate-200 text-sm resize-none focus:outline-none placeholder-slate-500 custom-scrollbar"
+              placeholder="Enter stdin..."
+              style={{ fontFamily: codeFont }}
+            />
+          </div>
 
-            {/* OUTPUT */}
-            <div className="flex-1 flex flex-col bg-slate-900/40 overflow-hidden">
-              <div className="px-4 py-2 bg-slate-900/60 border-b border-white/10 flex items-center justify-between flex-shrink-0">
-                <div>
-                  <h3 className="text-xs font-semibold tracking-wide text-slate-300">OUTPUT</h3>
-                  {executionTime != null && (
-                    <p className={`text-[11px] mt-0.5 ${runCode === 0 ? 'text-emerald-400' : 'text-rose-400'}`}>Exit {runCode} · {executionTime}ms</p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={handleCopyOutput} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-800/60 text-xs text-slate-300 hover:text-white transition-colors">
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
-                  </button>
-                  <button onClick={() => { setStdout(''); setStderr(''); }} className="px-2 py-1.5 rounded-lg hover:bg-slate-800/60 text-xs text-slate-300 hover:text-white transition-colors">
-                    Clear
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 bg-slate-950/60 text-sm custom-scrollbar" style={{ fontFamily: codeFont }}>
-                {!stdout && !stderr && !isRunning && (
-                  <div className="text-slate-500 text-xs">Output will appear here after running your code…</div>
-                )}
-                {isRunning && (
-                  <div className="text-amber-300 animate-pulse">⏳ Executing code…</div>
-                )}
-                {stdout && (
-                  <pre className="text-emerald-300 whitespace-pre-wrap break-words">{stdout}</pre>
-                )}
-                {stderr && (
-                  <pre className="text-rose-300 whitespace-pre-wrap break-words mt-2">{stderr}</pre>
+          {/* OUTPUT */}
+          <div className="flex-1 flex flex-col bg-slate-900/40 overflow-hidden">
+            <div className="px-4 py-2 bg-slate-900/60 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h3 className="text-xs font-semibold tracking-wide text-slate-300">OUTPUT</h3>
+                {executionTime != null && (
+                  <p className={`text-[11px] mt-0.5 ${runCode === 0 ? 'text-emerald-400' : 'text-rose-400'}`}>Exit {runCode} · {executionTime}ms</p>
                 )}
               </div>
+              <div className="flex items-center gap-2">
+                <button onClick={handleCopyOutput} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-800/60 text-xs text-slate-300 hover:text-white transition-colors" title="Copy output">
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy</span>
+                </button>
+                <button onClick={() => { setStdout(''); setStderr(''); }} className="px-2 py-1.5 rounded-lg hover:bg-slate-800/60 text-xs text-slate-300 hover:text-white transition-colors">
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-950/60 text-sm custom-scrollbar" style={{ fontFamily: codeFont }}>
+              {!stdout && !stderr && !isRunning && (
+                <div className="text-slate-500 text-xs">Output will appear here after running your code…</div>
+              )}
+              {isRunning && (
+                <div className="text-amber-300 animate-pulse">⏳ Executing code…</div>
+              )}
+              {stdout && (
+                <pre className="text-emerald-300 whitespace-pre-wrap break-words">{stdout}</pre>
+              )}
+              {stderr && (
+                <pre className="text-rose-300 whitespace-pre-wrap break-words mt-2">{stderr}</pre>
+              )}
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Editor Settings Modal */}
-      {showEditorSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setShowEditorSettings(false)} />
-          <div className="relative z-10 w-full max-w-lg bg-slate-900 rounded-2xl p-4 sm:p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-fuchsia-400" />
-                <h3 className="text-base font-semibold tracking-wide text-slate-200">Editor Settings</h3>
-              </div>
-              <button onClick={() => setShowEditorSettings(false)} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors">
-                <X className="w-4 h-4 text-slate-300" />
+{showEditorSettings && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="absolute inset-0 bg-black/60" onClick={() => setShowEditorSettings(false)} />
+    <div className="relative z-10 w-full max-w-lg bg-slate-900 rounded-2xl p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Settings className="w-5 h-5 text-fuchsia-400" />
+          <h3 className="text-base font-semibold tracking-wide text-slate-200">Editor Settings</h3>
+        </div>
+        <button onClick={() => setShowEditorSettings(false)} className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 transition-colors">
+          <X className="w-4 h-4 text-slate-300" />
+        </button>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-2">Editor Theme</label>
+          <div className="grid grid-cols-2 gap-2">
+            {EDITOR_THEMES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setEditorTheme(t.id)}
+                className={`px-4 py-3 rounded-lg transition-all ${
+                  editorTheme === t.id
+                    ? 'bg-fuchsia-600 text-white'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                <span className="text-sm font-medium">{t.name}</span>
               </button>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">Editor Theme</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {EDITOR_THEMES.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => setEditorTheme(t.id)}
-                      className={`px-4 py-3 rounded-lg transition-all text-sm ${
-                        editorTheme === t.id
-                          ? 'bg-fuchsia-600 text-white'
-                          : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                      }`}
-                    >
-                      {t.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">Code Font</label>
-                <div className="relative">
-                  <select
-                    value={fontFamilyId}
-                    onChange={(e) => setFontFamilyId(e.target.value)}
-                    className="appearance-none w-full bg-slate-800 text-slate-100 font-medium rounded-lg pl-3 pr-8 py-3 cursor-pointer hover:bg-slate-700 focus:outline-none text-sm"
-                  >
-                    {CODE_FONTS.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
-                  </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-2">Font Size: {fontSize}px</label>
-                <input type="range" min="12" max="22" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-fuchsia-500" />
-              </div>
-
-              <label className="inline-flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
-                <input type="checkbox" checked={ligatures} onChange={(e) => setLigatures(e.target.checked)} className="w-4 h-4 rounded accent-fuchsia-500" />
-                Enable Font Ligatures
-              </label>
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button onClick={() => setShowEditorSettings(false)} className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-700 hover:to-purple-700 text-white rounded-lg font-medium transition hover:scale-105">
-                Done
-              </button>
-            </div>
+            ))}
           </div>
         </div>
-      )}
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-2">Code Font</label>
+          <div className="relative">
+            <select
+              value={fontFamilyId}
+              onChange={(e) => setFontFamilyId(e.target.value)}
+              className="appearance-none w-full bg-slate-800 text-slate-100 font-medium rounded-lg pl-3 pr-8 py-3 cursor-pointer hover:bg-slate-700 focus:outline-none focus:bg-slate-700 transition-colors text-sm"
+            >
+              {CODE_FONTS.map(f => <option key={f.id} value={f.id} className="bg-slate-800 text-slate-100">{f.label}</option>)}
+            </select>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-400 mb-2">Font Size: {fontSize}px</label>
+          <input type="range" min="12" max="22" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))}
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-fuchsia-500" />
+        </div>
+
+        <label className="inline-flex items-center gap-2 text-sm text-slate-200 cursor-pointer">
+          <input type="checkbox" checked={ligatures} onChange={(e) => setLigatures(e.target.checked)} className="w-4 h-4 rounded accent-fuchsia-500" />
+          Enable Font Ligatures
+        </label>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <button onClick={() => setShowEditorSettings(false)} className="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-700 hover:to-purple-700 text-white rounded-lg font-medium transition hover:scale-105">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* Share Menu */}
       {showShare && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowShare(false)} />
-          <div className="relative z-10 w-full max-w-md bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/20 p-4 sm:p-6 shadow-2xl">
+          <div className="relative z-10 w-full max-w-md bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/20 p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Share2 className="w-5 h-5 text-cyan-400" />
@@ -1077,9 +967,9 @@ const QuickCompiler = () => {
               const { mail, whatsapp, copyLink } = buildShareData();
               return (
                 <div className="space-y-3">
-                  <a href={whatsapp} target="_blank" rel="noreferrer" className="block w-full text-center px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-medium shadow-lg transition hover:scale-105 text-sm">Share on WhatsApp</a>
-                  <a href={mail} className="block w-full text-center px-4 py-3 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-medium shadow-lg transition hover:scale-105 text-sm">Share via Email</a>
-                  <button onClick={copyLink} className="w-full px-4 py-3 rounded-lg hover:bg-slate-800/60 text-slate-100 hover:text-white font-medium transition-colors text-sm">Copy Share Link</button>
+                  <a href={whatsapp} target="_blank" rel="noreferrer" className="block w-full text-center px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-medium shadow-lg transition hover:scale-105">Share on WhatsApp</a>
+                  <a href={mail} className="block w-full text-center px-4 py-3 rounded-lg bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-700 hover:to-blue-700 text-white font-medium shadow-lg transition hover:scale-105">Share via Email</a>
+                  <button onClick={copyLink} className="w-full px-4 py-3 rounded-lg hover:bg-slate-800/60 text-slate-100 hover:text-white font-medium transition-colors">Copy Share Link</button>
                 </div>
               );
             })()}
@@ -1089,12 +979,12 @@ const QuickCompiler = () => {
 
       {/* Toast */}
       {showToast && (
-        <div className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-50 px-3 sm:px-4 py-2 sm:py-3 bg-slate-900/95 border border-white/20 text-slate-100 rounded-lg shadow-2xl backdrop-blur-xl text-sm">
+        <div className="fixed bottom-6 right-6 z-50 px-4 py-3 bg-slate-900/95 border border-white/20 text-slate-100 rounded-lg shadow-2xl backdrop-blur-xl">
           {showToast}
         </div>
       )}
 
-      <style>{`
+      <style >{`
         .scrollbar-hide::-webkit-scrollbar {
           display: none;
         }
@@ -1103,6 +993,7 @@ const QuickCompiler = () => {
           scrollbar-width: none;
         }
         
+        /* Custom minimal stylish scrollbar */
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
           height: 6px;

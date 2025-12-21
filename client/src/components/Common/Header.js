@@ -20,12 +20,11 @@ import {
   ChevronDown,
   Compass,
   Code,
-  Layout,
-  FileEdit,
-  Building2
+  Layout
 } from 'lucide-react';
-// Explore Dropdown Component - DESKTOP
-const ExploreDropdown = ({ onNavigate, isActive, isInstructor }) => {
+
+// Explore Dropdown Component
+const ExploreDropdown = ({ onNavigate, isActive }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -44,7 +43,6 @@ const ExploreDropdown = ({ onNavigate, isActive, isInstructor }) => {
     { path: '/sheets', label: 'Sheets', icon: List },
     { path: '/compiler', label: 'Quick Compiler', icon: Code },
     { path: '/live-code-editor', label: 'WebDev Editor', icon: Layout },
-    { path: '/jobs', label: 'Jobs', icon: Building2 }
   ];
 
   return (
@@ -98,31 +96,14 @@ const ExploreDropdown = ({ onNavigate, isActive, isInstructor }) => {
               </button>
             );
           })}
-          
-          {/* Create Editorial - Only for Instructors */}
-          {isInstructor && (
-            <>
-              <div className="border-t border-gray-200 dark:border-gray-700 my-2" />
-              <button
-                onClick={() => {
-                  onNavigate('/create-editorial');
-                  setIsOpen(false);
-                }}
-                className="w-full flex items-center space-x-3 px-4 py-3 text-left text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-[#6366f1] dark:hover:text-[#a855f7] transition-all duration-200"
-              >
-                <FileEdit className="w-4 h-4" />
-                <span className="font-medium">Create Editorial</span>
-              </button>
-            </>
-          )}
         </div>
       </div>
     </div>
   );
 };
 
-// Admin Dropdown Component - DESKTOP
-const AdminDropdown = ({ onNavigate, isActive, isAdmin }) => {
+// Admin Dropdown Component
+const AdminDropdown = ({ onNavigate, isActive }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -397,19 +378,31 @@ const Header = () => {
   const [scrolled, setScrolled] = useState(false);
   const [badgeCleared, setBadgeCleared] = useState(false);
 
-  // Check user roles
-  const isAdmin = user && user.role === 'admin';
-  const isInstructor = user && user.role === 'mentor';
-
-  // Base navigation items
+  // REORDERED: Home → Announcements → Contact (Explore will be inserted separately)
   const baseNavigationItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/announcements', label: 'Announcements', icon: Bell },
     { path: '/contact', label: 'Contact', icon: Mail },
   ];
 
-  const isAdminPathActive = location.pathname.startsWith('/admin/') || (isAdmin && location.pathname === '/create-editorial');
-  const isExplorePathActive = ['/sheets', '/compiler', '/live-code-editor', ...(isInstructor ? ['/create-editorial'] : [])].some(path => location.pathname.startsWith(path));
+  const exploreItems = [
+    { path: '/sheets', label: 'Sheets', icon: List },
+    { path: '/compiler', label: 'Quick Compiler', icon: Code },
+    { path: '/live-code-editor', label: 'WebDev Editor', icon: Layout },
+  ];
+
+  // MOBILE: Home → Explore items → Announcements → Contact → Admin
+  const mobileNavigationItems = [
+    baseNavigationItems[0], // Home
+    ...exploreItems, // Sheets, Quick Compiler, WebDev Editor
+    baseNavigationItems[1], // Announcements
+    baseNavigationItems[2], // Contact
+    ...(user && canManageUsers ? [{ path: '/admin/users', label: 'Users', icon: User }] : []),
+    ...(user && canManageSheets ? [{ path: '/admin/sheets', label: 'Manage', icon: Settings }] : [])
+  ];
+
+  const isAdminPathActive = location.pathname.startsWith('/admin/');
+  const isExplorePathActive = ['/sheets', '/compiler', '/live-code-editor'].some(path => location.pathname.startsWith(path));
 
   // Badge clearing when visiting announcements
   useEffect(() => {
@@ -530,7 +523,7 @@ const Header = () => {
               </h1>
             </div>
 
-            {/* Desktop Navigation */}
+            {/* Desktop Navigation - REORDERED: Home → Explore → Announcements → Contact → Admin */}
             <nav className="hidden md:flex">
               <ul className="flex items-center space-x-1">
                 {/* Home */}
@@ -562,7 +555,6 @@ const Header = () => {
                   <ExploreDropdown 
                     onNavigate={handleNavigation}
                     isActive={isExplorePathActive}
-                    isInstructor={isInstructor}
                   />
                 </li>
 
@@ -722,71 +714,39 @@ const Header = () => {
               <div className="max-w-7xl mx-auto px-4 py-6">
                 
                 <nav className="mb-6">
-                  <div className="space-y-2">
-                    {/* Home */}
-                    <button
-                      onClick={() => handleNavigation('/')}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
-                        location.pathname === '/'
-                          ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                      }`}
-                    >
-                      <Home className={`w-5 h-5 ${location.pathname === '/' ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
-                      <span>Home</span>
-                    </button>
-
-                    {/* Explore Accordion */}
-                    <MobileExploreAccordion 
-                      onNavigate={handleNavigation}
-                      isInstructor={isInstructor}
-                      currentPath={location.pathname}
-                    />
-
-                    {/* Announcements */}
-                    <button
-                      onClick={() => handleNavigation('/announcements')}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
-                        location.pathname === '/announcements'
-                          ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                      }`}
-                    >
-                      <div className="relative">
-                        <Bell className={`w-5 h-5 ${location.pathname === '/announcements' ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
-                        {shouldShowBadge && (
-                          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
-                            {unreadCount > 9 ? '9+' : unreadCount}
-                          </span>
-                        )}
-                      </div>
-                      <span>Announcements</span>
-                    </button>
-
-                    {/* Contact */}
-                    <button
-                      onClick={() => handleNavigation('/contact')}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
-                        location.pathname === '/contact'
-                          ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
-                      }`}
-                    >
-                      <Mail className={`w-5 h-5 ${location.pathname === '/contact' ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
-                      <span>Contact</span>
-                    </button>
-
-                    {/* Admin Accordion */}
-                    {user && (canManageUsers || canManageSheets) && (
-                      <MobileAdminAccordion
-                        onNavigate={handleNavigation}
-                        isAdmin={isAdmin}
-                        canManageUsers={canManageUsers}
-                        canManageSheets={canManageSheets}
-                        currentPath={location.pathname}
-                      />
-                    )}
-                  </div>
+                  <ul className="space-y-2">
+                    {mobileNavigationItems.map((item, index) => {
+                      const Icon = item.icon;
+                      const isActive = location.pathname === item.path;
+                      const isAnnouncements = item.path === '/announcements';
+                      
+                      return (
+                        <li key={item.path}>
+                          <button
+                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg font-medium text-left transition-all duration-300 ${
+                              isActive 
+                                ? 'bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 text-[#6366f1] dark:text-[#a855f7] border-l-4 border-[#6366f1]' 
+                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50'
+                            }`}
+                            onClick={() => handleNavigation(item.path)}
+                            style={{
+                              transitionDelay: `${index * 50}ms`,
+                            }}
+                          >
+                            <div className="relative">
+                              <Icon className={`w-5 h-5 ${isActive ? 'text-[#6366f1] dark:text-[#a855f7]' : ''}`} />
+                              {isAnnouncements && shouldShowBadge && (
+                                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold shadow-lg">
+                                  {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                              )}
+                            </div>
+                            <span>{item.label}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </nav>
 
                 {/* Mobile Auth Section */}

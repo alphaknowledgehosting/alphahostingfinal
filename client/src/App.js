@@ -40,10 +40,8 @@ const Announcements = lazy(() => import('./components/Pages/Announcements'));
 const EditorialPage = lazy(() => import('./components/Pages/EditorialPage'));
 const UserManagement = lazy(() => import('./components/Admin/UserManagement'));
 const SheetManagement = lazy(() => import('./components/Admin/SheetManagement'));
-const EditorialModalPage = lazy(() => import('./components/Common/EditorialModalPage'));
 const LiveCodeEditor = lazy(() => import('./components/Pages/LiveCodeEditor'));
 const QuickCompiler = lazy(() => import('./components/Pages/QuickCompiler'));
-const Jobs = lazy(() => import('./components/Pages/Jobs'));
 // Loading component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -182,6 +180,8 @@ function App() {
                     {/* NEW: Create Editorial Route - Admin/Instructor Only */}
                     <Route path="/create-editorial" element={<CreateEditorialPage />} />
                     <Route path="*" element={<NotFoundPage />} />
+                    <Route path="/live-code-editor" element={<LiveCodeEditor />} />
+                    <Route path="/compiler" element={<QuickCompiler />} />
                   </Routes>
                 </Suspense>
               </ProgressProvider>
