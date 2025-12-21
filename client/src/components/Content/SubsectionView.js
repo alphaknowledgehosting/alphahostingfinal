@@ -556,15 +556,15 @@ const SubsectionView = ({
   const [editing, setEditing] = useState(false);
 
   // ✅ DEBUG SECTION
-  console.log('🔧 SubsectionView Render:', {
-    subsectionName: subsection?.name,
-    rawProblemIds: subsection?.problemIds,
-    problemIdsType: Array.isArray(subsection?.problemIds) ? 'array' : typeof subsection?.problemIds,
-    problemIdsLength: subsection?.problemIds?.length || 0,
-    problemsMapKeys: Object.keys(problemsMap),
-    problemsMapSize: Object.keys(problemsMap).length,
-    sampleProblemId: subsection?.problemIds?.[0]
-  });
+  //console.log('🔧 SubsectionView Render:', {
+  //   subsectionName: subsection?.name,
+  //   rawProblemIds: subsection?.problemIds,
+  //   problemIdsType: Array.isArray(subsection?.problemIds) ? 'array' : typeof subsection?.problemIds,
+  //   problemIdsLength: subsection?.problemIds?.length || 0,
+  //   problemsMapKeys: Object.keys(problemsMap),
+  //   problemsMapSize: Object.keys(problemsMap).length,
+  //   sampleProblemId: subsection?.problemIds?.[0]
+  // });
 
   if (!subsection) {
     console.error('❌ SubsectionView: subsection is undefined');
@@ -576,26 +576,26 @@ const SubsectionView = ({
     .map(item => {
       // Extract ID whether it's a string or an object
       const id = typeof item === 'string' ? item : (item?.id || item?._id);
-      console.log(`🔍 Looking up problem:`, { item, extractedId: id });
+      //console.log(`🔍 Looking up problem:`, { item, extractedId: id });
       
       const problem = problemsMap[id];
       
       if (!problem) {
         console.warn(`⚠️ Problem not found for ID: ${id}`);
       } else {
-        console.log(`✓ Found problem: ${id} -> "${problem.title}"`);
+        //console.log(`✓ Found problem: ${id} -> "${problem.title}"`);
       }
       
       return problem;
     })
     .filter(Boolean);
 
-  console.log(`📝 SubsectionView Final Results:`, {
-    subsectionName: subsection.name,
-    totalProblemIds: subsection.problemIds?.length || 0,
-    foundProblems: problems.length,
-    problemTitles: problems.map(p => p.title)
-  });
+  // //console.log(`📝 SubsectionView Final Results:`, {
+  //   subsectionName: subsection.name,
+  //   totalProblemIds: subsection.problemIds?.length || 0,
+  //   foundProblems: problems.length,
+  //   problemTitles: problems.map(p => p.title)
+  // });
 
   const getSubsectionProgress = () => {
     const totalProblems = subsection.problemIds?.length || 0;

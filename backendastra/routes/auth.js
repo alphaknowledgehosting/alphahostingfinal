@@ -5,7 +5,7 @@ const { authenticateUser } = require('../middleware/auth');
 
 // Debug logging middleware
 router.use('*', (req, res, next) => {
-  // console.log(`🔍 Auth route: ${req.method} ${req.originalUrl}`);
+  // //console.log(`🔍 Auth route: ${req.method} ${req.originalUrl}`);
   next();
 });
 

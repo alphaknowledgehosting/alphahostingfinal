@@ -147,7 +147,7 @@ const EditorialPage = () => {
                 }
               }
             } catch (err) {
-              console.log(`Failed to fetch from ${driveUrl}:`, err.message);
+              //console.log(`Failed to fetch from ${driveUrl}:`, err.message);
               continue;
             }
           }
@@ -221,7 +221,7 @@ const EditorialPage = () => {
                 return;
               }
             } catch (methodError) {
-              console.log(`Loading method ${i + 1} failed:`, methodError.message);
+              //console.log(`Loading method ${i + 1} failed:`, methodError.message);
               continue;
             }
           }
@@ -512,7 +512,7 @@ const loadProblemAndEditorial = async () => {
         }
       }
     } catch (directError) {
-      console.log('Direct problem fetch failed, trying sheets...', directError);
+      //console.log('Direct problem fetch failed, trying sheets...', directError);
     }
 
     // Fallback: search in sheets

@@ -61,7 +61,7 @@ class Announcement {
   // FIXED: Enhanced markAsRead method with better error handling and search logic
   async markAsRead(announcementId, userId) {
     try {
-      // console.log('🔍 Marking announcement as read:', { announcementId, userId });
+      // //console.log('🔍 Marking announcement as read:', { announcementId, userId });
       
       if (!announcementId || !userId) {
         throw new Error('Missing required parameters: announcementId or userId');
@@ -75,10 +75,10 @@ class Announcement {
         announcement = await this.collection.findOne({ id: announcementId });
         if (announcement) {
           searchFilter = { id: announcementId };
-          // console.log('📋 Found announcement by custom id field');
+          // //console.log('📋 Found announcement by custom id field');
         }
       } catch (error) {
-        // console.log('⚠️ Could not search by custom id:', error.message);
+        // //console.log('⚠️ Could not search by custom id:', error.message);
       }
 
       // Step 2: If not found by custom id, try by _id (ObjectId)
@@ -88,10 +88,10 @@ class Announcement {
           announcement = await this.collection.findOne({ _id: objectId });
           if (announcement) {
             searchFilter = { _id: objectId };
-            // console.log('📋 Found announcement by _id field');
+            // //console.log('📋 Found announcement by _id field');
           }
         } catch (error) {
-          // console.log('⚠️ Could not search by _id:', error.message);
+          // //console.log('⚠️ Could not search by _id:', error.message);
         }
       }
 
@@ -101,10 +101,10 @@ class Announcement {
           announcement = await this.collection.findOne({ _id: announcementId });
           if (announcement) {
             searchFilter = { _id: announcementId };
-            // console.log('📋 Found announcement by _id as string');
+            // //console.log('📋 Found announcement by _id as string');
           }
         } catch (error) {
-          // console.log('⚠️ Could not search by _id as string:', error.message);
+          // //console.log('⚠️ Could not search by _id as string:', error.message);
         }
       }
 
@@ -113,18 +113,18 @@ class Announcement {
         // console.error('❌ Announcement not found with ID:', announcementId);
         // List all announcements for debugging
         const allAnnouncements = await this.collection.find({}).limit(5).toArray();
-        // console.log('🔍 Available announcements (first 5):');
+        // //console.log('🔍 Available announcements (first 5):');
         allAnnouncements.forEach(ann => {
-          // console.log(`   - ID: ${ann.id}, _id: ${ann._id}, Title: ${ann.title}`);
+          // //console.log(`   - ID: ${ann.id}, _id: ${ann._id}, Title: ${ann.title}`);
         });
         throw new Error('Announcement not found');
       }
 
-      // console.log('📋 Found announcement:', announcement.title);
+      // //console.log('📋 Found announcement:', announcement.title);
 
       // Step 5: Check if user already marked as read
       if (announcement.readBy && announcement.readBy.includes(userId)) {
-        // console.log('✅ Announcement already marked as read by this user');
+        // //console.log('✅ Announcement already marked as read by this user');
         return { success: true, message: 'Announcement already marked as read' };
       }
 
@@ -143,12 +143,12 @@ class Announcement {
       }
 
       if (updateResult.modifiedCount === 0) {
-        // console.log('✅ No update needed - user already in readBy array');
+        // //console.log('✅ No update needed - user already in readBy array');
       } else {
-        // console.log('✅ Successfully added user to readBy array');
+        // //console.log('✅ Successfully added user to readBy array');
       }
 
-      // console.log('✅ Mark as read result:', updateResult);
+      // //console.log('✅ Mark as read result:', updateResult);
       return { success: true, message: 'Announcement marked as read' };
       
     } catch (error) {
@@ -193,7 +193,7 @@ class Announcement {
         readBy: { $ne: userId }
       });
       
-      // console.log('Unread count for user', userId, ':', unreadCount);
+      // //console.log('Unread count for user', userId, ':', unreadCount);
       return unreadCount;
     } catch (error) {
       // console.error('Error getting unread count:', error);
@@ -223,7 +223,7 @@ class Announcement {
 
   async update(announcementId, updateData) {
     try {
-      // console.log('🔄 Updating announcement in database:', announcementId, updateData);
+      // //console.log('🔄 Updating announcement in database:', announcementId, updateData);
       
       const updateFields = {
         ...updateData,
@@ -262,7 +262,7 @@ class Announcement {
         throw new Error('Announcement not found');
       }
 
-      // console.log('✅ Update result:', result);
+      // //console.log('✅ Update result:', result);
       
       // Return the updated announcement
       const updatedAnnouncement = await this.getById(announcementId);
@@ -281,7 +281,7 @@ class Announcement {
   // FIXED delete method (keeping your existing implementation)
   async delete(announcementId) {
     try {
-      // console.log('🗑️ Model: Deleting announcement from database:', announcementId);
+      // //console.log('🗑️ Model: Deleting announcement from database:', announcementId);
       
       if (!announcementId) {
         throw new Error('No announcement ID provided');
@@ -293,23 +293,23 @@ class Announcement {
       // Try finding by custom 'id' field first
       try {
         existingAnnouncement = await this.collection.findOne({ id: announcementId });
-        // console.log('🔍 Model: Found by custom id field:', !!existingAnnouncement);
+        // //console.log('🔍 Model: Found by custom id field:', !!existingAnnouncement);
       } catch (error) {
-        // console.log('⚠️ Model: Could not search by custom id:', error.message);
+        // //console.log('⚠️ Model: Could not search by custom id:', error.message);
       }
       
       // If not found and looks like ObjectId, try by _id field
       if (!existingAnnouncement && this.isValidObjectId(announcementId)) {
         try {
           existingAnnouncement = await this.collection.findOne({ _id: announcementId });
-          // console.log('🔍 Model: Found by _id field:', !!existingAnnouncement);
+          // //console.log('🔍 Model: Found by _id field:', !!existingAnnouncement);
         } catch (error) {
-          // console.log('⚠️ Model: Could not search by _id:', error.message);
+          // //console.log('⚠️ Model: Could not search by _id:', error.message);
         }
       }
 
       if (!existingAnnouncement) {
-        // console.log('❌ Model: Announcement not found');
+        // //console.log('❌ Model: Announcement not found');
         return { 
           success: false, 
           message: 'Announcement not found',
@@ -317,7 +317,7 @@ class Announcement {
         };
       }
 
-      // console.log('📋 Model: Found announcement to delete:', existingAnnouncement.title);
+      // //console.log('📋 Model: Found announcement to delete:', existingAnnouncement.title);
       
       // Perform deletion using the same field we found it with
       let deleteResult;
@@ -337,7 +337,7 @@ class Announcement {
         };
       }
       
-      // console.log('✅ Model: Successfully deleted from database');
+      // //console.log('✅ Model: Successfully deleted from database');
       
       return { 
         success: true, 

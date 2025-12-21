@@ -39,7 +39,7 @@ router.get('/unread-count', authenticateUser, async (req, res) => {
 router.post('/:announcementId/read', authenticateUser, async (req, res) => {
   try {
     const { announcementId } = req.params;
-    // console.log('Marking announcement as read via API:', { announcementId, userId: req.user._id });
+    // //console.log('Marking announcement as read via API:', { announcementId, userId: req.user._id });
     
     const result = await announcementModel.markAsRead(announcementId, req.user._id);
     res.json(result);
@@ -71,7 +71,7 @@ router.post('/', authenticateUser, requireRole(['admin']), async (req, res) => {
       author: req.user.name || 'Admin'
     };
 
-    // console.log(`📝 Creating ${req.body.type || 'info'} announcement:`, req.body.title);
+    // //console.log(`📝 Creating ${req.body.type || 'info'} announcement:`, req.body.title);
     
     const result = await announcementModel.create(announcementData);
     
@@ -87,7 +87,7 @@ router.post('/', authenticateUser, requireRole(['admin']), async (req, res) => {
 
     // CRITICAL: Send emails ONLY for urgent announcements
     // if (announcement.type === 'urgent') {
-    //   // console.log('🚨 URGENT announcement created - sending emails to all users...');
+    //   // //console.log('🚨 URGENT announcement created - sending emails to all users...');
       
     //   try {
     //     // FIXED: Proper User model instantiation and usage
@@ -95,7 +95,7 @@ router.post('/', authenticateUser, requireRole(['admin']), async (req, res) => {
     //     const userModel = new User();
     //     const users = await userModel.getUsersWithEmails();
         
-    //     // console.log(`📧 Found ${users.length} users in database`);
+    //     // //console.log(`📧 Found ${users.length} users in database`);
         
     //     if (users.length > 0) {
     //       // Send emails in background (non-blocking)
@@ -105,9 +105,9 @@ router.post('/', authenticateUser, requireRole(['admin']), async (req, res) => {
     //           const emailResult = await sendEmailToAllUsers(announcement, users, 'urgent');
               
     //           if (emailResult.success) {
-    //             // console.log(`🎉 URGENT announcement emails sent: ${emailResult.count}/${emailResult.total} delivered`);
+    //             // //console.log(`🎉 URGENT announcement emails sent: ${emailResult.count}/${emailResult.total} delivered`);
     //           } else if (emailResult.skipped) {
-    //             // console.log(`⏭️ Email sending skipped: ${emailResult.reason}`);
+    //             // //console.log(`⏭️ Email sending skipped: ${emailResult.reason}`);
     //           } else {
     //             // console.error(`❌ URGENT announcement email sending failed:`, emailResult.error);
     //           }
@@ -125,7 +125,7 @@ router.post('/', authenticateUser, requireRole(['admin']), async (req, res) => {
     //     emailMessage = ` ❌ Error fetching user emails: ${userFetchError.message}`;
     //   }
     // } else {
-    //   // console.log(`📢 ${(req.body.type || 'info').toUpperCase()} announcement created - no emails sent (only URGENT announcements trigger emails)`);
+    //   // //console.log(`📢 ${(req.body.type || 'info').toUpperCase()} announcement created - no emails sent (only URGENT announcements trigger emails)`);
     //   emailMessage = ` 📧 No emails sent (only URGENT announcements trigger email notifications).`;
     // }
 
@@ -159,10 +159,10 @@ router.put('/:id', authenticateUser, requireRole(['admin']), async (req, res) =>
 router.delete('/:id', authenticateUser, requireRole(['admin']), async (req, res) => {
   try {
     const { id } = req.params;
-    // console.log('🗑️ Backend: Delete request received for ID:', id);
+    // //console.log('🗑️ Backend: Delete request received for ID:', id);
     
     if (!id) {
-      // console.log('❌ Backend: No ID provided');
+      // //console.log('❌ Backend: No ID provided');
       return res.status(400).json({ 
         success: false, 
         message: 'Announcement ID is required' 
@@ -171,11 +171,11 @@ router.delete('/:id', authenticateUser, requireRole(['admin']), async (req, res)
 
     // Perform deletion
     const deleteResult = await announcementModel.delete(id);
-    // console.log('🗑️ Backend: Delete result:', deleteResult);
+    // //console.log('🗑️ Backend: Delete result:', deleteResult);
 
     // Check if deletion was successful
     if (deleteResult.success) {
-      // console.log('✅ Backend: Deletion successful');
+      // //console.log('✅ Backend: Deletion successful');
       return res.status(200).json({
         success: true,
         message: 'Announcement deleted successfully',
@@ -183,7 +183,7 @@ router.delete('/:id', authenticateUser, requireRole(['admin']), async (req, res)
         deletedCount: deleteResult.deletedCount || 1
       });
     } else {
-      // console.log('❌ Backend: Deletion failed - not found');
+      // //console.log('❌ Backend: Deletion failed - not found');
       return res.status(404).json({
         success: false,
         message: 'Announcement not found'

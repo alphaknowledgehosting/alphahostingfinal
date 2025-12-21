@@ -243,7 +243,7 @@ const getAnnouncementEmailTemplate = (announcement, type) => {
 // UPDATED: Send welcome email to new users
 const sendWelcomeEmail = async (user) => {
   try {
-    // console.log(`📧 Sending welcome email to new user: ${user.email}`);
+    // //console.log(`📧 Sending welcome email to new user: ${user.email}`);
     
     const transporter = createTransporter();
     const frontendUrl = process.env.FRONTEND_URL || 'https://alphaknowledge.in';
@@ -262,7 +262,7 @@ const sendWelcomeEmail = async (user) => {
       priority: 'normal'
     });
 
-    // console.log(`✅ Welcome email sent successfully to: ${user.email}`);
+    // //console.log(`✅ Welcome email sent successfully to: ${user.email}`);
     return { success: true, message: 'Welcome email sent successfully' };
     
   } catch (error) {
@@ -276,11 +276,11 @@ const sendEmailToAllUsers = async (announcement, users, type = 'info') => {
   try {
     // CRITICAL: Only send emails for urgent announcements
     if (type !== 'urgent') {
-      // console.log(`📧 Email sending skipped: ${type.toUpperCase()} announcement (emails only sent for URGENT announcements)`);
+      // //console.log(`📧 Email sending skipped: ${type.toUpperCase()} announcement (emails only sent for URGENT announcements)`);
       return { success: true, count: 0, skipped: true, reason: 'Non-urgent announcement' };
     }
 
-    // console.log(`🚨 URGENT announcement detected - preparing to send emails to all users`);
+    // //console.log(`🚨 URGENT announcement detected - preparing to send emails to all users`);
     
     const transporter = createTransporter();
     
@@ -290,11 +290,11 @@ const sendEmailToAllUsers = async (announcement, users, type = 'info') => {
       .map(user => user.email);
 
     if (emailList.length === 0) {
-      // console.log('❌ No users with valid emails found');
+      // //console.log('❌ No users with valid emails found');
       return { success: true, count: 0, reason: 'No valid email addresses' };
     }
 
-    // console.log(`📧 Found ${emailList.length} users with valid email addresses`);
+    // //console.log(`📧 Found ${emailList.length} users with valid email addresses`);
 
     // Create urgent email content
     const emailSubject = `🚨 URGENT: ${announcement.title} - AlphaKnowledge`;
@@ -305,7 +305,7 @@ const sendEmailToAllUsers = async (announcement, users, type = 'info') => {
     let totalSent = 0;
     const errors = [];
 
-    // console.log(`📧 Sending URGENT emails in batches of ${batchSize}...`);
+    // //console.log(`📧 Sending URGENT emails in batches of ${batchSize}...`);
 
     for (let i = 0; i < emailList.length; i += batchSize) {
       const batch = emailList.slice(i, i + batchSize);
@@ -313,7 +313,7 @@ const sendEmailToAllUsers = async (announcement, users, type = 'info') => {
       const totalBatches = Math.ceil(emailList.length / batchSize);
       
       try {
-        // console.log(`📧 Sending batch ${batchNumber}/${totalBatches} (${batch.length} recipients)...`);
+        // //console.log(`📧 Sending batch ${batchNumber}/${totalBatches} (${batch.length} recipients)...`);
         
         await transporter.sendMail({
           from: {
@@ -332,7 +332,7 @@ const sendEmailToAllUsers = async (announcement, users, type = 'info') => {
         });
         
         totalSent += batch.length;
-        // console.log(`✅ Batch ${batchNumber}/${totalBatches} sent successfully (${batch.length} emails)`);
+        // //console.log(`✅ Batch ${batchNumber}/${totalBatches} sent successfully (${batch.length} emails)`);
         
       } catch (batchError) {
         // console.error(`❌ Error sending batch ${batchNumber}/${totalBatches}:`, batchError.message);
@@ -345,7 +345,7 @@ const sendEmailToAllUsers = async (announcement, users, type = 'info') => {
       
       // Add delay between batches to avoid rate limiting
       if (i + batchSize < emailList.length) {
-        // console.log('⏳ Waiting 1 second before next batch...');
+        // //console.log('⏳ Waiting 1 second before next batch...');
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
     }
@@ -360,7 +360,7 @@ const sendEmailToAllUsers = async (announcement, users, type = 'info') => {
     };
 
     if (success) {
-      // console.log(`🎉 URGENT announcement emails sent successfully: ${totalSent}/${emailList.length} delivered`);
+      // //console.log(`🎉 URGENT announcement emails sent successfully: ${totalSent}/${emailList.length} delivered`);
     } else {
       // console.error(`❌ URGENT announcement email sending failed: 0/${emailList.length} delivered`);
     }

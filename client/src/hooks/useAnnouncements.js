@@ -134,7 +134,7 @@ const useSmartFetchTrigger = (queryClient, user) => {
     
     // Check if there's already an ongoing request
     if (requestTracker.isRequestOngoing(requestKey)) {
-      // console.log(`⏳ Skipping fetch (${reason}) - request already in progress`);
+      // //console.log(`⏳ Skipping fetch (${reason}) - request already in progress`);
       return;
     }
     
@@ -144,13 +144,13 @@ const useSmartFetchTrigger = (queryClient, user) => {
     // Check if query is already fetching via React Query
     const queryState = queryClient.getQueryState(queryKey);
     if (queryState?.isFetching || queryState?.isRefetching) {
-      // console.log(`⏳ Skipping fetch (${reason}) - React Query already fetching`);
+      // //console.log(`⏳ Skipping fetch (${reason}) - React Query already fetching`);
       return;
     }
     
     // Prevent fetching if less than 10 seconds since last fetch
     if (timeSinceLastFetch < 10000) {
-      // console.log(`⏳ Skipping fetch (${reason}) - too recent (${timeSinceLastFetch}ms ago)`);
+      // //console.log(`⏳ Skipping fetch (${reason}) - too recent (${timeSinceLastFetch}ms ago)`);
       return;
     }
 
@@ -163,11 +163,11 @@ const useSmartFetchTrigger = (queryClient, user) => {
     timeoutRef.current = setTimeout(() => {
       // Double-check if request is still needed
       if (requestTracker.isRequestOngoing(requestKey)) {
-        // console.log(`⏳ Skipping delayed fetch (${reason}) - request started elsewhere`);
+        // //console.log(`⏳ Skipping delayed fetch (${reason}) - request started elsewhere`);
         return;
       }
       
-      // console.log(`🎯 Smart fetch triggered: ${reason}`);
+      // //console.log(`🎯 Smart fetch triggered: ${reason}`);
       lastFetchRef.current = now;
       
       const invalidatePromise = queryClient.invalidateQueries(queryKey);
@@ -194,14 +194,14 @@ const createDedupedAnnouncementFetcher = () => {
     
     // If there's already an ongoing request, return that promise
     if (requestTracker.isRequestOngoing(requestKey)) {
-      // console.log('🔄 Reusing ongoing announcement fetch request');
+      // //console.log('🔄 Reusing ongoing announcement fetch request');
       return requestTracker.getOngoingRequest(requestKey);
     }
     
     // Create new request
-    // console.log('🔄 Fetching announcements from server with read status...');
+    // //console.log('🔄 Fetching announcements from server with read status...');
     const fetchPromise = announcementAPI.getAll().then(response => {
-      // console.log('✅ Announcements fetched:', response.data.announcements?.length || 0);
+      // //console.log('✅ Announcements fetched:', response.data.announcements?.length || 0);
       return response.data.announcements || [];
     });
     
@@ -255,7 +255,7 @@ export const useAnnouncements = () => {
         );
         
         if (!wasAlreadyCached && latestAnnouncement && !latestAnnouncement.isRead) {
-          // console.log('🔔 New announcement detected:', latestAnnouncement.title);
+          // //console.log('🔔 New announcement detected:', latestAnnouncement.title);
           showRealtimeNotification(latestAnnouncement);
         }
       }
@@ -269,7 +269,7 @@ export const useAnnouncementMutations = () => {
 
   const addAnnouncement = useMutation({
     mutationFn: async (announcementData) => {
-      // console.log('Creating announcement:', announcementData);
+      // //console.log('Creating announcement:', announcementData);
       const response = await announcementAPI.create(announcementData);
       return response.data;
     },
@@ -299,7 +299,7 @@ export const useAnnouncementMutations = () => {
         [optimisticAnnouncement, ...(old || [])]
       );
       
-      // console.log('⚡ Optimistic announcement added');
+      // //console.log('⚡ Optimistic announcement added');
       
       return { previousAnnouncements };
     },
@@ -307,11 +307,11 @@ export const useAnnouncementMutations = () => {
       console.error('Error creating announcement:', err);
       if (context?.previousAnnouncements) {
         queryClient.setQueryData(['announcements', user?._id], context.previousAnnouncements);
-        // console.log('❌ Rolled back optimistic update');
+        // //console.log('❌ Rolled back optimistic update');
       }
     },
     onSuccess: (response, variables, context) => {
-      // console.log('✅ Announcement created successfully');
+      // //console.log('✅ Announcement created successfully');
       
       queryClient.setQueryData(['announcements', user?._id], (old) => {
         const filteredOld = (old || []).filter(ann => !ann.isOptimistic);
@@ -328,7 +328,7 @@ export const useAnnouncementMutations = () => {
         const currentData = queryClient.getQueryData(['announcements', user?._id]);
         const hasOptimisticData = currentData?.some(ann => ann.isOptimistic);
         if (hasOptimisticData) {
-          // console.log('🔄 Found optimistic data, cleaning up...');
+          // //console.log('🔄 Found optimistic data, cleaning up...');
           queryClient.invalidateQueries(['announcements', user?._id]);
         }
       }, 2000);
@@ -337,12 +337,12 @@ export const useAnnouncementMutations = () => {
 
   const updateAnnouncement = useMutation({
     mutationFn: async ({ announcementId, data }) => {
-      // console.log('🔄 Updating announcement:', announcementId, data);
+      // //console.log('🔄 Updating announcement:', announcementId, data);
       const response = await announcementAPI.update(announcementId, data);
       return { ...response.data, announcementId };
     },
     onMutate: async ({ announcementId, data }) => {
-      // console.log('⚡ Starting optimistic update for:', announcementId);
+      // //console.log('⚡ Starting optimistic update for:', announcementId);
       
       await queryClient.cancelQueries(['announcements']);
       
@@ -364,7 +364,7 @@ export const useAnnouncementMutations = () => {
         });
       });
       
-      // console.log('⚡ Optimistically updated announcement in cache');
+      // //console.log('⚡ Optimistically updated announcement in cache');
       
       return { previousAnnouncements, announcementId };
     },
@@ -373,13 +373,13 @@ export const useAnnouncementMutations = () => {
       
       if (context?.previousAnnouncements) {
         queryClient.setQueryData(['announcements', user?._id], context.previousAnnouncements);
-        // console.log('↩️ Rolled back optimistic update');
+        // //console.log('↩️ Rolled back optimistic update');
       }
       
       alert('Failed to update announcement: ' + (err.response?.data?.message || err.message));
     },
     onSuccess: (response, { announcementId }) => {
-      // console.log('✅ Update successful for:', announcementId);
+      // //console.log('✅ Update successful for:', announcementId);
       
       queryClient.setQueryData(['announcements', user?._id], (old) => {
         if (!old) return [];
@@ -400,7 +400,7 @@ export const useAnnouncementMutations = () => {
 
   const deleteAnnouncement = useMutation({
     mutationFn: async (announcementId) => {
-      // console.log('🗑️ Frontend: Deleting announcement with ID:', announcementId);
+      // //console.log('🗑️ Frontend: Deleting announcement with ID:', announcementId);
       
       if (!announcementId || typeof announcementId !== 'string') {
         console.error('❌ Frontend: Invalid announcement ID:', announcementId);
@@ -416,7 +416,7 @@ export const useAnnouncementMutations = () => {
       return { deletedId: announcementId, ...response.data };
     },
     onMutate: async (announcementId) => {
-      // console.log('⚡ Frontend: Starting optimistic delete for:', announcementId);
+      // //console.log('⚡ Frontend: Starting optimistic delete for:', announcementId);
       
       await queryClient.cancelQueries(['announcements']);
       
@@ -441,7 +441,7 @@ export const useAnnouncementMutations = () => {
           return shouldKeep;
         });
         
-        // console.log(`⚡ Frontend: Optimistically removed. Count: ${old.length} → ${filtered.length}`);
+        // //console.log(`⚡ Frontend: Optimistically removed. Count: ${old.length} → ${filtered.length}`);
         return filtered;
       });
       
@@ -451,14 +451,14 @@ export const useAnnouncementMutations = () => {
       console.error('❌ Frontend: Delete failed:', error.message);
       
       if (context?.previousAnnouncements) {
-        // console.log('↩️ Frontend: Rolling back optimistic delete');
+        // //console.log('↩️ Frontend: Rolling back optimistic delete');
         queryClient.setQueryData(['announcements', user?._id], context.previousAnnouncements);
       }
       
       alert('Failed to delete announcement: ' + error.message);
     },
     onSuccess: (response, announcementId, context) => {
-      // console.log('✅ Frontend: Delete successful:', response);
+      // //console.log('✅ Frontend: Delete successful:', response);
       
       queryClient.setQueryData(['announcements', user?._id], (old) => {
         if (!old) return [];
@@ -467,17 +467,17 @@ export const useAnnouncementMutations = () => {
           ann.id !== response.deletedId && ann._id !== response.deletedId
         );
         
-        // console.log(`✅ Frontend: Confirmed removal. Final count: ${filtered.length}`);
+        // //console.log(`✅ Frontend: Confirmed removal. Final count: ${filtered.length}`);
         return filtered;
       });
       
-      // console.log(`🎉 Frontend: Announcement "${context.announcementToDelete?.title}" successfully deleted`);
+      // //console.log(`🎉 Frontend: Announcement "${context.announcementToDelete?.title}" successfully deleted`);
     }
   });
 
   const markAsRead = useMutation({
     mutationFn: async (announcementId) => {
-      // console.log('Marking announcement as read:', announcementId);
+      // //console.log('Marking announcement as read:', announcementId);
       const response = await announcementAPI.markAsRead(announcementId);
       return response.data;
     },
@@ -503,7 +503,7 @@ export const useAnnouncementMutations = () => {
       }
     },
     onSuccess: () => {
-      // console.log('✅ Marked as read successfully');
+      // //console.log('✅ Marked as read successfully');
     },
   });
 
@@ -526,11 +526,11 @@ export const useAnnouncementUpdates = () => {
         const lastEvent = lastEventRef.current;
         
         if (lastEvent.type === 'visibility' && now - lastEvent.timestamp < 5000) {
-          // console.log('⏳ Skipping visibility change - too recent');
+          // //console.log('⏳ Skipping visibility change - too recent');
           return;
         }
         
-        // console.log('👁️ Tab became visible - triggering smart fetch');
+        // //console.log('👁️ Tab became visible - triggering smart fetch');
         lastEventRef.current = { type: 'visibility', timestamp: now };
         triggerSmartFetch('visibility-change');
       }
@@ -541,11 +541,11 @@ export const useAnnouncementUpdates = () => {
       const lastEvent = lastEventRef.current;
       
       if (lastEvent.type === 'focus' && now - lastEvent.timestamp < 5000) {
-        // console.log('⏳ Skipping focus event - too recent');
+        // //console.log('⏳ Skipping focus event - too recent');
         return;
       }
       
-      // console.log('🎯 Window focused - triggering smart fetch');
+      // //console.log('🎯 Window focused - triggering smart fetch');
       lastEventRef.current = { type: 'focus', timestamp: now };
       triggerSmartFetch('window-focus');
     };
@@ -569,11 +569,11 @@ export const useAnnouncementUpdates = () => {
         const lastEvent = lastEventRef.current;
         
         if (lastEvent.type === 'storage' && now - lastEvent.timestamp < 5000) {
-          // console.log('⏳ Skipping storage event - too recent');
+          // //console.log('⏳ Skipping storage event - too recent');
           return;
         }
         
-        // console.log('📢 Storage event: Announcements updated in another tab');
+        // //console.log('📢 Storage event: Announcements updated in another tab');
         lastEventRef.current = { type: 'storage', timestamp: now };
         triggerSmartFetch('storage-event');
       }
@@ -590,7 +590,7 @@ export const useAnnouncementUpdates = () => {
         const lastEvent = lastEventRef.current;
         
         if (lastEvent.type === 'manual' && now - lastEvent.timestamp < 2000) {
-          // console.log('⏳ Skipping manual refresh - too recent');
+          // //console.log('⏳ Skipping manual refresh - too recent');
           return;
         }
         

@@ -10,10 +10,10 @@ async function removeOrphan() {
     
     const orphanedId = 'sbw8vxjnwmjeghl5k';
     
-    console.log(`🧹 Removing orphaned problem: ${orphanedId}\n`);
+    //console.log(`🧹 Removing orphaned problem: ${orphanedId}\n`);
     
     const allSheets = await sheetsCollection.find({}).toArray();
-    console.log(`📊 Checking ${allSheets.length} sheets...\n`);
+    //console.log(`📊 Checking ${allSheets.length} sheets...\n`);
     
     let cleaned = 0;
     
@@ -44,9 +44,9 @@ async function removeOrphan() {
           
           if (beforeProblems > afterProblems || beforeProblemIds > afterProblemIds) {
             modified = true;
-            console.log(`  ✓ Found in: ${sheet.title} > ${section.name} > ${subsection.name}`);
-            console.log(`    - problems: ${beforeProblems} → ${afterProblems}`);
-            console.log(`    - problemIds: ${beforeProblemIds} → ${afterProblemIds}`);
+            //console.log(`  ✓ Found in: ${sheet.title} > ${section.name} > ${subsection.name}`);
+            //console.log(`    - problems: ${beforeProblems} → ${afterProblems}`);
+            //console.log(`    - problemIds: ${beforeProblemIds} → ${afterProblemIds}`);
           }
           
           return subsection;
@@ -67,7 +67,7 @@ async function removeOrphan() {
       }
     }
     
-    console.log(`\n✅ Done! Cleaned ${cleaned} sheets`);
+    //console.log(`\n✅ Done! Cleaned ${cleaned} sheets`);
     
   } catch (error) {
     console.error('❌ Error:', error);

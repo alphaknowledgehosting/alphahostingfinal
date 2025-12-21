@@ -16,15 +16,23 @@ import {
   FaTimes,
   FaMoneyBillWave,
   FaUserTie,
-  FaArrowLeft
+  FaArrowLeft,
+  FaSync,
+  FaShieldAlt,
+  FaCheckCircle,
+  FaExclamationTriangle,
+  FaInfoCircle
 } from 'react-icons/fa';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../hooks/useAuth';
 
 const Jobs = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const [jobs, setJobs] = useState([]);
   const [filteredJobs, setFilteredJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +43,13 @@ const Jobs = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [expandedJob, setExpandedJob] = useState(null);
   const [stats, setStats] = useState(null);
+  
+  // Admin-related states
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState(null);
+
+  // Check if user is admin
+  const isAdmin = user && user.role === 'admin';
 
   useEffect(() => {
     AOS.init({
@@ -49,8 +64,8 @@ const Jobs = () => {
     try {
       setLoading(true);
       const response = await axios.get('http://localhost:5000/api/jobs/tech');
-      setJobs(response.data.data);
-      setFilteredJobs(response.data.data);
+      setJobs(response.data.data || []);
+      setFilteredJobs(response.data.data || []);
       
       const statsResponse = await axios.get('http://localhost:5000/api/jobs/stats');
       setStats(statsResponse.data.data);
@@ -60,6 +75,62 @@ const Jobs = () => {
       setFilteredJobs([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Manual job sync (admin only)
+  const handleManualSync = async () => {
+    try {
+      setSyncing(true);
+      setSyncMessage(null);
+      
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setSyncMessage({ 
+          type: 'error', 
+          text: 'Authentication required. Please login again.' 
+        });
+        return;
+      }
+      
+      const response = await axios.post(
+        'http://localhost:5000/api/jobs/sync',
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      if (response.data.success) {
+        setSyncMessage({ 
+          type: 'success', 
+          text: 'Jobs synced successfully! Refreshing list...' 
+        });
+        
+        // Refresh jobs list after successful sync
+        setTimeout(async () => {
+          await fetchJobs();
+          setSyncMessage({ 
+            type: 'success', 
+            text: 'Jobs list updated with latest data!' 
+          });
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Error syncing jobs:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          'Failed to sync jobs. Please try again.';
+      setSyncMessage({ 
+        type: 'error', 
+        text: errorMessage 
+      });
+    } finally {
+      setSyncing(false);
+      // Clear message after 6 seconds
+      setTimeout(() => setSyncMessage(null), 6000);
     }
   };
 
@@ -163,19 +234,35 @@ const Jobs = () => {
 
         {/* Header Section */}
         <div className="text-center mb-12">
-          <h2
-            data-aos="fade-down"
-            data-aos-duration="1000"
-            className="inline-block text-4xl sm:text-5xl lg:text-6xl font-bold text-center mx-auto mb-6 tracking-tight"
-            style={{
-              backgroundImage: "linear-gradient(45deg, #6366f1 10%, #a855f7 93%)",
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Tech Job Openings
-          </h2>
+          <div className="flex items-center justify-center gap-4 mb-6 flex-wrap">
+            <h2
+              data-aos="fade-down"
+              data-aos-duration="1000"
+              className="inline-block text-4xl sm:text-5xl lg:text-6xl font-bold text-center tracking-tight"
+              style={{
+                backgroundImage: "linear-gradient(45deg, #6366f1 10%, #a855f7 93%)",
+                WebkitBackgroundClip: "text",
+                backgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                 lineHeight: "1.4", 
+              }}
+            >
+              Tech Job Openings
+            </h2>
+            
+            {/* Admin Badge */}
+            {isAdmin && (
+              <div 
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full shadow-lg animate-pulse"
+                data-aos="fade-left"
+                data-aos-duration="1000"
+              >
+                <FaShieldAlt className="w-4 h-4 text-white" />
+                <span className="text-white font-bold text-sm">Admin</span>
+              </div>
+            )}
+          </div>
+          
           <p
             data-aos="fade-up"
             data-aos-duration="1100"
@@ -184,6 +271,90 @@ const Jobs = () => {
             Explore the latest tech job opportunities in India. Find your dream role!
           </p>
         </div>
+
+        {/* Admin Sync Control Panel */}
+        {isAdmin && (
+          <div 
+            className="mb-8"
+            data-aos="fade-up"
+            data-aos-duration="1000"
+          >
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 backdrop-blur-xl rounded-2xl p-6 border-2 border-amber-200 dark:border-amber-800 shadow-xl">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="p-3 bg-gradient-to-r from-amber-500 to-orange-500 rounded-xl shadow-lg">
+                    <FaSync className={`w-5 h-5 text-white ${syncing ? 'animate-spin' : ''}`} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                      Admin Controls
+                      <FaShieldAlt className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Manually trigger job sync from Indian Jobs API
+                    </p>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={handleManualSync}
+                  disabled={syncing}
+                  className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold hover:scale-105 transition-all duration-300 hover:shadow-lg hover:shadow-amber-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center gap-2 min-w-[180px] justify-center"
+                >
+                  {syncing ? (
+                    <>
+                      <FaSpinner className="w-5 h-5 animate-spin" />
+                      <span>Syncing Jobs...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FaSync className="w-5 h-5" />
+                      <span>Sync Jobs Now</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {/* Sync Status Message */}
+              {syncMessage && (
+                <div 
+                  className={`mt-4 p-4 rounded-xl flex items-center gap-3 transition-all duration-500 ${
+                    syncMessage.type === 'success' 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700' 
+                      : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700'
+                  }`}
+                  data-aos="fade-down"
+                >
+                  <div className={`p-2 rounded-lg ${
+                    syncMessage.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+                  }`}>
+                    {syncMessage.type === 'success' ? (
+                      <FaCheckCircle className="w-4 h-4 text-white" />
+                    ) : (
+                      <FaExclamationTriangle className="w-4 h-4 text-white" />
+                    )}
+                  </div>
+                  <span className="font-semibold flex-1">{syncMessage.text}</span>
+                  <button
+                    onClick={() => setSyncMessage(null)}
+                    className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-colors"
+                  >
+                    <FaTimes className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              
+              {/* Info Note */}
+              <div className="mt-4 flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400 bg-white/50 dark:bg-white/5 p-3 rounded-lg">
+                <FaInfoCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+                <p>
+                  <strong>Note:</strong> Manual sync is limited to 10 requests per month. 
+                  Use this feature only when necessary. Automatic sync runs every 3 days.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Section */}
         {stats && (
@@ -390,12 +561,13 @@ const Jobs = () => {
 
         {/* Loading State */}
         {loading && (
-          <div className="flex justify-center items-center py-20">
-            <FaSpinner className="w-12 h-12 text-[#6366f1] animate-spin" />
+          <div className="flex flex-col justify-center items-center py-20">
+            <FaSpinner className="w-12 h-12 text-[#6366f1] animate-spin mb-4" />
+            <p className="text-gray-600 dark:text-gray-400">Loading jobs...</p>
           </div>
         )}
 
-        {/* Jobs List */}
+        {/* No Jobs Found */}
         {!loading && filteredJobs.length === 0 && (
           <div 
             className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl p-12 border border-gray-200/50 dark:border-white/10 text-center"
@@ -417,6 +589,7 @@ const Jobs = () => {
           </div>
         )}
 
+        {/* Jobs List */}
         {!loading && filteredJobs.length > 0 && (
           <div className="space-y-6">
             {filteredJobs.map((job, index) => (
@@ -424,7 +597,7 @@ const Jobs = () => {
                 key={job.id || index}
                 data-aos="fade-up"
                 data-aos-duration="1000"
-                data-aos-delay={index * 50}
+                data-aos-delay={Math.min(index * 50, 500)}
                 className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-3xl shadow-lg p-6 border border-gray-200/50 dark:border-white/10 hover:shadow-xl dark:hover:shadow-[#6366f1]/10 transition-all duration-300 hover:scale-[1.01]"
               >
                 {/* Job Header */}
@@ -448,9 +621,9 @@ const Jobs = () => {
                       </div>
                     </div>
                     
-                    {/* Experience and Salary Row - ALWAYS SHOW EXPERIENCE */}
+                    {/* Experience and Salary Row */}
                     <div className="flex flex-wrap items-center gap-4">
-                      {/* Always display experience */}
+                      {/* Experience Badge */}
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-[#6366f1]/10 to-[#a855f7]/10 dark:from-[#6366f1]/20 dark:to-[#a855f7]/20 rounded-lg">
                         <FaUserTie className="w-3.5 h-3.5 text-[#6366f1]" />
                         <div>
@@ -461,7 +634,7 @@ const Jobs = () => {
                         </div>
                       </div>
                       
-                      {/* Show salary if available */}
+                      {/* Salary Badge - Only show if disclosed */}
                       {job.salary && job.salary !== 'Not disclosed' && (
                         <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-lg">
                           <FaMoneyBillWave className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />

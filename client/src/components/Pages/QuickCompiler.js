@@ -19,7 +19,7 @@ const BASE_LANGS = [
   { id: 'python', name: 'Python', version: '3.10.0', ext: 'py', main: 'main.py',
     template: `print("Hello World!")` },
   { id: 'javascript', name: 'JavaScript', version: '18.15.0', ext: 'js', main: 'main.js',
-    template: `console.log("Hello World!");` },
+    template: `//console.log("Hello World!");` },
   { id: 'csharp', name: 'C#', version: '6.12.0', ext: 'cs', main: 'main.cs',
     template: `using System;\n\nclass Program {\n    static void Main() {\n        Console.WriteLine("Hello World!");\n    }\n}` },
 ];

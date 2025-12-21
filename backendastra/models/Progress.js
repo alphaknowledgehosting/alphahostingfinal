@@ -12,14 +12,14 @@ class Progress {
   // ✅ NEW: Clean up progress contexts when a problem is unlinked from a location
 async cleanupProgressForUnlinkedProblem(problemId, unlinkedLocation) {
   try {
-    console.log(`🧹 Cleaning up progress for problem ${problemId} from location:`, unlinkedLocation);
+    //console.log(`🧹 Cleaning up progress for problem ${problemId} from location:`, unlinkedLocation);
     
     // Find all users who have progress for this problem
     const cursor = this.collection.find({ problemId });
     const affectedEntries = await cursor.toArray();
     
     if (affectedEntries.length === 0) {
-      console.log(`✅ No existing progress found for problem ${problemId}`);
+      //console.log(`✅ No existing progress found for problem ${problemId}`);
       return { success: true, cleanedUsers: 0 };
     }
     
@@ -66,20 +66,20 @@ async cleanupProgressForUnlinkedProblem(problemId, unlinkedLocation) {
         if (finalContexts.length === 0 && finalRevisionContexts.length === 0) {
           // Delete the entire progress entry if no contexts remain
           await this.collection.deleteOne({ userId: entry.userId, problemId });
-          console.log(`🗑️ Deleted entire progress entry for user ${entry.userId} (no contexts remain)`);
+          //console.log(`🗑️ Deleted entire progress entry for user ${entry.userId} (no contexts remain)`);
         } else {
           // Update with filtered contexts
           await this.collection.updateOne(
             { userId: entry.userId, problemId },
             { $set: updates }
           );
-          console.log(`✅ Cleaned up progress for user ${entry.userId}`);
+          //console.log(`✅ Cleaned up progress for user ${entry.userId}`);
         }
         cleanedCount++;
       }
     }
     
-    console.log(`✅ Cleaned up progress for ${cleanedCount} users`);
+    //console.log(`✅ Cleaned up progress for ${cleanedCount} users`);
     return { success: true, cleanedUsers: cleanedCount };
     
   } catch (error) {
@@ -167,7 +167,7 @@ async cleanupProgressForUnlinkedProblem(problemId, unlinkedLocation) {
             revisionContexts: []
           };
           await this.collection.insertOne(progressEntry);
-          console.log(`✅ Created progress for problem ${problemId} across ${allLocations.length} locations`);
+          //console.log(`✅ Created progress for problem ${problemId} across ${allLocations.length} locations`);
         }
       } else {
         // Update existing entry
@@ -190,7 +190,7 @@ async cleanupProgressForUnlinkedProblem(problemId, unlinkedLocation) {
               }
             }
           );
-          console.log(`✅ Updated progress for problem ${problemId} across ${allLocations.length} locations`);
+          //console.log(`✅ Updated progress for problem ${problemId} across ${allLocations.length} locations`);
         } else {
           // Mark as incomplete
           const updates = {
@@ -203,10 +203,10 @@ async cleanupProgressForUnlinkedProblem(problemId, unlinkedLocation) {
           // Delete entry if not marked for revision
           if (!progressEntry.markedForRevision) {
             await this.collection.deleteOne({ userId, problemId });
-            console.log(`✅ Deleted progress for problem ${problemId}`);
+            //console.log(`✅ Deleted progress for problem ${problemId}`);
           } else {
             await this.collection.updateOne({ userId, problemId }, { $set: updates });
-            console.log(`✅ Marked problem ${problemId} as incomplete but kept revision status`);
+            //console.log(`✅ Marked problem ${problemId} as incomplete but kept revision status`);
           }
         }
       }
@@ -244,7 +244,7 @@ async cleanupProgressForUnlinkedProblem(problemId, unlinkedLocation) {
             }))
           };
           await this.collection.insertOne(progressEntry);
-          console.log(`✅ Marked problem ${problemId} for revision across ${allLocations.length} locations`);
+          //console.log(`✅ Marked problem ${problemId} for revision across ${allLocations.length} locations`);
         }
       } else {
         if (markedForRevision) {
@@ -265,7 +265,7 @@ async cleanupProgressForUnlinkedProblem(problemId, unlinkedLocation) {
               }
             }
           );
-          console.log(`✅ Updated revision for problem ${problemId} across ${allLocations.length} locations`);
+          //console.log(`✅ Updated revision for problem ${problemId} across ${allLocations.length} locations`);
         } else {
           // Unmark from revision
           const updates = {
@@ -278,10 +278,10 @@ async cleanupProgressForUnlinkedProblem(problemId, unlinkedLocation) {
           const contexts = progressEntry.contexts || [];
           if (contexts.length === 0 && !progressEntry.completed) {
             await this.collection.deleteOne({ userId, problemId });
-            console.log(`✅ Deleted revision for problem ${problemId}`);
+            //console.log(`✅ Deleted revision for problem ${problemId}`);
           } else {
             await this.collection.updateOne({ userId, problemId }, { $set: updates });
-            console.log(`✅ Unmarked problem ${problemId} from revision but kept completion status`);
+            //console.log(`✅ Unmarked problem ${problemId} from revision but kept completion status`);
           }
         }
       }
@@ -409,14 +409,14 @@ async cleanupProgressForUnlinkedProblem(problemId, unlinkedLocation) {
   // ✅ Sync progress for a specific problem when it's linked to a new location
 async syncProblemProgress(problemId, newLocation) {
   try {
-    console.log(`🔄 Syncing progress for problem ${problemId} to new location:`, newLocation);
+    //console.log(`🔄 Syncing progress for problem ${problemId} to new location:`, newLocation);
     
     // Find all users who have completed or marked this problem
     const cursor = this.collection.find({ problemId });
     const affectedEntries = await cursor.toArray();
     
     if (affectedEntries.length === 0) {
-      console.log(`✅ No existing progress found for problem ${problemId}`);
+      //console.log(`✅ No existing progress found for problem ${problemId}`);
       return { success: true, syncedUsers: 0 };
     }
     
@@ -476,11 +476,11 @@ async syncProblemProgress(problemId, newLocation) {
           { $set: updates }
         );
         syncedCount++;
-        console.log(`✅ Synced progress for user ${entry.userId}`);
+        //console.log(`✅ Synced progress for user ${entry.userId}`);
       }
     }
     
-    console.log(`✅ Synced progress for ${syncedCount} users`);
+    //console.log(`✅ Synced progress for ${syncedCount} users`);
     return { success: true, syncedUsers: syncedCount };
     
   } catch (error) {

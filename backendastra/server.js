@@ -41,7 +41,7 @@ app.use((req, res, next) => {
 
 // Debug middleware to log ALL requests
 app.use('*', (req, res, next) => {
-  // console.log(`📨 ${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+  // //console.log(`📨 ${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
   next();
 });
 
@@ -128,7 +128,7 @@ app.use('*', (req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error('❌ Global error handler:', err);
+  // console.error('❌ Global error handler:', err);
   
   const error = process.env.NODE_ENV === 'production' 
     ? { message: err.message }
@@ -151,8 +151,8 @@ const startServer = async () => {
     // Then start the server
     app.listen(PORT, () => {
       console.log(`✅ Server running on port ${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Client URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+      //console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      //console.log(`🔗 Client URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
       console.log(`📊 Database: Connected to Astra DB with collections ready`);
     });
   } catch (error) {

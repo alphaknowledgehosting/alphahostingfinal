@@ -104,7 +104,7 @@ class User {
         user.isActive !== false
       );
 
-      // console.log(`📧 Found ${usersWithEmails.length} users with valid emails out of ${allUsers.length} total users`);
+      // //console.log(`📧 Found ${usersWithEmails.length} users with valid emails out of ${allUsers.length} total users`);
       return usersWithEmails;
     } catch (error) {
       console.error('❌ Error fetching users with emails:', error);

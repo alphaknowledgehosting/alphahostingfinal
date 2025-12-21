@@ -16,7 +16,7 @@ class JobsAPIService {
       console.error('❌ ADZUNA_APP_ID or ADZUNA_APP_KEY not set in .env file!');
       console.error('Please add: ADZUNA_APP_ID and ADZUNA_APP_KEY');
     } else {
-      console.log('✅ Adzuna API credentials configured');
+      //console.log('✅ Adzuna API credentials configured');
     }
   }
 
@@ -29,7 +29,7 @@ class JobsAPIService {
         throw new Error('ADZUNA credentials not configured. Please add them to your .env file');
       }
 
-      console.log('📡 Fetching jobs from Adzuna API (India)...');
+      //console.log('📡 Fetching jobs from Adzuna API (India)...');
       
       // Fetch tech jobs from multiple pages to get more results
       const allJobs = [];
@@ -55,7 +55,7 @@ class JobsAPIService {
 
           if (response.data && response.data.results && Array.isArray(response.data.results)) {
             allJobs.push(...response.data.results);
-            console.log(`📄 Page ${page}: Fetched ${response.data.results.length} jobs`);
+            //console.log(`📄 Page ${page}: Fetched ${response.data.results.length} jobs`);
             
             // If we got fewer results than requested, we've reached the end
             if (response.data.results.length < 50) {
@@ -73,7 +73,7 @@ class JobsAPIService {
       }
 
       if (allJobs.length === 0) {
-        console.log('⚠️  No jobs found from Adzuna');
+        //console.log('⚠️  No jobs found from Adzuna');
         return [];
       }
 
@@ -95,7 +95,7 @@ class JobsAPIService {
         posted_date: job.created || new Date().toISOString()
       }));
 
-      console.log(`✅ Successfully fetched and transformed ${transformedJobs.length} jobs from Adzuna`);
+      //console.log(`✅ Successfully fetched and transformed ${transformedJobs.length} jobs from Adzuna`);
       return transformedJobs;
       
     } catch (error) {
@@ -212,14 +212,14 @@ class JobsAPIService {
       const jobs = await this.fetchJobsFromAPI();
       
       if (!jobs || jobs.length === 0) {
-        console.log('⚠️  No jobs to sync');
+        //console.log('⚠️  No jobs to sync');
         return { inserted: 0, updated: 0, message: 'No jobs available from Adzuna' };
       }
       
       const result = await this.jobModel.storeJobs(jobs);
       await this.jobModel.cleanupExpiredJobs();
       
-      console.log(`✅ Job sync complete: ${result.inserted} new, ${result.updated} updated`);
+      //console.log(`✅ Job sync complete: ${result.inserted} new, ${result.updated} updated`);
       return result;
       
     } catch (error) {

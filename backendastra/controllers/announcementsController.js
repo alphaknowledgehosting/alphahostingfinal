@@ -21,7 +21,7 @@ const isValidId = (id) => {
 exports.getAllAnnouncements = async (req, res) => {
   try {
     const announcements = await Announcement.find({}, { sort: { createdAt: -1 } });
-    // console.log(`📋 Fetched ${announcements.length} announcements`);
+    // //console.log(`📋 Fetched ${announcements.length} announcements`);
     res.json({ announcements });
   } catch (error) {
     console.error('Error fetching announcements:', error);
@@ -53,7 +53,7 @@ exports.createAnnouncement = async (req, res) => {
     });
 
     await announcement.save();
-    // console.log(`✅ Announcement created: ${announcement._id}`);
+    // //console.log(`✅ Announcement created: ${announcement._id}`);
 
     // Send emails ONLY for urgent announcements
     let emailMessage = '';
@@ -66,20 +66,20 @@ exports.createAnnouncement = async (req, res) => {
     //       setImmediate(async () => {
     //         try {
     //           const emailResult = await sendEmailToAllUsers(announcement, users, type);
-    //           // console.log(`🚨 URGENT announcement email notification sent:`, emailResult);
+    //           // //console.log(`🚨 URGENT announcement email notification sent:`, emailResult);
     //         } catch (emailError) {
     //           console.error('❌ Error sending urgent announcement emails:', emailError);
     //         }
     //       });
           
-    //       // console.log(`🚨 Sending URGENT announcement emails to ${users.length} users`);
+    //       // //console.log(`🚨 Sending URGENT announcement emails to ${users.length} users`);
     //       emailMessage = ` Email notifications are being sent to all users due to urgent priority.`;
     //     }
     //   } catch (error) {
     //     // console.error('Error fetching users for urgent email notification:', error);
     //   }
     // } else {
-    //   // console.log(`📢 ${type.toUpperCase()} announcement created - no email notifications sent (only urgent announcements trigger emails)`);
+    //   // //console.log(`📢 ${type.toUpperCase()} announcement created - no email notifications sent (only urgent announcements trigger emails)`);
     //   emailMessage = ` No email notifications sent (only urgent announcements trigger emails).`;
     // }
 
@@ -105,14 +105,14 @@ exports.updateAnnouncement = async (req, res) => {
 
     // Validate ID format
     if (!isValidId(announcementId)) {
-      // console.log(`❌ Invalid announcement ID format for update: ${announcementId}`);
+      // //console.log(`❌ Invalid announcement ID format for update: ${announcementId}`);
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid announcement ID format' 
       });
     }
 
-    // console.log(`🔄 Updating announcement: ${announcementId}`);
+    // //console.log(`🔄 Updating announcement: ${announcementId}`);
 
     const announcement = await Announcement.findOne({ _id: announcementId });
     if (!announcement) {
@@ -129,7 +129,7 @@ exports.updateAnnouncement = async (req, res) => {
     announcement.readTime = readTime || announcement.readTime;
 
     await announcement.update();
-    // console.log(`✅ Announcement updated: ${announcementId}`);
+    // //console.log(`✅ Announcement updated: ${announcementId}`);
 
     // Send emails if announcement is updated to urgent (and wasn't urgent before)
     let emailMessage = '';
@@ -141,13 +141,13 @@ exports.updateAnnouncement = async (req, res) => {
     //       setImmediate(async () => {
     //         try {
     //           const emailResult = await sendEmailToAllUsers(announcement, users, type);
-    //           // console.log(`🚨 URGENT announcement update email notification sent:`, emailResult);
+    //           // //console.log(`🚨 URGENT announcement update email notification sent:`, emailResult);
     //         } catch (emailError) {
     //           // console.error('❌ Error sending urgent announcement update emails:', emailError);
     //         }
     //       });
           
-    //       // console.log(`🚨 Sending URGENT announcement update emails to ${users.length} users`);
+    //       // //console.log(`🚨 Sending URGENT announcement update emails to ${users.length} users`);
     //       emailMessage = ` Email notifications sent due to urgent priority.`;
     //     }
     //   } catch (error) {
@@ -171,7 +171,7 @@ exports.deleteAnnouncement = async (req, res) => {
   try {
     // Permission check
     if (!req.user || !['admin', 'mentor'].includes(req.user.role)) {
-      // console.log(`❌ Unauthorized delete attempt by user: ${req.user?.email || 'unknown'}`);
+      // //console.log(`❌ Unauthorized delete attempt by user: ${req.user?.email || 'unknown'}`);
       return res.status(403).json({ 
         success: false, 
         message: 'Insufficient permissions' 
@@ -182,33 +182,33 @@ exports.deleteAnnouncement = async (req, res) => {
     
     // Validate ID format (UUID or ObjectId)
     if (!isValidId(announcementId)) {
-      // console.log(`❌ Invalid announcement ID format: ${announcementId}`);
+      // //console.log(`❌ Invalid announcement ID format: ${announcementId}`);
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid announcement ID format' 
       });
     }
 
-    // console.log(`🗑️ User ${req.user.email} attempting to delete announcement: ${announcementId}`);
+    // //console.log(`🗑️ User ${req.user.email} attempting to delete announcement: ${announcementId}`);
 
     // First verify announcement exists
     const existingAnnouncement = await Announcement.findOne({ _id: announcementId });
     
     if (!existingAnnouncement) {
-      // console.log(`❌ Announcement not found in database: ${announcementId}`);
+      // //console.log(`❌ Announcement not found in database: ${announcementId}`);
       return res.status(404).json({ 
         success: false, 
         message: 'Announcement not found or already deleted' 
       });
     }
 
-    // console.log(`📋 Found announcement: "${existingAnnouncement.title}" by ${existingAnnouncement.author}`);
+    // //console.log(`📋 Found announcement: "${existingAnnouncement.title}" by ${existingAnnouncement.author}`);
 
     // Perform the deletion
     const deleteResult = await Announcement.deleteOne({ _id: announcementId });
     
     if (deleteResult.deletedCount === 0) {
-      // console.log(`❌ Delete operation failed for: ${announcementId}`);
+      // //console.log(`❌ Delete operation failed for: ${announcementId}`);
       return res.status(500).json({ 
         success: false, 
         message: 'Failed to delete announcement from database' 
@@ -225,8 +225,8 @@ exports.deleteAnnouncement = async (req, res) => {
       });
     }
 
-    // console.log(`✅ Successfully deleted announcement: ${announcementId}`);
-    // console.log(`📊 Deletion confirmed - announcement no longer exists in database`);
+    // //console.log(`✅ Successfully deleted announcement: ${announcementId}`);
+    // //console.log(`📊 Deletion confirmed - announcement no longer exists in database`);
 
     // Send success response
     res.json({ 
@@ -238,7 +238,7 @@ exports.deleteAnnouncement = async (req, res) => {
     });
 
     // Log the successful deletion
-    // console.log(`🎉 Announcement "${existingAnnouncement.title}" successfully deleted by ${req.user.email}`);
+    // //console.log(`🎉 Announcement "${existingAnnouncement.title}" successfully deleted by ${req.user.email}`);
 
   } catch (error) {
     console.error('❌ Error during announcement deletion:', error);

@@ -64,7 +64,7 @@ class JobsFetchScheduler {
       data.month = new Date().getMonth();
       
       await this.fs.writeFile(this.lastFetchFile, JSON.stringify(data, null, 2));
-      console.log(`📝 Updated fetch record: ${data.requestCount}/10 requests this month`);
+      //console.log(`📝 Updated fetch record: ${data.requestCount}/10 requests this month`);
       
     } catch (error) {
       console.error('Error updating fetch record:', error);
@@ -76,16 +76,16 @@ class JobsFetchScheduler {
    */
   async performScheduledFetch() {
     try {
-      console.log('⏰ Checking if scheduled fetch is needed...');
+      //console.log('⏰ Checking if scheduled fetch is needed...');
       
       const shouldFetch = await this.shouldFetchToday();
       
       if (shouldFetch) {
-        console.log('✅ Performing scheduled job fetch...');
+        //console.log('✅ Performing scheduled job fetch...');
         await jobsService.syncJobs();
         await this.updateFetchRecord();
       } else {
-        console.log('⏭️ Skipping fetch - next fetch in 3 days or less');
+        //console.log('⏭️ Skipping fetch - next fetch in 3 days or less');
       }
       
     } catch (error) {
@@ -98,7 +98,7 @@ class JobsFetchScheduler {
    * Runs daily at 2 AM to check if fetch is needed
    */
   start() {
-    console.log('🕒 Starting jobs fetch scheduler...');
+    //console.log('🕒 Starting jobs fetch scheduler...');
     
     // Run every day at 2 AM
     cron.schedule('0 2 * * *', async () => {
@@ -107,18 +107,18 @@ class JobsFetchScheduler {
 
     // Cleanup expired jobs daily at 3 AM
     cron.schedule('0 3 * * *', async () => {
-      console.log('🗑️ Running daily cleanup...');
+      //console.log('🗑️ Running daily cleanup...');
       await this.jobModel.cleanupExpiredJobs();
     });
 
-    console.log('✅ Scheduler started - will fetch every 3 days');
+    //console.log('✅ Scheduler started - will fetch every 3 days');
   }
 
   /**
    * Manual fetch (for admin use)
    */
   async manualFetch() {
-    console.log('🔧 Manual fetch triggered...');
+    //console.log('🔧 Manual fetch triggered...');
     await jobsService.syncJobs();
     await this.updateFetchRecord();
   }

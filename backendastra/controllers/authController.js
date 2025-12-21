@@ -38,7 +38,7 @@ exports.verifyGoogleToken = async (req, res) => {
     const payload = ticket.getPayload();
     const { sub: googleId, email, name, picture } = payload;
 
-    // console.log('✅ Google token verified for:', email);
+    // //console.log('✅ Google token verified for:', email);
 
     // Check if user exists
     let user = await userModel.findByGoogleId(googleId);
@@ -49,7 +49,7 @@ exports.verifyGoogleToken = async (req, res) => {
       user = await userModel.findByEmail(email);
       
       if (user) {
-        // console.log('📝 Updating existing user with Google ID');
+        // //console.log('📝 Updating existing user with Google ID');
         const shouldBeAdmin = isAdminEmail(email);
         const updates = { 
           googleId,
@@ -64,14 +64,14 @@ exports.verifyGoogleToken = async (req, res) => {
         user.name = name || user.name;
         
         if (shouldBeAdmin && user.role !== 'admin') {
-          // console.log(`🔄 Promoting existing user ${email} to admin`);
+          // //console.log(`🔄 Promoting existing user ${email} to admin`);
           user.role = 'admin';
         }
       } else {
         // Create new user
         const userRole = isAdminEmail(email) ? 'admin' : 'student';
         
-        // console.log(`📝 Creating new user with role: ${userRole}`);
+        // //console.log(`📝 Creating new user with role: ${userRole}`);
         
         user = await userModel.createUser({
           googleId,
@@ -87,7 +87,7 @@ exports.verifyGoogleToken = async (req, res) => {
         sendWelcomeEmail(user)
           .then((welcomeResult) => {
             if (welcomeResult.success) {
-              // console.log(`✅ Welcome email sent to: ${email}`);
+              // //console.log(`✅ Welcome email sent to: ${email}`);
             }
           })
           .catch((welcomeError) => {
@@ -95,7 +95,7 @@ exports.verifyGoogleToken = async (req, res) => {
           });
       }
     } else {
-      // console.log('✅ Existing user found, updating profile...');
+      // //console.log('✅ Existing user found, updating profile...');
       
       const shouldBeAdmin = isAdminEmail(email);
       const updates = {
@@ -104,7 +104,7 @@ exports.verifyGoogleToken = async (req, res) => {
       };
       
       if (shouldBeAdmin && user.role !== 'admin') {
-        // console.log(`🔄 Promoting user ${email} to admin`);
+        // //console.log(`🔄 Promoting user ${email} to admin`);
         updates.role = 'admin';
         user.role = 'admin';
       }
@@ -135,7 +135,7 @@ exports.verifyGoogleToken = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    // console.log(`🎉 Authentication successful for ${user.name} (${user.role})`);
+    // //console.log(`🎉 Authentication successful for ${user.name} (${user.role})`);
 
     // CRITICAL: Return JWT token in response body for frontend
     res.json({
@@ -196,7 +196,7 @@ exports.getCurrentUser = async (req, res) => {
     // Check admin status
     const shouldBeAdmin = isAdminEmail(user.email);
     if (shouldBeAdmin && user.role !== 'admin') {
-      // console.log(`🔄 Auto-promoting ${user.email} to admin`);
+      // //console.log(`🔄 Auto-promoting ${user.email} to admin`);
       await userModel.updateUserRole(user._id, 'admin');
       user.role = 'admin';
     }

@@ -21,12 +21,12 @@ class Problem {
   async getAllProblemsCache() {
     // Return cached data if already populated
     if (this.isCachePopulated) {
-      console.log('✅ Returning cached problems (no expiry)');
+      //console.log('✅ Returning cached problems (no expiry)');
       return Array.from(this.cache.values());
     }
 
     // Fetch from DB (first time only)
-    console.log('🔄 Loading all problems into cache...');
+    //console.log('🔄 Loading all problems into cache...');
     const problems = await this.collection.find({}).toArray();
     
     // Populate cache
@@ -34,7 +34,7 @@ class Problem {
     problems.forEach(p => this.cache.set(p.id, p));
     this.isCachePopulated = true;
     
-    console.log(`✅ Cached ${problems.length} problems (will stay cached until modified)`);
+    //console.log(`✅ Cached ${problems.length} problems (will stay cached until modified)`);
     return problems;
   }
 
@@ -63,7 +63,7 @@ class Problem {
       // ✅ Add to cache immediately (no full invalidation needed)
       if (this.isCachePopulated) {
         this.cache.set(problem.id, { ...problem, _id: result.insertedId });
-        console.log(`✅ Problem created and added to cache: ${problem.id}`);
+        //console.log(`✅ Problem created and added to cache: ${problem.id}`);
       }
       
       return { success: true, problem: { ...problem, _id: result.insertedId } };
@@ -122,7 +122,7 @@ class Problem {
       const problem = this.cache.get(problemId);
       
       if (!problem) {
-        console.log(`⚠️ Problem not found in cache: ${problemId}`);
+        //console.log(`⚠️ Problem not found in cache: ${problemId}`);
         return null;
       }
       
@@ -159,10 +159,10 @@ class Problem {
       });
       
       if (missingIds.length > 0) {
-        console.log(`⚠️ Missing ${missingIds.length} problem(s) from cache:`, missingIds);
+        //console.log(`⚠️ Missing ${missingIds.length} problem(s) from cache:`, missingIds);
       }
       
-      console.log(`✅ Retrieved ${foundProblems.length}/${ids.length} problems from cache`);
+      //console.log(`✅ Retrieved ${foundProblems.length}/${ids.length} problems from cache`);
       return foundProblems;
       
     } catch (error) {
@@ -180,12 +180,12 @@ class Problem {
         return [];
       }
 
-      console.log(`🔍 Batch fetching ${problemIds.length} problems from cache`);
+      //console.log(`🔍 Batch fetching ${problemIds.length} problems from cache`);
       
       // Use the cached version
       const problems = await this.getProblemsByIds(problemIds);
       
-      console.log(`✅ Batch found ${problems.length} problems`);
+      //console.log(`✅ Batch found ${problems.length} problems`);
       return problems;
       
     } catch (error) {
@@ -220,7 +220,7 @@ class Problem {
           ...cleanData,
           updatedAt: new Date().toISOString()
         });
-        console.log(`✅ Problem updated in DB and cache: ${problemId}`);
+        //console.log(`✅ Problem updated in DB and cache: ${problemId}`);
       }
       
       return { success: true, result };
@@ -235,27 +235,27 @@ class Problem {
  */
 async deleteProblem(problemId) {
   try {
-    console.log(`🗑️ Deleting problem: ${problemId}`);
+    //console.log(`🗑️ Deleting problem: ${problemId}`);
     
     // 1. Try to delete from database
     const result = await this.collection.deleteOne({ id: problemId });
     
     if (result.deletedCount === 0) {
-      console.log(`⚠️ Problem ${problemId} not in database (cleaning orphaned references)`);
+      //console.log(`⚠️ Problem ${problemId} not in database (cleaning orphaned references)`);
     } else {
-      console.log(`✅ Deleted from database`);
+      //console.log(`✅ Deleted from database`);
     }
     
     // 2. Remove from cache
     if (this.isCachePopulated && this.cache.has(problemId)) {
       this.cache.delete(problemId);
-      console.log(`✅ Removed from cache`);
+      //console.log(`✅ Removed from cache`);
     }
     
     // 3. ALWAYS remove from sheets
     await this.removeFromAllSheets(problemId);
     
-    console.log(`✅ Cleanup complete for ${problemId}`);
+    //console.log(`✅ Cleanup complete for ${problemId}`);
     
     return { 
       success: true, 
@@ -288,11 +288,11 @@ async removeFromAllSheets(problemId) {
     }).toArray();
     
     if (sheetsWithProblem.length === 0) {
-      console.log('ℹ️ No sheets contain this problem');
+      //console.log('ℹ️ No sheets contain this problem');
       return;
     }
     
-    console.log(`📊 Cleaning ${sheetsWithProblem.length} sheets...`);
+    //console.log(`📊 Cleaning ${sheetsWithProblem.length} sheets...`);
     
     // Update each sheet
     let cleanedCount = 0;
@@ -320,10 +320,10 @@ async removeFromAllSheets(problemId) {
       );
       
       cleanedCount++;
-      console.log(`  ✓ Cleaned sheet: ${sheet.title}`);
+      //console.log(`  ✓ Cleaned sheet: ${sheet.title}`);
     }
     
-    console.log(`✅ Removed problem from ${cleanedCount} sheets`);
+    //console.log(`✅ Removed problem from ${cleanedCount} sheets`);
     
   } catch (error) {
     console.error('Error removing problem from sheets:', error);
@@ -347,11 +347,11 @@ async removeFromAllSheets(problemId) {
     }).toArray();
     
     if (sheetsWithProblem.length === 0) {
-      console.log('ℹ️ No sheets contain this problem');
+      //console.log('ℹ️ No sheets contain this problem');
       return;
     }
     
-    console.log(`📊 Cleaning ${sheetsWithProblem.length} sheets...`);
+    //console.log(`📊 Cleaning ${sheetsWithProblem.length} sheets...`);
     
     // Update each sheet
     let cleanedCount = 0;
@@ -379,10 +379,10 @@ async removeFromAllSheets(problemId) {
       );
       
       cleanedCount++;
-      console.log(`  ✓ Cleaned sheet: ${sheet.title}`);
+      //console.log(`  ✓ Cleaned sheet: ${sheet.title}`);
     }
     
-    console.log(`✅ Removed problem from ${cleanedCount} sheets`);
+    //console.log(`✅ Removed problem from ${cleanedCount} sheets`);
     
   } catch (error) {
     console.error('Error removing problem from sheets:', error);
@@ -397,12 +397,12 @@ async removeFromAllSheets(problemId) {
    */
   async searchProblems(searchTerm, limit = 20) {
     try {
-      console.log(`🔍 Searching problems with term: "${searchTerm}"`);
+      //console.log(`🔍 Searching problems with term: "${searchTerm}"`);
       
       // Get all problems from cache
       let problems = await this.getAllProblemsCache();
       
-      console.log(`📊 Total problems in cache: ${problems.length}`);
+      //console.log(`📊 Total problems in cache: ${problems.length}`);
       
       // Client-side filtering
       if (searchTerm && searchTerm.trim()) {
@@ -414,7 +414,7 @@ async removeFromAllSheets(problemId) {
         );
       }
       
-      console.log(`✅ Found ${problems.length} matching problems`);
+      //console.log(`✅ Found ${problems.length} matching problems`);
       
       // Sort by most recent and limit
       return problems
@@ -431,7 +431,7 @@ async removeFromAllSheets(problemId) {
    * Manual cache refresh (optional, for admin panel or debugging)
    */
   async refreshCache() {
-    console.log('🔄 Manually refreshing cache...');
+    //console.log('🔄 Manually refreshing cache...');
     this.isCachePopulated = false;
     this.cache.clear();
     return await this.getAllProblemsCache();

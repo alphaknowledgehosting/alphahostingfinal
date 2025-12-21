@@ -3,7 +3,7 @@ import axios from 'axios';
 // Production-ready environment variable
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://alphahostingfinal.onrender.com';
 
-// console.log('🌐 API Base URL:', API_BASE_URL);
+// //console.log('🌐 API Base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: `${API_BASE_URL}/api`,
@@ -20,9 +20,9 @@ api.interceptors.request.use(
     const token = localStorage.getItem('authToken');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
-      // console.log('🔐 Token added to request:', config.url);
+      // //console.log('🔐 Token added to request:', config.url);
     } else {
-      // console.log('⚠️ No token found for request:', config.url);
+      // //console.log('⚠️ No token found for request:', config.url);
     }
     return config;
   },
@@ -59,7 +59,7 @@ api.interceptors.response.use(
     // }
 
     if (status === 401) {
-      // console.log('🔒 Unauthorized - clearing tokens');
+      // //console.log('🔒 Unauthorized - clearing tokens');
       localStorage.removeItem('authToken');
       localStorage.removeItem('cachedUser');
 
@@ -93,20 +93,20 @@ export const authAPI = {
 
   verifyGoogleToken: async (token) => {
     try {
-      // console.log('🔐 Verifying Google token...');
+      // //console.log('🔐 Verifying Google token...');
       const response = await api.post('/auth/google/verify', { token });
 
       if (response?.data?.success && response?.data?.token) {
         localStorage.setItem('authToken', response.data.token);
-        // console.log('✅ JWT token stored in localStorage');
+        // //console.log('✅ JWT token stored in localStorage');
 
         if (response?.data?.user) {
           localStorage.setItem('cachedUser', JSON.stringify(response.data.user));
-          // console.log('✅ User data cached');
+          // //console.log('✅ User data cached');
         }
       } else {
         // console.error('❌ No JWT token received from backend!');
-        // console.log('Response:', response?.data);
+        // //console.log('Response:', response?.data);
       }
 
       return response?.data ?? null;
@@ -126,7 +126,7 @@ export const authAPI = {
     } finally {
       localStorage.removeItem('authToken');
       localStorage.removeItem('cachedUser');
-      // console.log('🔓 Tokens cleared from localStorage');
+      // //console.log('🔓 Tokens cleared from localStorage');
     }
   },
 };
@@ -274,7 +274,7 @@ export const testAPI = {
   healthCheck: async () => {
     try {
       const response = await api.get('/health');
-      // console.log('✅ Backend is reachable:', response.data);
+      // //console.log('✅ Backend is reachable:', response.data);
       return response.data;
     } catch (error) {
       // console.error('❌ Backend test failed:', error);
@@ -284,8 +284,8 @@ export const testAPI = {
 
   checkToken: () => {
     const token = localStorage.getItem('authToken');
-    // console.log('🔐 Token in storage:', token ? 'Present' : 'Missing');
-    // if (token) console.log('Token preview:', token.substring(0, 20) + '...');
+    // //console.log('🔐 Token in storage:', token ? 'Present' : 'Missing');
+    // if (token) //console.log('Token preview:', token.substring(0, 20) + '...');
     return !!token;
   }
 };

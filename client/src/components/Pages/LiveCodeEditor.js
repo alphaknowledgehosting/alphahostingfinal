@@ -447,11 +447,11 @@ const LiveCodeEditor = () => {
         return false;
       });
       
-      var oldLog = console.log;
+      var oldLog = //console.log;
       var oldError = console.error;
       var oldWarn = console.warn;
       
-      console.log = function() {
+      //console.log = function() {
         var args = Array.prototype.slice.call(arguments);
         post('log', {data: args.map(safeSerialize)});
       };

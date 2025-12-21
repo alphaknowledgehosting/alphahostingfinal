@@ -12,12 +12,12 @@ const authenticateUser = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7); // Remove 'Bearer ' prefix
-      // console.log('🔐 Token found in Authorization header');
+      // //console.log('🔐 Token found in Authorization header');
     } 
     // Fallback to cookie (for localhost/additional security)
     else if (req.cookies && req.cookies.authToken) {
       token = req.cookies.authToken;
-      // console.log('🔐 Token found in cookies');
+      // //console.log('🔐 Token found in cookies');
     }
     
     if (!token) {
@@ -30,7 +30,7 @@ const authenticateUser = async (req, res, next) => {
 
     // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('✅ Token verified for user:', decoded.email);
+    //console.log('✅ Token verified for user:', decoded.email);
     
     // Get user from database
     const user = await userModel.findById(decoded.userId);
@@ -100,7 +100,7 @@ const requireRole = (allowedRoles) => {
       });
     }
     
-    // console.log(`✅ Role check passed: ${req.user.role} in [${allowedRoles.join(', ')}]`);
+    // //console.log(`✅ Role check passed: ${req.user.role} in [${allowedRoles.join(', ')}]`);
     next();
   };
 };
@@ -136,7 +136,7 @@ const optionalAuth = async (req, res, next) => {
       
       if (user) {
         req.user = user;
-        // console.log('✅ Optional auth: User authenticated');
+        // //console.log('✅ Optional auth: User authenticated');
       }
     }
     
@@ -145,7 +145,7 @@ const optionalAuth = async (req, res, next) => {
     
   } catch (error) {
     // For optional auth, we don't fail on invalid tokens
-    // console.log('⚠️ Optional auth: Invalid token, continuing without user');
+    // //console.log('⚠️ Optional auth: Invalid token, continuing without user');
     next();
   }
 };

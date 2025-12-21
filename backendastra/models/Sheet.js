@@ -338,7 +338,7 @@ async cleanOrphanedProblems(sheetId) {
   
   // Update sheet
   await this.updateSheet(sheetId, sheet);
-  console.log(`✅ Cleaned orphaned problems from sheet ${sheetId}`);
+  //console.log(`✅ Cleaned orphaned problems from sheet ${sheetId}`);
 }
 
   async deleteSubsection(sheetId, sectionId, subsectionId) {

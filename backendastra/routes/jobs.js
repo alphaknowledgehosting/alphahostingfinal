@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const jobsService = require('../services/jobsService');
 const jobsFetchScheduler = require('../jobs/jobsFetchScheduler');
-
+const { authenticateUser, requireRole } = require('../middleware/auth');
 // Get all jobs
 router.get('/api/jobs', async (req, res) => {
   try {
@@ -102,20 +102,21 @@ router.get('/api/jobs/debug-api', async (req, res) => {
 });
 
 
-// Manual sync (admin only - protect with auth middleware)
-router.post('/api/jobs/sync', async (req, res) => {
+// Manual sync (admin only) - UPDATED WITH AUTH
+router.post('/api/jobs/sync', authenticateUser, requireRole(['admin']), async (req, res) => {
   try {
+    //console.log(`🔧 Manual job sync triggered by admin: ${req.user.email}`);
     await jobsFetchScheduler.manualFetch();
     res.json({
       success: true,
       message: 'Jobs synced successfully'
     });
   } catch (error) {
+    console.error('Manual sync error:', error);
     res.status(500).json({
       success: false,
       error: error.message
     });
   }
 });
-
 module.exports = router;

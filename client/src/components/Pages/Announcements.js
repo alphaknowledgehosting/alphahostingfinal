@@ -577,7 +577,7 @@ const Announcements = () => {
 
   // FIXED: Properly defined delete handler
   const handleDeleteAnnouncement = async (announcementId) => {
-    // console.log('🗑️ Component: Delete handler called with ID:', announcementId);
+    // //console.log('🗑️ Component: Delete handler called with ID:', announcementId);
     
     if (!window.confirm('Are you sure you want to delete this announcement?')) {
       return;
@@ -586,7 +586,7 @@ const Announcements = () => {
     try {
       // Make sure we're passing the right ID - try custom id first, then _id
       const idToUse = announcementId;
-      // console.log('🗑️ Component: Using ID for deletion:', idToUse);
+      // //console.log('🗑️ Component: Using ID for deletion:', idToUse);
       
       await deleteAnnouncement.mutateAsync(idToUse);
     } catch (error) {
@@ -595,19 +595,19 @@ const Announcements = () => {
   };
 
   const handleRefresh = () => {
-    // console.log('🔄 Manual refresh triggered');
+    // //console.log('🔄 Manual refresh triggered');
     refetch();
   };
 
   // FIXED: All useEffect hooks moved to top level
   useEffect(() => {
-    // console.log('📄 Announcements page loaded - forcing immediate refresh');
+    // //console.log('📄 Announcements page loaded - forcing immediate refresh');
     refetch();
   }, [refetch]);
 
   useEffect(() => {
     if (location.pathname === '/announcements') {
-      // console.log('🔄 Route changed to announcements - refreshing data');
+      // //console.log('🔄 Route changed to announcements - refreshing data');
       refetch();
     }
   }, [location.pathname, refetch]);

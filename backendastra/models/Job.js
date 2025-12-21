@@ -21,11 +21,11 @@ async storeJobs(jobsArray) {
     }
 
     if (jobsArray.length === 0) {
-      console.log('⚠️  No jobs to store');
+      //console.log('⚠️  No jobs to store');
       return { success: true, inserted: 0, updated: 0 };
     }
 
-    console.log(`📦 Processing ${jobsArray.length} jobs for storage...`);
+    //console.log(`📦 Processing ${jobsArray.length} jobs for storage...`);
 
     const jobsToInsert = jobsArray.map(job => ({
       id: job.id || this.generateId(),
@@ -79,7 +79,7 @@ async storeJobs(jobsArray) {
       }
     }
 
-    console.log(`✅ Jobs stored: ${inserted} new, ${updated} updated, ${errors} errors`);
+    //console.log(`✅ Jobs stored: ${inserted} new, ${updated} updated, ${errors} errors`);
     return { success: true, inserted, updated, errors };
   } catch (error) {
     console.error('Error storing jobs:', error);
@@ -105,7 +105,7 @@ async storeJobs(jobsArray) {
         return expiresAt > nowTime;
       });
 
-      console.log(`📊 Retrieved ${jobs.length} active jobs`);
+      //console.log(`📊 Retrieved ${jobs.length} active jobs`);
       return jobs.sort((a, b) => 
         new Date(b.fetchedAt) - new Date(a.fetchedAt)
       );
@@ -134,7 +134,7 @@ async storeJobs(jobsArray) {
         return techKeywords.some(keyword => searchText.includes(keyword));
       });
 
-      console.log(`💻 Found ${techJobs.length} tech jobs`);
+      //console.log(`💻 Found ${techJobs.length} tech jobs`);
       return techJobs;
     } catch (error) {
       console.error('Error fetching tech jobs:', error);
@@ -162,7 +162,7 @@ async storeJobs(jobsArray) {
         (job.education_and_skills && job.education_and_skills.toLowerCase().includes(searchLower))
       );
 
-      console.log(`🔍 Search "${searchTerm}" found ${filtered.length} jobs`);
+      //console.log(`🔍 Search "${searchTerm}" found ${filtered.length} jobs`);
       return filtered;
     } catch (error) {
       console.error('Error searching jobs:', error);
@@ -195,7 +195,7 @@ async storeJobs(jobsArray) {
         deletedCount++;
       }
 
-      console.log(`🗑️ Cleaned up ${deletedCount} expired jobs`);
+      //console.log(`🗑️ Cleaned up ${deletedCount} expired jobs`);
       return { success: true, deletedCount };
     } catch (error) {
       console.error('Error cleaning up jobs:', error);
