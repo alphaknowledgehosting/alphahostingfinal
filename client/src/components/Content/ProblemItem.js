@@ -34,6 +34,14 @@ import { useProgress } from '../../context/ProgressContext';
 import LoginButton from '../Auth/LoginButton';
 import YouTubeModal from '../Common/YouTubeModal';
 import { sheetAPI, problemAPI } from '../../services/api';
+const isExternalEditorial = (url) => {
+  if (!url) return false;
+  const isNotionLink = url.includes('notion.so') || url.includes('notion.site');
+  const isExternalLink = !url.includes('github.com') && 
+                        !url.includes('githubusercontent.com') &&
+                        !url.endsWith('.md');
+  return isNotionLink || isExternalLink;
+};
 
 // Reusable Editable Cell Component
 const EditableCell = ({ 
@@ -372,11 +380,19 @@ const ProblemItem = ({
   };
 
   const handleViewEditorial = () => {
-    if (!isEmpty(localProblem.editorialLink)) {
+  if (!isEmpty(localProblem.editorialLink)) {
+    // If it's an external link (Notion, etc.), open directly
+    if (isExternalEditorial(localProblem.editorialLink)) {
+      window.open(localProblem.editorialLink, '_blank', 'noopener,noreferrer');
+      toast.success('Opening editorial in new tab 🌐');
+    } else {
+      // If it's a GitHub MD file, open via editorial page
       const editorialPath = `/editorial/${problem.id}`;
       window.open(editorialPath, '_blank', 'noopener,noreferrer');
     }
-  };
+  }
+};
+
 
   // ✅ Unlink problem from subsection (keeps global problem)
   const handleUnlinkProblem = async () => {

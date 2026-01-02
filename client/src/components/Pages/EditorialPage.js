@@ -40,6 +40,7 @@ import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import remarkGfm from 'remark-gfm';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ;
 
 const EditorialPage = () => {
   const { problemId } = useParams();
@@ -501,7 +502,7 @@ const loadProblemAndEditorial = async () => {
 
     // Try fetching problem directly first
     try {
-      const directProblemResponse = await fetch(`/api/problems/${problemId}`);
+      const directProblemResponse = await fetch(`${API_BASE_URL}/api/problems/${problemId}`);
       if (directProblemResponse.ok) {
         const data = await directProblemResponse.json();
         if (data.success && data.problem) {

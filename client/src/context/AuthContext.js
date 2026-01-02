@@ -48,7 +48,7 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('authToken');
 
     return axios.create({
-      baseURL: process.env.REACT_APP_API_BASE_URL || 'https://alphaknowledgefinal-1.onrender.com',
+      baseURL: process.env.REACT_APP_API_BASE_URL,
       withCredentials: true,
       headers: {
         'Content-Type': 'application/json',

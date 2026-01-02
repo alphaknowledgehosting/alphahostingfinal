@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Production-ready environment variable
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://alphahostingfinal.onrender.com';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 // //console.log('🌐 API Base URL:', API_BASE_URL);
 

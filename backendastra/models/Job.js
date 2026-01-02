@@ -43,7 +43,7 @@ async storeJobs(jobsArray) {
       salary: job.salary || 'Not disclosed', // Add salary field
       posted_date: job.posted_date || new Date().toISOString(),
       fetchedAt: new Date().toISOString(),
-      expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString()
+      expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
     }));
 
     let inserted = 0;
@@ -64,7 +64,7 @@ async storeJobs(jobsArray) {
               $set: {
                 ...job,
                 fetchedAt: new Date().toISOString(),
-                expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString()
+                expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString()
               }
             }
           );

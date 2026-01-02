@@ -28,7 +28,7 @@ import 'aos/dist/aos.css';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://alphahostingfinal.onrender.com';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ;
 const Jobs = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -268,7 +268,7 @@ const Jobs = () => {
             data-aos-duration="1100"
             className="text-gray-600 dark:text-slate-400 max-w-3xl mx-auto text-lg sm:text-xl leading-relaxed"
           >
-            Explore the latest tech job opportunities in India. Find your dream role!
+           <b> Note:</b> This information is fetched via an API, so some details may be inaccurate. We apologize for any inconvenience.
           </p>
         </div>
 
