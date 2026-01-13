@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <url>
+    <loc>https://alphaknowledge.in/</loc>
+    <priority>1.0</priority>
+  </url>
+
+  <url>
+    <loc>https://alphaknowledge.in/login</loc>
+  </url>
+
+  <url>
+    <loc>https://alphaknowledge.in/sheets</loc>
+  </url>
+  <url>
+    <loc>https://alphaknowledge.in/compiler</loc>
+  </url>
+  <url>
+    <loc>https://alphaknowledge.in/live-code-editor</loc>
+  </url>
+
+</urlset>

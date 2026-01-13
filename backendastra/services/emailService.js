@@ -19,7 +19,7 @@ const createTransporter = () => {
 
 // Welcome email template for new users
 const getWelcomeEmailTemplate = (user) => {
-  const frontendUrl = process.env.FRONTEND_URL || 'https://alphaknowledge.in';
+  const frontendUrl = process.env.FRONTEND_URL;
   
   return `
     <!DOCTYPE html>
@@ -117,7 +117,7 @@ const getWelcomeEmailTemplate = (user) => {
 
 // Announcement email template
 const getAnnouncementEmailTemplate = (announcement, type) => {
-  const frontendUrl = process.env.FRONTEND_URL || 'https://alphaknowledge.in';
+  const frontendUrl = process.env.FRONTEND_URL;
   
   const typeConfigs = {
     urgent: {
@@ -246,7 +246,7 @@ const sendWelcomeEmail = async (user) => {
     // //console.log(`📧 Sending welcome email to new user: ${user.email}`);
     
     const transporter = createTransporter();
-    const frontendUrl = process.env.FRONTEND_URL || 'https://alphaknowledge.in';
+    const frontendUrl = process.env.FRONTEND_URL;
     
     const emailSubject = `🎉 Welcome to AlphaKnowledge, ${user.name}!`;
     const emailBody = getWelcomeEmailTemplate(user);

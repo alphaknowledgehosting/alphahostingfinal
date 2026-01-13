@@ -1,12 +1,19 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './suppressConsole';
-import './App.css';
-import App from './App';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { HelmetProvider } from "react-helmet-async";
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+import "./suppressConsole";
+import "./App.css";
+import App from "./App";
+
+const container = document.getElementById("root");
+
+const root = ReactDOM.createRoot(container);
+
 root.render(
   <React.StrictMode>
-    <App />
+    <HelmetProvider>
+      <App />
+    </HelmetProvider>
   </React.StrictMode>
 );

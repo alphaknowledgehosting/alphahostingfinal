@@ -6,7 +6,12 @@ import {
   FaSpinner, 
   FaExclamationTriangle,
   FaBook,
+  FaChevronLeft,
+  FaChevronRight,
+  FaCircle,
   FaEdit,
+  FaPlay,   // <--- Add this
+  FaPause,
   FaSave,
   FaTimes,
   FaEye,
@@ -230,7 +235,7 @@ const EditorialPage = () => {
           throw new Error('All loading methods failed');
           
         } catch (error) {
-          console.error('Error loading secure image:', error);
+          // console.error('Error loading secure image:', error);
           if (mounted) {
             setHasError(true);
             setLoadingMethod('');
@@ -425,7 +430,7 @@ const EditorialPage = () => {
     
     if (isLoading) {
       return (
-        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-[3px] border-[#BD83FF] dark:border-[#BD83FF]">
+        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-[3px] border-[#6257e3] dark:border-[#6257e3]">
           <div className="text-center max-w-xs">
             <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-indigo-600 mx-auto mb-3"></div>
             <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm font-medium">
@@ -443,7 +448,7 @@ const EditorialPage = () => {
     
     if (hasError || !imageSrc) {
       return (
-        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-amber-50 dark:bg-amber-900/20 rounded-lg border-[3px] border-[#BD83FF] dark:border-[#BD83FF]">
+        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-amber-50 dark:bg-amber-900/20 rounded-lg border-[3px] border-[#6257e3] dark:border-[#6257e3]">
           <div className="text-center max-w-xs">
             <FaImage className="w-8 h-8 sm:w-10 sm:h-10 text-amber-600 dark:text-amber-400 mx-auto mb-3" />
             <p className="text-amber-700 dark:text-amber-400 text-xs sm:text-sm font-medium mb-1">
@@ -462,14 +467,19 @@ const EditorialPage = () => {
         onKeyDown={handleKeyDown}
         tabIndex={-1}
         style={{ outline: 'none' }}
-        className="focus:outline-none"
+        className="focus:outline-none w-full h-full flex justify-center items-center"
         onContextMenu={handleContextMenu}
       >
         <img
         {...props}
         src={imageSrc}
         alt={alt}
-        className={`${className} rounded-xl border-[3px] border-[#BD83FF] shadow-lg shadow-[#BD83FF]/20 w-full sm:w-4/5 md:w-3/4 lg:w-2/3 xl:w-1/2 h-auto`}
+        className={`${className} rounded-xl 
+  border-[2px] dark:border-[3.2px] 
+  border-[#6257e3] 
+  shadow-lg shadow-[#6961b5]/20 
+  w-full sm:w-4/5 md:w-3/4 lg:w-2/3 xl:w-1/2 h-auto`}
+
         style={{
           ...style,
           maxHeight: '500px',
@@ -488,13 +498,124 @@ const EditorialPage = () => {
         onContextMenu={handleContextMenu}
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
-        onSelectStart={(e) => e.preventDefault()}
         onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
       />
       </div>
     );
   };
+const ImageCarousel = ({ images }) => {
+  const [current, setCurrent] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const length = images.length;
 
+  // Auto-play functionality
+  useEffect(() => {
+    let interval;
+    if (isPlaying && length > 1) {
+      interval = setInterval(() => {
+        setCurrent((prev) => (prev === length - 1 ? 0 : prev + 1));
+      }, 3000); // 3 seconds per slide
+    }
+    return () => clearInterval(interval);
+  }, [length, isPlaying]);
+
+  const nextSlide = () => {
+    setCurrent(current === length - 1 ? 0 : current + 1);
+  };
+
+  const prevSlide = () => {
+    setCurrent(current === 0 ? length - 1 : current - 1);
+  };
+
+  const togglePlay = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  if (!Array.isArray(images) || images.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="w-full aspect-video max-w-3xl mx-auto my-6 flex flex-col rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 shadow-md">
+      
+      {/* Slide Area */}
+      <div className="relative w-full h-full flex-1 bg-black overflow-hidden group">
+        {images.map((imgSrc, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 w-full h-full transition-opacity duration-500 ease-in-out ${
+              index === current ? 'opacity-100 z-10' : 'opacity-0 z-0'
+            }`}
+          >
+            <SecureImage 
+              src={imgSrc} 
+              alt={`Slide ${index + 1}`}
+              className="!w-full !h-full !object-fill !max-w-none !rounded-none !border-0 !shadow-none !m-0 !p-0"
+              style={{ 
+                objectFit: 'fill', 
+                width: '100%',
+                height: '100%',
+                maxHeight: 'none'
+              }} 
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Control Bar (Footer) - Height Reduced */}
+      {/* CHANGED: h-8 to h-6 (24px height) */}
+      <div className="h-6 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 z-20 relative">
+        
+        {/* Empty div for layout balance */}
+        <div className="w-12 hidden sm:block"></div>
+
+        {/* Center Controls: Prev | Play/Pause | Next */}
+        <div className="flex items-center justify-center gap-4 sm:gap-6 flex-1">
+          <button 
+            onClick={prevSlide}
+            className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors p-0.5"
+            title="Previous Slide"
+          >
+            {/* CHANGED: w-4 h-4 to w-3 h-3 */}
+            <FaChevronLeft className="w-3 h-3" />
+          </button>
+
+          <button 
+            onClick={togglePlay}
+            // CHANGED: p-2 to p-1 to fit the smaller height
+            className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+            title={isPlaying ? "Pause" : "Play"}
+          >
+            {isPlaying ? (
+              // CHANGED: w-4 h-4 to w-3 h-3
+              <FaPause className="w-3 h-3" />
+            ) : (
+              // CHANGED: w-4 h-4 to w-3 h-3
+              <FaPlay className="w-3 h-3 ml-0.5" />
+            )}
+          </button>
+
+          <button 
+            onClick={nextSlide}
+            className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors p-0.5"
+            title="Next Slide"
+          >
+            {/* CHANGED: w-4 h-4 to w-3 h-3 */}
+            <FaChevronRight className="w-3 h-3" />
+          </button>
+        </div>
+
+        {/* Right: Page Counter */}
+        <div className="w-12 text-right">
+          {/* CHANGED: Forced text-xs to fit smaller bar */}
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            {current + 1} / {length}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
 const loadProblemAndEditorial = async () => {
   try {
     setLoading(true);
@@ -756,6 +877,43 @@ const parseEditorialMarkdown = (markdown) => {
       continue;
     }
 
+    // --- CAROUSEL PARSING START ---
+    if (line.trim() === '<carousel>') {
+      // Flush existing text
+      if (currentTextBlock.trim()) {
+        result.content.push({
+          type: 'text',
+          content: currentTextBlock.trim(),
+          id: `text-${result.content.length}`
+        });
+        currentTextBlock = '';
+      }
+
+      const carouselImages = [];
+      i += 1; // Move past <carousel>
+      
+      // Collect images until </carousel>
+      while (i < lines.length && lines[i].trim() !== '</carousel>') {
+        const imgMatch = lines[i].match(/src=["']([^"']+)["']/);
+        if (imgMatch) {
+          carouselImages.push(imgMatch[1]);
+        }
+        i += 1;
+      }
+
+      if (carouselImages.length > 0) {
+        result.content.push({
+          type: 'carousel',
+          images: carouselImages,
+          id: `carousel-${result.content.length}`
+        });
+      }
+      
+      if (i < lines.length) i += 1; // Move past </carousel>
+      continue;
+    }
+    // --- CAROUSEL PARSING END ---
+
     if (line.startsWith('```')){
       if (currentTextBlock.trim()) {
         result.content.push({
@@ -785,20 +943,17 @@ const parseEditorialMarkdown = (markdown) => {
 
       codeContents.push({ language, code: codeContent.trim(), output: null });
 
-      // FIXED: Look for immediately consecutive code blocks (no text in between)
+      // Look for immediately consecutive code blocks
       while (i < lines.length) {
-        // Skip empty lines
-        while (i < lines.length && lines[i].trim() === '') {
-          i += 1;
+        let tempI = i;
+        while (tempI < lines.length && lines[tempI].trim() === '') {
+          tempI += 1;
         }
         
-        // Check if next non-empty line is a code block
-        if (i < lines.length && lines[i].startsWith('```')){
-          const nextLanguage = lines[i].substring(3).trim();
-          
-          // Only group if it's a valid programming language
+        if (tempI < lines.length && lines[tempI].startsWith('```')){
+          const nextLanguage = lines[tempI].substring(3).trim();
           if (nextLanguage && nextLanguage.match(/^(cpp|c\+\+|java|python|py|javascript|js|c|go|rust|typescript|ts)$/i)) {
-            i += 1;
+            i = tempI + 1; // Move real index to start of code
             let nextCode = '';
             while (i < lines.length && !lines[i].startsWith('```')){
               nextCode = nextCode + lines[i] + '\n';
@@ -809,11 +964,9 @@ const parseEditorialMarkdown = (markdown) => {
             }
             codeContents.push({ language: nextLanguage, code: nextCode.trim(), output: null });
           } else {
-            // Not a programming language code block, stop grouping
             break;
           }
         } else {
-          // No more consecutive code blocks
           break;
         }
       }
@@ -823,7 +976,7 @@ const parseEditorialMarkdown = (markdown) => {
       while (k < lines.length && k < i + 5) {
         const currentLine = lines[k].trim();
 
-        if (currentLine.includes('**Output:**') || currentLine.includes('**Output**') ||currentLine.includes('### Output')) {
+        if (currentLine.includes('**Output:**') || currentLine.includes('**Output**') || currentLine.includes('### Output')) {
           k += 1;
 
           while (k < lines.length && lines[k].trim() === '') {
@@ -848,7 +1001,6 @@ const parseEditorialMarkdown = (markdown) => {
             }
           }
 
-          // Set output for all languages in this code block
           codeContents.forEach(item => {
             item.output = outputContent.trim();
           });
@@ -862,7 +1014,7 @@ const parseEditorialMarkdown = (markdown) => {
         }
       }
 
-      // Parse complexity sections near the code block
+      // Parse complexity sections
       const complexity = { time: '', space: '' };
       let lookAhead = i;
       while (lookAhead < lines.length && lookAhead < i + 20) {
@@ -909,7 +1061,7 @@ const parseEditorialMarkdown = (markdown) => {
       continue;
     }
 
-    // Check for image tags
+    // Check for standard image tags (outside carousel)
     const imgMatch = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
 
     if (imgMatch) {
@@ -933,10 +1085,8 @@ const parseEditorialMarkdown = (markdown) => {
       continue;
     }
 
-    // Strong filter: drop raw complexity sections from being added as text
+    // Strong filter for complexity lines
     const trimmed = line.trim();
-
-    // If this line is a complexity header, set a flag to skip subsequent lines of that section
     let skipThisLine = false;
     if (
       trimmed.startsWith('### Time Complexity') ||
@@ -945,9 +1095,6 @@ const parseEditorialMarkdown = (markdown) => {
       trimmed.startsWith('## Space Complexity')
     ) {
       skipThisLine = true;
-
-      // Consume lines until next heading or code fence, so none of the raw complexity
-      // lines enter currentTextBlock
       i += 1;
       while (
         i < lines.length &&
@@ -958,9 +1105,7 @@ const parseEditorialMarkdown = (markdown) => {
       ) {
         i += 1;
       }
-
-      // Go back one step because the outer loop will i += 1 at the end
-      i -= 1;
+      i -= 1; 
     }
 
     if (!line.includes('**Output:**') && !skipThisLine) {
@@ -1007,16 +1152,51 @@ const parseEditorialMarkdown = (markdown) => {
     }
   };
 
-  const parseContentWithImages = (content) => {
+ const parseContentWithImages = (content) => {
     if (!content) return [];
 
     const lines = content.split('\n');
     const elements = [];
     let currentTextBlock = '';
+    let i = 0;
 
-    for (let i = 0; i < lines.length; i++) {
+    while (i < lines.length) {
       const line = lines[i].trim();
 
+      // Check for Carousel Block
+      if (line === '<carousel>') {
+        // Flush Text
+        if (currentTextBlock.trim()) {
+          elements.push({
+            type: 'text',
+            content: currentTextBlock,
+            key: `text-${elements.length}`
+          });
+          currentTextBlock = '';
+        }
+
+        const carouselImages = [];
+        i++; // skip <carousel>
+        while (i < lines.length && lines[i].trim() !== '</carousel>') {
+          const imgMatch = lines[i].match(/src=["']([^"']+)["']/);
+          if (imgMatch) {
+            carouselImages.push(imgMatch[1]);
+          }
+          i++;
+        }
+        
+        if (carouselImages.length > 0) {
+          elements.push({
+            type: 'carousel',
+            images: carouselImages,
+            key: `carousel-${elements.length}`
+          });
+        }
+        i++; // skip </carousel>
+        continue;
+      }
+
+      // Check for Standard Image
       const imgMatch = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
       
       if (imgMatch) {
@@ -1041,6 +1221,8 @@ const parseEditorialMarkdown = (markdown) => {
       } else {
         currentTextBlock += '\n';
       }
+      
+      i++;
     }
 
     if (currentTextBlock.trim()) {
@@ -1063,6 +1245,13 @@ const parseEditorialMarkdown = (markdown) => {
 
 const renderContentElements = (elements) => {
   return elements.map((element) => {
+    if (element.type === 'carousel') {
+      return (
+        <div key={element.key} className="my-6">
+          <ImageCarousel images={element.images} />
+        </div>
+      );
+    }
     if (element.type === 'image') {
       const imageKey = `${element.src}-${element.key}`;
       const hasError = imageLoadErrors[imageKey];
@@ -1354,6 +1543,13 @@ td: ({ node, ...props }) => (
           </div>
         );
 
+        // ADD THIS CASE
+      case 'carousel':
+        return (
+          <div key={block.id} className="my-8">
+            <ImageCarousel images={block.images} />
+          </div>
+        );
       case 'code':
         const hasValidLanguages = block.code && block.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
 
@@ -2095,7 +2291,7 @@ td: ({ node, ...props }) => (
       </div>
 
       {/* Custom styles */}
-      <style jsx>{`
+      <style>{`
         .complexity-code {
           background-color: rgb(241, 245, 249);
           color: rgb(51, 65, 85);
