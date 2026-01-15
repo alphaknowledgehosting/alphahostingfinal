@@ -61,7 +61,7 @@ const THEME = {
 
 
 // ==========================================
-// CODE BLOCK VIEWER (Render-All + Mac Style + No Jump)
+// CODE BLOCK VIEWER (Fixed: Hooks run unconditionally)
 // ==========================================
 const CodeBlockViewer = React.memo(({
   blocks,
@@ -70,18 +70,22 @@ const CodeBlockViewer = React.memo(({
   activeTabState,
   onTabChange
 }) => {
+  // 1. All Hooks must run first (unconditionally)
   const [viewMode, setViewMode] = useState('code');
   const [isComplexityOpen, setIsComplexityOpen] = useState(false);
   const [localCopied, setLocalCopied] = useState(false);
   const copyTimeoutRef = React.useRef(null);
 
-  if (!blocks || blocks.length === 0) return null;
-
-  // ---------- NORMALIZE ----------
   const { normalizedBlocks, languages, outputContent, currentLang } = React.useMemo(() => {
+    // Handle empty data safely inside the hook
+    if (!blocks || blocks.length === 0) {
+        return { normalizedBlocks: [], languages: [], outputContent: '', currentLang: '' };
+    }
+
     const norm = blocks.map(b => ({ ...b, language: b.language || 'Code' }));
     const langs = norm.map(b => b.language);
     const lang = activeTabState && langs.includes(activeTabState) ? activeTabState : langs[0];
+    
     return {
       normalizedBlocks: norm,
       languages: langs,
@@ -89,6 +93,9 @@ const CodeBlockViewer = React.memo(({
       outputContent: norm.find(b => b.output)?.output || ''
     };
   }, [blocks, activeTabState]);
+
+  // 2. NOW it is safe to return null if empty
+  if (!blocks || blocks.length === 0) return null;
 
   const hasOutput = Boolean(outputContent);
   const hasComplexity = complexity?.time || complexity?.space;
@@ -118,30 +125,10 @@ const CodeBlockViewer = React.memo(({
   };
 
   return (
-    <div
-  className="
-    my-6 sm:my-8
-    w-full
-    rounded-lg sm:rounded-xl
-    border border-zinc-800
-    bg-[#0c0c0e]
-    overflow-hidden
-    shadow-lg
-  "
->
+    <div className="my-6 sm:my-8 w-full rounded-lg sm:rounded-xl border border-zinc-800 bg-[#0c0c0e] overflow-hidden shadow-lg">
 
       {/* ================= HEADER ================= */}
-      <div
-  className="
-    flex items-center justify-between
-    h-10 sm:h-12
-    px-3 sm:px-4
-    bg-[#18181b]
-    border-b border-zinc-800
-    select-none
-  "
->
-
+      <div className="flex items-center justify-between h-10 sm:h-12 px-3 sm:px-4 bg-[#18181b] border-b border-zinc-800 select-none">
         <div className="flex items-center gap-4">
           {/* MAC DOTS */}
           <div className="flex gap-1.5">
@@ -150,7 +137,7 @@ const CodeBlockViewer = React.memo(({
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
           </div>
 
-          {/* CODE / OUTPUT SWITCH (NO LAYOUT ANIMATION) */}
+          {/* CODE / OUTPUT SWITCH */}
           {hasOutput && (
             <div className="flex items-center p-0.5 bg-zinc-900 rounded-lg border border-zinc-700/50">
               {['code', 'output'].map(mode => {
@@ -207,145 +194,108 @@ const CodeBlockViewer = React.memo(({
         </div>
       )}
 
-     {/* ================= CONTENT ================= */}
-<div className="relative bg-[#0c0c0e]">
-  <div
-      style={{
-    maxHeight: window.innerWidth < 640
-      ? '240px'     // mobile
-      : window.innerWidth < 1024
-      ? '320px'     // tablet
-      : '380px',    // desktop
-
-    overflowX: 'auto',
-    overflowY: 'auto',
-
-    scrollbarWidth: 'none',
-    msOverflowStyle: 'none'
-  }}
-    onScroll={(e) => {
-      // force repaint to avoid scrollbar flash (Chrome quirk)
-      e.currentTarget.style.paddingRight = '0px';
-    }}
-  >
-    {/* Chrome / Safari scrollbar kill */}
-    <style>
-      {`
-        div::-webkit-scrollbar {
-          display: none;
-        }
-      `}
-    </style>
-
-    {/* ================= CODE ================= */}
-    {viewMode === 'code' &&
-      normalizedBlocks.map(block => (
+      {/* ================= CONTENT ================= */}
+      <div className="relative bg-[#0c0c0e]">
         <div
-          key={block.language}
           style={{
-            display: block.language === currentLang ? 'block' : 'none',
-            minWidth: 'max-content'
+            maxHeight: window.innerWidth < 640 ? '240px' : window.innerWidth < 1024 ? '320px' : '380px',
+            overflowX: 'auto',
+            overflowY: 'auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
           }}
+          onScroll={(e) => { e.currentTarget.style.paddingRight = '0px'; }}
         >
-          <SyntaxHighlighter
-            style={vscDarkPlus}
-            language={block.language.toLowerCase()}
-            showLineNumbers
-            wrapLines={false}
-            customStyle={{
-              background: 'transparent',
-              margin: 0,
-              padding: '1rem',
-              fontSize: '13px',
-              lineHeight: '1.5',
-              minWidth: '100%',
-              caretColor: '#9CDCFE'
-            }}
-            lineNumberStyle={{
-              minWidth: '2.5em',
-              paddingRight: '1em',
-              color: '#52525b',
-              userSelect: 'none'
-            }}
-          >
-            {block.code}
-          </SyntaxHighlighter>
+          <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+
+          {/* CODE */}
+          {viewMode === 'code' && normalizedBlocks.map(block => (
+            <div
+              key={block.language}
+              style={{
+                display: block.language === currentLang ? 'block' : 'none',
+                minWidth: 'max-content'
+              }}
+            >
+              <SyntaxHighlighter
+                style={vscDarkPlus}
+                language={block.language.toLowerCase()}
+                showLineNumbers
+                wrapLines={false}
+                customStyle={{
+                  background: 'transparent',
+                  margin: 0,
+                  padding: '1rem',
+                  fontSize: '13px',
+                  lineHeight: '1.5',
+                  minWidth: '100%',
+                  caretColor: '#9CDCFE'
+                }}
+                lineNumberStyle={{
+                  minWidth: '2.5em',
+                  paddingRight: '1em',
+                  color: '#52525b',
+                  userSelect: 'none'
+                }}
+              >
+                {block.code}
+              </SyntaxHighlighter>
+            </div>
+          ))}
+
+          {/* OUTPUT */}
+          {viewMode === 'output' && (
+            <pre
+              style={{
+                minWidth: 'max-content',
+                padding: '1rem',
+                fontFamily: 'monospace',
+                fontSize: '13px',
+                lineHeight: '1.5',
+                color: '#d4d4d8',
+                whiteSpace: 'pre'
+              }}
+            >
+              {outputContent}
+            </pre>
+          )}
         </div>
-      ))}
-
-    {/* ================= OUTPUT ================= */}
-    {viewMode === 'output' && (
-      <pre
-        style={{
-          minWidth: 'max-content',
-          padding: '1rem',
-          fontFamily: 'monospace',
-          fontSize: '13px',
-          lineHeight: '1.5',
-          color: '#d4d4d8',
-          whiteSpace: 'pre'
-        }}
-      >
-        {outputContent}
-      </pre>
-    )}
-  </div>
-</div>
-
-
-
+      </div>
 
       {/* ================= COMPLEXITY ================= */}
-{viewMode === 'code' && hasComplexity && (
-  <div className="border-t border-zinc-800 bg-[#121214]">
-    <button
-      onClick={() => setIsComplexityOpen(v => !v)}
-      className="w-full flex items-center justify-between px-4 py-3 text-xs text-zinc-400 hover:text-zinc-200 transition"
-    >
-      <span className="flex items-center gap-2">
-        <Timer className="w-3.5 h-3.5 text-zinc-500" />
-        Complexity Analysis
-      </span>
-      <ChevronDownLucide
-        className={cn(
-          "w-3.5 h-3.5 transition-transform",
-          isComplexityOpen && "rotate-180"
-        )}
-      />
-    </button>
-
-    {isComplexityOpen && (
-      <div className="px-5 pb-5 pt-3 border-t border-zinc-800/50 space-y-3 text-[13px]">
-
-        {/* TIME */}
-        {complexity.time && (
-          <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">
-              Time
+      {viewMode === 'code' && hasComplexity && (
+        <div className="border-t border-zinc-800 bg-[#121214]">
+          <button
+            onClick={() => setIsComplexityOpen(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-xs text-zinc-400 hover:text-zinc-200 transition"
+          >
+            <span className="flex items-center gap-2">
+              <Timer className="w-3.5 h-3.5 text-zinc-500" />
+              Complexity Analysis
             </span>
-            <span className="text-zinc-300 leading-relaxed">
-              {complexity.time.replace(/`/g, '')}
-            </span>
-          </div>
-        )}
+            <ChevronDownLucide
+              className={cn("w-3.5 h-3.5 transition-transform", isComplexityOpen && "rotate-180")}
+            />
+          </button>
 
-        {/* SPACE */}
-        {complexity.space && (
-          <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">
-              Space
-            </span>
-            <span className="text-zinc-300 leading-relaxed">
-              {complexity.space.replace(/`/g, '')}
-            </span>
-          </div>
-        )}
-
-      </div>
-    )}
-  </div>
-)}
-
+          {isComplexityOpen && (
+            <div className="px-5 pb-5 pt-3 border-t border-zinc-800/50 space-y-3 text-[13px]">
+              {complexity.time && (
+                <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">Time</span>
+                  <span className="text-zinc-300 leading-relaxed">{complexity.time.replace(/`/g, '')}</span>
+                </div>
+              )}
+              {complexity.space && (
+                <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">Space</span>
+                  <span className="text-zinc-300 leading-relaxed">{complexity.space.replace(/`/g, '')}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 });

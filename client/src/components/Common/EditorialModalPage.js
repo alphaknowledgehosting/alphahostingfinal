@@ -367,83 +367,238 @@ const ImageCarousel = ({ images }) => {
 };
 
 
-// --- CODE BLOCK VIEWER (SHARED PREVIEW COMPONENT) ---
-const CodeBlockViewer = React.memo(({ blocks, id, complexity, activeTabState, onTabChange }) => {
+// ==========================================
+// CODE BLOCK VIEWER (Fixed: Hooks run unconditionally)
+// ==========================================
+const CodeBlockViewer = React.memo(({
+  blocks,
+  id,
+  complexity,
+  activeTabState,
+  onTabChange
+}) => {
+  // 1. All Hooks must run first (unconditionally)
   const [viewMode, setViewMode] = useState('code');
   const [isComplexityOpen, setIsComplexityOpen] = useState(false);
   const [localCopied, setLocalCopied] = useState(false);
-
-  if (!blocks || blocks.length === 0) return null;
+  const copyTimeoutRef = React.useRef(null);
 
   const { normalizedBlocks, languages, outputContent, currentLang } = React.useMemo(() => {
+    // Handle empty data safely inside the hook
+    if (!blocks || blocks.length === 0) {
+        return { normalizedBlocks: [], languages: [], outputContent: '', currentLang: '' };
+    }
+
     const norm = blocks.map(b => ({ ...b, language: b.language || 'Code' }));
     const langs = norm.map(b => b.language);
     const lang = activeTabState && langs.includes(activeTabState) ? activeTabState : langs[0];
     
-    return { 
-      normalizedBlocks: norm, 
-      languages: langs, 
-      currentLang: lang, 
-      outputContent: norm[0]?.output || '' 
+    return {
+      normalizedBlocks: norm,
+      languages: langs,
+      currentLang: lang,
+      outputContent: norm.find(b => b.output)?.output || ''
     };
   }, [blocks, activeTabState]);
+
+  // 2. NOW it is safe to return null if empty
+  if (!blocks || blocks.length === 0) return null;
 
   const hasOutput = Boolean(outputContent);
   const hasComplexity = complexity?.time || complexity?.space;
 
+  // ---------- COPY ----------
   const handleCopy = () => {
-    const text = viewMode === 'output' ? outputContent : normalizedBlocks.find(b => b.language === currentLang)?.code || '';
+    const text =
+      viewMode === 'output'
+        ? outputContent
+        : normalizedBlocks.find(b => b.language === currentLang)?.code || '';
+
     navigator.clipboard.writeText(text).then(() => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
       setLocalCopied(true);
-      setTimeout(() => setLocalCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => setLocalCopied(false), 2000);
     });
   };
 
+  // ---------- STYLES ----------
+  const highlighterStyle = {
+    margin: 0,
+    padding: '1rem',
+    background: 'transparent',
+    fontSize: '13px',
+    lineHeight: '1.5',
+    overflow: 'hidden'
+  };
+
   return (
-    <div className="my-6 w-full rounded-xl border border-zinc-800 bg-[#0c0c0e] overflow-hidden shadow-lg">
-      <div className="flex items-center justify-between h-10 px-4 bg-[#18181b] border-b border-zinc-800 select-none">
+    <div className="my-6 sm:my-8 w-full rounded-lg sm:rounded-xl border border-zinc-800 bg-[#0c0c0e] overflow-hidden shadow-lg">
+
+      {/* ================= HEADER ================= */}
+      <div className="flex items-center justify-between h-10 sm:h-12 px-3 sm:px-4 bg-[#18181b] border-b border-zinc-800 select-none">
         <div className="flex items-center gap-4">
-          <div className="flex gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500"/><span className="w-2.5 h-2.5 rounded-full bg-amber-500"/><span className="w-2.5 h-2.5 rounded-full bg-emerald-500"/></div>
+          {/* MAC DOTS */}
+          <div className="flex gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          </div>
+
+          {/* CODE / OUTPUT SWITCH */}
           {hasOutput && (
             <div className="flex items-center p-0.5 bg-zinc-900 rounded-lg border border-zinc-700/50">
-              {['code', 'output'].map(mode => (
-                <button key={mode} onClick={() => setViewMode(mode)} className={cn("px-3 py-1 text-[11px] font-bold uppercase rounded-md flex items-center gap-1.5 transition-colors", viewMode === mode ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
-                  {mode === 'code' ? <Code2 className="w-3 h-3" /> : <Terminal className="w-3 h-3" />}{mode}
-                </button>
-              ))}
+              {['code', 'output'].map(mode => {
+                const active = viewMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={cn(
+                      "px-3 py-1 text-[11px] font-bold uppercase rounded-md flex items-center gap-1.5 transition-colors",
+                      active
+                        ? "bg-zinc-700 text-white"
+                        : "text-zinc-500 hover:text-zinc-300"
+                    )}
+                  >
+                    {mode === 'code' ? <Code2 className="w-3 h-3" /> : <Terminal className="w-3 h-3" />}
+                    {mode}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
-        <button onClick={handleCopy} className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition">{localCopied ? <FaCheck className="text-emerald-500" /> : <FaCopy />}{localCopied ? 'Copied' : 'Copy'}</button>
+
+        {/* COPY */}
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition"
+        >
+          {localCopied ? <FaCheck className="text-emerald-500" /> : <FaCopy />}
+          {localCopied ? 'Copied' : 'Copy'}
+        </button>
       </div>
+
+      {/* ================= LANGUAGE TABS ================= */}
       {viewMode === 'code' && (
         <div className="bg-[#121214] border-b border-zinc-800 px-4">
           <div className="flex gap-x-4 overflow-x-auto no-scrollbar">
             {languages.map(lang => (
-              <button key={lang} onClick={() => languages.length > 1 && onTabChange(lang)} className={cn("py-2 text-xs font-medium border-b-2 transition-colors", currentLang === lang ? "border-indigo-500 text-zinc-100" : "border-transparent text-zinc-500 hover:text-zinc-300")}>{lang === 'cpp' ? 'C++' : lang === 'py' ? 'Python' : lang}</button>
+              <button
+                key={lang}
+                onClick={() => languages.length > 1 && onTabChange(lang)}
+                className={cn(
+                  "py-2 text-xs font-medium border-b-2 transition-colors",
+                  currentLang === lang
+                    ? "border-indigo-500 text-zinc-100"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 disabled:cursor-default"
+                )}
+              >
+                {lang === 'cpp' ? 'C++' : lang === 'py' ? 'Python' : lang}
+              </button>
             ))}
           </div>
         </div>
       )}
+
+      {/* ================= CONTENT ================= */}
       <div className="relative bg-[#0c0c0e]">
-        <div style={{ maxHeight: '380px', overflow: 'auto', scrollbarWidth: 'none' }}>
+        <div
+          style={{
+            maxHeight: window.innerWidth < 640 ? '240px' : window.innerWidth < 1024 ? '320px' : '380px',
+            overflowX: 'auto',
+            overflowY: 'auto',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}
+          onScroll={(e) => { e.currentTarget.style.paddingRight = '0px'; }}
+        >
+          <style>{`div::-webkit-scrollbar { display: none; }`}</style>
+
+          {/* CODE */}
           {viewMode === 'code' && normalizedBlocks.map(block => (
-            <div key={block.language} style={{ display: block.language === currentLang ? 'block' : 'none' }}>
-              <SyntaxHighlighter style={vscDarkPlus} language={block.language.toLowerCase()} showLineNumbers wrapLines={false} customStyle={{ background: 'transparent', margin: 0, padding: '1rem', fontSize: '13px' }}>{block.code}</SyntaxHighlighter>
+            <div
+              key={block.language}
+              style={{
+                display: block.language === currentLang ? 'block' : 'none',
+                minWidth: 'max-content'
+              }}
+            >
+              <SyntaxHighlighter
+                style={vscDarkPlus}
+                language={block.language.toLowerCase()}
+                showLineNumbers
+                wrapLines={false}
+                customStyle={{
+                  background: 'transparent',
+                  margin: 0,
+                  padding: '1rem',
+                  fontSize: '13px',
+                  lineHeight: '1.5',
+                  minWidth: '100%',
+                  caretColor: '#9CDCFE'
+                }}
+                lineNumberStyle={{
+                  minWidth: '2.5em',
+                  paddingRight: '1em',
+                  color: '#52525b',
+                  userSelect: 'none'
+                }}
+              >
+                {block.code}
+              </SyntaxHighlighter>
             </div>
           ))}
-          {viewMode === 'output' && <pre style={{ padding: '1rem', fontFamily: 'monospace', fontSize: '13px', color: '#d4d4d8', whiteSpace: 'pre-wrap', overflowX: 'auto' }}>{outputContent}</pre>}
+
+          {/* OUTPUT */}
+          {viewMode === 'output' && (
+            <pre
+              style={{
+                minWidth: 'max-content',
+                padding: '1rem',
+                fontFamily: 'monospace',
+                fontSize: '13px',
+                lineHeight: '1.5',
+                color: '#d4d4d8',
+                whiteSpace: 'pre'
+              }}
+            >
+              {outputContent}
+            </pre>
+          )}
         </div>
       </div>
+
+      {/* ================= COMPLEXITY ================= */}
       {viewMode === 'code' && hasComplexity && (
         <div className="border-t border-zinc-800 bg-[#121214]">
-          <button onClick={() => setIsComplexityOpen(v => !v)} className="w-full flex items-center justify-between px-4 py-3 text-xs text-zinc-400 hover:text-zinc-200 transition">
-            <span className="flex items-center gap-2"><Timer className="w-3.5 h-3.5" />Complexity Analysis</span><ChevronDownLucide className={cn("w-3.5 h-3.5 transition-transform", isComplexityOpen && "rotate-180")} />
+          <button
+            onClick={() => setIsComplexityOpen(v => !v)}
+            className="w-full flex items-center justify-between px-4 py-3 text-xs text-zinc-400 hover:text-zinc-200 transition"
+          >
+            <span className="flex items-center gap-2">
+              <Timer className="w-3.5 h-3.5 text-zinc-500" />
+              Complexity Analysis
+            </span>
+            <ChevronDownLucide
+              className={cn("w-3.5 h-3.5 transition-transform", isComplexityOpen && "rotate-180")}
+            />
           </button>
+
           {isComplexityOpen && (
             <div className="px-5 pb-5 pt-3 border-t border-zinc-800/50 space-y-3 text-[13px]">
-              {complexity.time && <div className="grid grid-cols-[96px_1fr] gap-4 items-start"><span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">Time</span><span className="text-zinc-300">{complexity.time}</span></div>}
-              {complexity.space && <div className="grid grid-cols-[96px_1fr] gap-4 items-start"><span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">Space</span><span className="text-zinc-300">{complexity.space}</span></div>}
+              {complexity.time && (
+                <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">Time</span>
+                  <span className="text-zinc-300 leading-relaxed">{complexity.time.replace(/`/g, '')}</span>
+                </div>
+              )}
+              {complexity.space && (
+                <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
+                  <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">Space</span>
+                  <span className="text-zinc-300 leading-relaxed">{complexity.space.replace(/`/g, '')}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
