@@ -1,2366 +1,1411 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { sheetAPI } from '../../services/api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { sheetAPI } from '../../services/api'; 
+import { motion, AnimatePresence } from 'framer-motion';
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
 import { 
-  FaArrowLeft, 
-  FaSpinner, 
-  FaExclamationTriangle,
-  FaBook,
-  FaChevronLeft,
-  FaChevronRight,
-  FaCircle,
-  FaEdit,
-  FaPlay,   // <--- Add this
-  FaPause,
-  FaSave,
-  FaTimes,
-  FaEye,
-  FaYoutube,
-  FaCopy,
-  FaCheck,
-  FaImage,
-  FaHeart,
-  FaLinkedin,
-  FaGithub,
-  FaInstagram,
-  FaTwitter,
-  FaGlobe
+  FaSpinner, FaExclamationTriangle, FaCheck, FaImage, FaCopy, 
+  FaChevronLeft, FaChevronRight, FaPause, FaPlay
 } from 'react-icons/fa';
 import { 
-  ChevronRight,
-  ChevronDown as ChevronDownLucide,
-  Code,
-  BookOpen,
-  PlayCircle,
-  Home,
-  ArrowUp,
-  FileText,
-  Lightbulb,
-  Timer,
-  Database,
-  ArrowLeft,
-  GraduationCap
+  ChevronDown as ChevronDownLucide, BookOpen, PlayCircle, 
+  ArrowUp, ArrowLeft, Timer, Terminal, GraduationCap, Code2, ChevronRight 
 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import remarkGfm from 'remark-gfm';
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ;
+import { FaYoutube } from 'react-icons/fa6';
+
+function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
+
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
+const THEME = {
+  light: {
+    bg: 'bg-white',
+    surface: 'bg-gray-100',
+    surfaceAlt: 'bg-gray-50',
+    border: 'border-gray-300',
+    text: 'text-gray-800',
+    muted: 'text-gray-500',
+    accent: 'text-indigo-600',
+    accentBg: 'bg-indigo-600',
+    accentSoft: 'bg-indigo-500/10',
+    codeBg: 'bg-[#f8f9ff]',
+    codeBorder: 'border-indigo-200',
+    tableHead: 'bg-indigo-50',
+    controlHover: 'hover:bg-indigo-100'
+  },
+  dark: {
+    bg: 'bg-[#030014]',
+    surface: 'bg-[#0c0c1a]',
+    surfaceAlt: 'bg-[#121224]',
+    border: 'border-indigo-500/20',
+    text: 'text-zinc-100',
+    muted: 'text-zinc-400',
+    accent: 'text-indigo-400',
+    accentBg: 'bg-indigo-500',
+    accentSoft: 'bg-indigo-500/10',
+    codeBg: 'bg-[#0b0b1e]',
+    codeBorder: 'border-indigo-500/30',
+    tableHead: 'bg-[#121233]',
+    controlHover: 'hover:bg-indigo-500/20'
+  }
+};
+
+
+
+// ==========================================
+// CODE BLOCK VIEWER (Render-All + Mac Style + No Jump)
+// ==========================================
+const CodeBlockViewer = React.memo(({
+  blocks,
+  id,
+  complexity,
+  activeTabState,
+  onTabChange
+}) => {
+  const [viewMode, setViewMode] = useState('code');
+  const [isComplexityOpen, setIsComplexityOpen] = useState(false);
+  const [localCopied, setLocalCopied] = useState(false);
+  const copyTimeoutRef = React.useRef(null);
+
+  if (!blocks || blocks.length === 0) return null;
+
+  // ---------- NORMALIZE ----------
+  const { normalizedBlocks, languages, outputContent, currentLang } = React.useMemo(() => {
+    const norm = blocks.map(b => ({ ...b, language: b.language || 'Code' }));
+    const langs = norm.map(b => b.language);
+    const lang = activeTabState && langs.includes(activeTabState) ? activeTabState : langs[0];
+    return {
+      normalizedBlocks: norm,
+      languages: langs,
+      currentLang: lang,
+      outputContent: norm.find(b => b.output)?.output || ''
+    };
+  }, [blocks, activeTabState]);
+
+  const hasOutput = Boolean(outputContent);
+  const hasComplexity = complexity?.time || complexity?.space;
+
+  // ---------- COPY ----------
+  const handleCopy = () => {
+    const text =
+      viewMode === 'output'
+        ? outputContent
+        : normalizedBlocks.find(b => b.language === currentLang)?.code || '';
+
+    navigator.clipboard.writeText(text).then(() => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+      setLocalCopied(true);
+      copyTimeoutRef.current = setTimeout(() => setLocalCopied(false), 2000);
+    });
+  };
+
+  // ---------- STYLES ----------
+  const highlighterStyle = {
+    margin: 0,
+    padding: '1rem',
+    background: 'transparent',
+    fontSize: '13px',
+    lineHeight: '1.5',
+    overflow: 'hidden'
+  };
+
+  return (
+    <div
+  className="
+    my-6 sm:my-8
+    w-full
+    rounded-lg sm:rounded-xl
+    border border-zinc-800
+    bg-[#0c0c0e]
+    overflow-hidden
+    shadow-lg
+  "
+>
+
+      {/* ================= HEADER ================= */}
+      <div
+  className="
+    flex items-center justify-between
+    h-10 sm:h-12
+    px-3 sm:px-4
+    bg-[#18181b]
+    border-b border-zinc-800
+    select-none
+  "
+>
+
+        <div className="flex items-center gap-4">
+          {/* MAC DOTS */}
+          <div className="flex gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          </div>
+
+          {/* CODE / OUTPUT SWITCH (NO LAYOUT ANIMATION) */}
+          {hasOutput && (
+            <div className="flex items-center p-0.5 bg-zinc-900 rounded-lg border border-zinc-700/50">
+              {['code', 'output'].map(mode => {
+                const active = viewMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={cn(
+                      "px-3 py-1 text-[11px] font-bold uppercase rounded-md flex items-center gap-1.5 transition-colors",
+                      active
+                        ? "bg-zinc-700 text-white"
+                        : "text-zinc-500 hover:text-zinc-300"
+                    )}
+                  >
+                    {mode === 'code' ? <Code2 className="w-3 h-3" /> : <Terminal className="w-3 h-3" />}
+                    {mode}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* COPY */}
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition"
+        >
+          {localCopied ? <FaCheck className="text-emerald-500" /> : <FaCopy />}
+          {localCopied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+
+      {/* ================= LANGUAGE TABS ================= */}
+      {viewMode === 'code' && (
+        <div className="bg-[#121214] border-b border-zinc-800 px-4">
+          <div className="flex gap-x-4 overflow-x-auto no-scrollbar">
+            {languages.map(lang => (
+              <button
+                key={lang}
+                onClick={() => languages.length > 1 && onTabChange(lang)}
+                className={cn(
+                  "py-2 text-xs font-medium border-b-2 transition-colors",
+                  currentLang === lang
+                    ? "border-indigo-500 text-zinc-100"
+                    : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-zinc-700 disabled:cursor-default"
+                )}
+              >
+                {lang === 'cpp' ? 'C++' : lang === 'py' ? 'Python' : lang}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+     {/* ================= CONTENT ================= */}
+<div className="relative bg-[#0c0c0e]">
+  <div
+      style={{
+    maxHeight: window.innerWidth < 640
+      ? '240px'     // mobile
+      : window.innerWidth < 1024
+      ? '320px'     // tablet
+      : '380px',    // desktop
+
+    overflowX: 'auto',
+    overflowY: 'auto',
+
+    scrollbarWidth: 'none',
+    msOverflowStyle: 'none'
+  }}
+    onScroll={(e) => {
+      // force repaint to avoid scrollbar flash (Chrome quirk)
+      e.currentTarget.style.paddingRight = '0px';
+    }}
+  >
+    {/* Chrome / Safari scrollbar kill */}
+    <style>
+      {`
+        div::-webkit-scrollbar {
+          display: none;
+        }
+      `}
+    </style>
+
+    {/* ================= CODE ================= */}
+    {viewMode === 'code' &&
+      normalizedBlocks.map(block => (
+        <div
+          key={block.language}
+          style={{
+            display: block.language === currentLang ? 'block' : 'none',
+            minWidth: 'max-content'
+          }}
+        >
+          <SyntaxHighlighter
+            style={vscDarkPlus}
+            language={block.language.toLowerCase()}
+            showLineNumbers
+            wrapLines={false}
+            customStyle={{
+              background: 'transparent',
+              margin: 0,
+              padding: '1rem',
+              fontSize: '13px',
+              lineHeight: '1.5',
+              minWidth: '100%',
+              caretColor: '#9CDCFE'
+            }}
+            lineNumberStyle={{
+              minWidth: '2.5em',
+              paddingRight: '1em',
+              color: '#52525b',
+              userSelect: 'none'
+            }}
+          >
+            {block.code}
+          </SyntaxHighlighter>
+        </div>
+      ))}
+
+    {/* ================= OUTPUT ================= */}
+    {viewMode === 'output' && (
+      <pre
+        style={{
+          minWidth: 'max-content',
+          padding: '1rem',
+          fontFamily: 'monospace',
+          fontSize: '13px',
+          lineHeight: '1.5',
+          color: '#d4d4d8',
+          whiteSpace: 'pre'
+        }}
+      >
+        {outputContent}
+      </pre>
+    )}
+  </div>
+</div>
+
+
+
+
+      {/* ================= COMPLEXITY ================= */}
+{viewMode === 'code' && hasComplexity && (
+  <div className="border-t border-zinc-800 bg-[#121214]">
+    <button
+      onClick={() => setIsComplexityOpen(v => !v)}
+      className="w-full flex items-center justify-between px-4 py-3 text-xs text-zinc-400 hover:text-zinc-200 transition"
+    >
+      <span className="flex items-center gap-2">
+        <Timer className="w-3.5 h-3.5 text-zinc-500" />
+        Complexity Analysis
+      </span>
+      <ChevronDownLucide
+        className={cn(
+          "w-3.5 h-3.5 transition-transform",
+          isComplexityOpen && "rotate-180"
+        )}
+      />
+    </button>
+
+    {isComplexityOpen && (
+      <div className="px-5 pb-5 pt-3 border-t border-zinc-800/50 space-y-3 text-[13px]">
+
+        {/* TIME */}
+        {complexity.time && (
+          <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">
+              Time
+            </span>
+            <span className="text-zinc-300 leading-relaxed">
+              {complexity.time.replace(/`/g, '')}
+            </span>
+          </div>
+        )}
+
+        {/* SPACE */}
+        {complexity.space && (
+          <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">
+              Space
+            </span>
+            <span className="text-zinc-300 leading-relaxed">
+              {complexity.space.replace(/`/g, '')}
+            </span>
+          </div>
+        )}
+
+      </div>
+    )}
+  </div>
+)}
+
+    </div>
+  );
+});
+
+
+// ==========================================
+// 2. MAIN PAGE & PARSING LOGIC
+// ==========================================
 
 const EditorialPage = () => {
   const { problemId } = useParams();
+  const navigate = useNavigate();
+  const handleBack = () => {
+  if (window.history.length > 1) {
+    navigate(-1);
+  } else {
+    window.close();
+  }
+};
+
   const [problem, setProblem] = useState(null);
-  const [editorial, setEditorial] = useState('');
+  const [parsedContent, setParsedContent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editorialContent, setEditorialContent] = useState('');
-  const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('editorial');
   const [expandedSections, setExpandedSections] = useState({});
-  const [selectedLanguages, setSelectedLanguages] = useState({});
   const [copiedCode, setCopiedCode] = useState({});
-  const [imageLoadErrors, setImageLoadErrors] = useState({});
-  const [editorialData, setEditorialData] = useState(null);
-  const [contentType, setContentType] = useState('solution');
   const [codeTabStates, setCodeTabStates] = useState({});
-
-  const getCurrentTab = (blockId) => {
-    return codeTabStates[blockId] || 'code';
-  };
 
   useEffect(() => {
     if (problemId) {
-      loadProblemAndEditorial();
+      loadProblemAndContent();
     }
   }, [problemId]);
+// ==========================================
+// 3. SECURE IMAGE & CAROUSEL (Clean UI + Synced Autoplay)
+// ==========================================
 
-  useEffect(() => {
-    if (contentType === 'editorial' && editorial) {
-      const parsedEditorial = parseEditorialMarkdown(editorial);
-      
-      const initialLanguages = {};
-      const initialCodeTabStates = {};
-      parsedEditorial.content.forEach(block => {
-        if (block.type === 'code' && block.code && block.code.length > 0) {
-          const hasValidLanguages = block.code.some(codeItem => codeItem.language.trim());
-          if (hasValidLanguages) {
-            if (!selectedLanguages[block.id]) {
-              initialLanguages[block.id] = block.code[0].language;
-            }
-          }
-          initialCodeTabStates[block.id] = 'code';
-        }
-      });
-      
-      if (Object.keys(initialLanguages).length > 0) {
-        setSelectedLanguages(prev => ({ ...prev, ...initialLanguages }));
-      }
-      if (Object.keys(initialCodeTabStates).length > 0) {
-        setCodeTabStates(prev => ({ ...prev, ...initialCodeTabStates }));
-      }
+// --- HELPERS (Fast Multi-Strategy Loading) ---
+const convertToDirectUrl = (url) => {
+  if (!url) return '';
+  let cleanUrl = url.trim();
+
+  if (cleanUrl.includes('drive.google.com')) {
+    const fileIdMatch = cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
+    if (fileIdMatch) {
+      const fileId = fileIdMatch[1] || fileIdMatch[2];
+      return `https://drive.google.com/uc?export=view&id=${fileId}`;
     }
-  }, [editorial, contentType, selectedLanguages]);
-
-  const convertGoogleDriveUrl = (url) => {
-    if (!url) return url;
-    
-    const drivePatterns = [
-      /https:\/\/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)\/view/,
-      /https:\/\/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)\/view$/,
-      /https:\/\/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/,
-      /https:\/\/drive\.google\.com\/uc\?export=view&id=([a-zA-Z0-9_-]+)/,
-      /https:\/\/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/
-    ];
-    
-    for (const pattern of drivePatterns) {
-      const match = url.match(pattern);
-      if (match) {
-        const fileId = match[1];
-        return `https://drive.google.com/uc?export=download&id=${fileId}`;
-      }
+  }
+  
+  if (cleanUrl.includes('github.com') && !cleanUrl.includes('raw.githubusercontent.com')) {
+    if (cleanUrl.includes('/blob/')) {
+      return cleanUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
     }
-    
-    return url;
-  };
+  }
+  
+  if (cleanUrl.includes('dropbox.com') && !cleanUrl.includes('dl=1')) {
+    return cleanUrl.replace('dl=0', 'dl=1').replace(/\?.*/, '') + '?dl=1';
+  }
+  
+  if (cleanUrl.includes('1drv.ms')) {
+    return `https://api.allorigins.win/raw?url=${encodeURIComponent(cleanUrl)}`;
+  }
+  
+  return cleanUrl;
+};
 
-  const createImageProxy = async (originalUrl) => {
+const loadAsDataUrl = async (url) => {
+  const response = await fetch(url, { mode: 'cors', method: 'GET', headers: { 'Accept': 'image/*,*/*;q=0.8' } });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const blob = await response.blob();
+  if (blob.size === 0) throw new Error('Empty response');
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('FileReader failed'));
+    reader.readAsDataURL(blob);
+  });
+};
+
+const loadViaCanvas = async (url) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || img.width;
+        canvas.height = img.naturalHeight || img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch (e) { reject(e); }
+    };
+    img.onerror = () => reject(new Error('Image load failed'));
+    img.src = url;
+  });
+};
+
+const loadViaProxy = async (url) => {
+  const proxyServices = [
+    `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=2000&h=2000`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    `https://cors-anywhere.herokuapp.com/${url}`
+  ];
+  for (const proxyUrl of proxyServices) {
     try {
-      const convertedUrl = convertGoogleDriveUrl(originalUrl);
-      
-      if (originalUrl.includes('drive.google.com')) {
-        const fileId = originalUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1];
-        if (fileId) {
-          const driveUrls = [
-            `https://drive.google.com/uc?export=download&id=${fileId}`,
-            `https://drive.google.com/uc?export=view&id=${fileId}`,
-            `https://lh3.googleusercontent.com/d/${fileId}`,
-            `https://drive.google.com/thumbnail?id=${fileId}&sz=w2000-h2000`
-          ];
-          
-          for (const driveUrl of driveUrls) {
-            try {
-              const response = await fetch(driveUrl, {
-                mode: 'cors',
-                method: 'GET',
-              });
-              
-              if (response.ok) {
-                const blob = await response.blob();
-                if (blob.size > 0) {
-                  const blobUrl = URL.createObjectURL(blob);
-                  return blobUrl;
-                }
-              }
-            } catch (err) {
-              //console.log(`Failed to fetch from ${driveUrl}:`, err.message);
-              continue;
-            }
-          }
-        }
-      }
-      
-      const response = await fetch(convertedUrl, {
-        mode: 'cors',
-        method: 'GET',
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      
-      return blobUrl;
-    } catch (error) {
-      console.error('Error creating image proxy:', error);
-      return convertGoogleDriveUrl(originalUrl);
-    }
-  };
-
-  const SecureImage = ({ src, alt, className, style, onError, ...props }) => {
-    const [imageSrc, setImageSrc] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
-    const [hasError, setHasError] = useState(false);
-    const [loadingMethod, setLoadingMethod] = useState('');
-    
-    useEffect(() => {
-      let mounted = true;
-      
-      const loadImage = async () => {
-        try {
-          setIsLoading(true);
-          setHasError(false);
-          setLoadingMethod('Processing...');
-          
-          if (!src) {
-            throw new Error('No source provided');
-          }
-          
-          let processedSrc = src.trim();
-          processedSrc = convertToDirectUrl(processedSrc);
-          setLoadingMethod('Converting URL...');
-          
-          const loadingMethods = [
-            () => loadAsDataUrl(processedSrc),
-            () => loadViaCanvas(processedSrc),
-            () => loadViaProxy(processedSrc),
-            () => loadDirect(processedSrc)
-          ];
-          
-          for (let i = 0; i < loadingMethods.length; i++) {
-            if (!mounted) break;
-            
-            try {
-              setLoadingMethod(`Method ${i + 1}/4...`);
-              const result = await Promise.race([
-                loadingMethods[i](),
-                new Promise((_, reject) => 
-                  setTimeout(() => reject(new Error('Timeout')), 10000)
-                )
-              ]);
-              
-              if (result && mounted) {
-                setImageSrc(result);
-                setLoadingMethod('');
-                return;
-              }
-            } catch (methodError) {
-              //console.log(`Loading method ${i + 1} failed:`, methodError.message);
-              continue;
-            }
-          }
-          
-          throw new Error('All loading methods failed');
-          
-        } catch (error) {
-          // console.error('Error loading secure image:', error);
-          if (mounted) {
-            setHasError(true);
-            setLoadingMethod('');
-          }
-        } finally {
-          if (mounted) {
-            setIsLoading(false);
-          }
-        }
-      };
-      
-      const convertToDirectUrl = (url) => {
-        if (url.includes('drive.google.com')) {
-          const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)|id=([a-zA-Z0-9_-]+)/);
-          if (fileIdMatch) {
-            const fileId = fileIdMatch[1] || fileIdMatch[2];
-            return `https://drive.google.com/uc?export=view&id=${fileId}`;
-          }
-        }
-        
-        if (url.includes('github.com') && !url.includes('raw.githubusercontent.com')) {
-          if (url.includes('/blob/')) {
-            return url
-              .replace('github.com', 'raw.githubusercontent.com')
-              .replace('/blob/', '/');
-          }
-        }
-        
-        if (url.includes('dropbox.com') && !url.includes('dl=1')) {
-          return url.replace('dl=0', 'dl=1').replace(/\?.*/, '') + '?dl=1';
-        }
-        
-        if (url.includes('1drv.ms') || url.includes('onedrive.live.com')) {
-          if (url.includes('1drv.ms')) {
-            return `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-          }
-        }
-        
-        return url;
-      };
-      
-      const loadAsDataUrl = async (url) => {
-        const response = await fetch(url, {
-          mode: 'cors',
-          method: 'GET',
-          headers: {
-            'Accept': 'image/*,*/*;q=0.8',
-            'User-Agent': 'Mozilla/5.0 (compatible; SecureImageLoader/1.0)'
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        
+      const response = await fetch(proxyUrl, { method: 'GET' });
+      if (response.ok) {
         const blob = await response.blob();
-        if (blob.size === 0) {
-          throw new Error('Empty response');
+        if (blob.size > 0) {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+          });
         }
+      }
+    } catch (e) { continue; }
+  }
+  throw new Error('All proxies failed');
+};
+
+const loadDirect = async (url) => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(url);
+    img.onerror = () => reject(new Error('Direct load failed'));
+    img.src = url;
+  });
+};
+
+// --- SECURE IMAGE COMPONENT ---
+const SecureImage = ({ src, alt, className, style, onLoad, ...props }) => {
+  const [imageSrc, setImageSrc] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  
+  useEffect(() => {
+    let mounted = true;
+    
+    const loadImage = async () => {
+      try {
+        setIsLoading(true);
+        setHasError(false);
         
-        return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.onerror = () => reject(new Error('FileReader failed'));
-          reader.readAsDataURL(blob);
-        });
-      };
-      
-      const loadViaCanvas = async (url) => {
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          
-          img.onload = () => {
-            try {
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
-              canvas.width = img.naturalWidth || img.width;
-              canvas.height = img.naturalHeight || img.height;
-              
-              ctx.drawImage(img, 0, 0);
-              const dataUrl = canvas.toDataURL('image/png', 0.9);
-              resolve(dataUrl);
-            } catch (canvasError) {
-              reject(canvasError);
-            }
-          };
-          
-          img.onerror = () => reject(new Error('Image load failed'));
-          setTimeout(() => reject(new Error('Canvas load timeout')), 8000);
-          img.src = url;
-        });
-      };
-      
-      const loadViaProxy = async (url) => {
-        const proxyServices = [
-          `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=2000&h=2000`,
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-          `https://cors-anywhere.herokuapp.com/${url}`,
-          `https://thingproxy.freeboard.io/fetch/${url}`
+        if (!src) throw new Error('No source');
+        
+        const processedSrc = convertToDirectUrl(src);
+        
+        // Race condition: Whichever method finishes first wins (Fastest Load)
+        const loadingMethods = [
+          () => loadAsDataUrl(processedSrc),
+          () => loadViaCanvas(processedSrc),
+          () => loadViaProxy(processedSrc),
+          () => loadDirect(processedSrc)
         ];
         
-        for (const proxyUrl of proxyServices) {
-          try {
-            const response = await fetch(proxyUrl, {
-              method: 'GET',
-              headers: { 'Accept': 'image/*' }
-            });
+        try {
+            const result = await Promise.any(
+                loadingMethods.map(method => 
+                    method().then(res => {
+                        if(!mounted) throw new Error('Unmounted');
+                        return res;
+                    })
+                )
+            );
             
-            if (response.ok) {
-              const blob = await response.blob();
-              if (blob.size > 0) {
-                return new Promise((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onloadend = () => resolve(reader.result);
-                  reader.onerror = () => reject(new Error('FileReader failed'));
-                  reader.readAsDataURL(blob);
-                });
-              }
+            if (mounted) {
+                setImageSrc(result);
+                setIsLoading(false);
+                if (onLoad) onLoad(); // Notify carousel that image is ready
             }
-          } catch (proxyError) {
-            continue;
-          }
+        } catch (e) {
+            throw new Error('All loading methods failed');
         }
         
-        throw new Error('All proxy services failed');
-      };
-      
-      const loadDirect = async (url) => {
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          img.onload = () => resolve(url);
-          img.onerror = () => reject(new Error('Direct load failed'));
-          img.src = url;
-          setTimeout(() => reject(new Error('Direct load timeout')), 5000);
-        });
-      };
-      
-      if (src) {
-        loadImage();
-      }
-      
-      return () => {
-        mounted = false;
-      };
-    }, [src]);
-    
-    const handleContextMenu = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      return false;
-    };
-    
-    const handleKeyDown = (e) => {
-      const blockedKeys = [
-        'F12',
-        { ctrl: true, shift: true, key: 'I' },
-        { ctrl: true, shift: true, key: 'C' },
-        { ctrl: true, shift: true, key: 'J' },
-        { ctrl: true, key: 'U' },
-        { ctrl: true, key: 'S' },
-        { meta: true, alt: true, key: 'I' },
-        { meta: true, alt: true, key: 'C' },
-      ];
-      
-      const isBlocked = blockedKeys.some(blocked => {
-        if (typeof blocked === 'string') {
-          return e.key === blocked;
+      } catch (error) {
+        if (mounted) {
+          setHasError(true);
+          setIsLoading(false);
+          if (onLoad) onLoad(); // Unblock carousel even on error to prevent stalling
         }
-        return (
-          (!blocked.ctrl || e.ctrlKey) &&
-          (!blocked.shift || e.shiftKey) &&
-          (!blocked.meta || e.metaKey) &&
-          (!blocked.alt || e.altKey) &&
-          e.key === blocked.key
-        );
-      });
-      
-      if (isBlocked) {
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
       }
     };
     
-    const handleError = () => {
-      setHasError(true);
-      if (onError) {
-        onError();
-      }
-    };
-    
-    if (isLoading) {
-      return (
-        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-[3px] border-[#6257e3] dark:border-[#6257e3]">
-          <div className="text-center max-w-xs">
-            <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-indigo-600 mx-auto mb-3"></div>
-            <p className="text-gray-600 dark:text-gray-400 text-xs sm:text-sm font-medium">
-              Loading secure image...
-            </p>
-            {loadingMethod && (
-              <p className="text-gray-500 dark:text-gray-500 text-xs mt-1">
-                {loadingMethod}
-              </p>
-            )}
-          </div>
-        </div>
-      );
-    }
-    
-    if (hasError || !imageSrc) {
-      return (
-        <div className="flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8 bg-amber-50 dark:bg-amber-900/20 rounded-lg border-[3px] border-[#6257e3] dark:border-[#6257e3]">
-          <div className="text-center max-w-xs">
-            <FaImage className="w-8 h-8 sm:w-10 sm:h-10 text-amber-600 dark:text-amber-400 mx-auto mb-3" />
-            <p className="text-amber-700 dark:text-amber-400 text-xs sm:text-sm font-medium mb-1">
-              Image temporarily unavailable
-            </p>
-            <p className="text-amber-600 dark:text-amber-500 text-xs leading-tight">
-              The image couldn't be loaded securely. Please try refreshing the page.
-            </p>
-          </div>
-        </div>
-      );
-    }
-    
+    loadImage();
+    return () => { mounted = false; };
+  }, [src]);
+  
+  // Security Handlers
+  const preventAction = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
+  };
+  
+  if (isLoading) {
     return (
-      <div
-        onKeyDown={handleKeyDown}
-        tabIndex={-1}
-        style={{ outline: 'none' }}
-        className="focus:outline-none w-full h-full flex justify-center items-center"
-        onContextMenu={handleContextMenu}
-      >
-        <img
+      <div className={cn("flex items-center justify-center p-8 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-800 w-full min-h-[200px]", className)}>
+        <FaSpinner className="animate-spin h-6 w-6 text-indigo-600"/>
+      </div>
+    );
+  }
+  
+  if (hasError) {
+    return (
+      <div className="my-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl flex items-center space-x-3 w-full">
+        <FaImage className="w-5 h-5 text-red-500" />
+        <p className="text-red-700 dark:text-red-400 font-medium">Image unavailable</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div 
+      className="relative group w-full h-full flex justify-center items-center select-none"
+      onContextMenu={preventAction}
+      onDragStart={preventAction}
+    >
+      {/* TRANSPARENT SHIELD (Prevents Inspect/Interaction) */}
+      <div 
+        className="absolute inset-0 z-20 bg-transparent w-full h-full"
+        onContextMenu={preventAction}
+        onDragStart={preventAction}
+      />
+
+      <img
         {...props}
         src={imageSrc}
-        alt={alt}
-        className={`${className} rounded-xl 
-  border-[2px] dark:border-[3.2px] 
-  border-[#6257e3] 
-  shadow-lg shadow-[#6961b5]/20 
-  w-full sm:w-4/5 md:w-3/4 lg:w-2/3 xl:w-1/2 h-auto`}
-
+        alt={alt || "Secure Content"}
+        className={cn(
+          "rounded-xl border-[2px] dark:border-[3.2px] border-[#6257e3] shadow-lg shadow-[#6961b5]/20 w-full sm:w-4/5 md:w-3/4 lg:w-2/3 xl:w-1/2 h-auto pointer-events-none select-none", 
+          className
+        )}
         style={{
           ...style,
           maxHeight: '500px',
           objectFit: 'contain',
           display: 'block',
           userSelect: 'none',
-          WebkitUserSelect: 'none',
-          MozUserSelect: 'none',
-          msUserSelect: 'none',
-          WebkitTouchCallout: 'none',
-          WebkitUserDrag: 'none',
-          KhtmlUserSelect: 'none',
-          pointerEvents: 'auto'
+          WebkitUserDrag: 'none'
         }}
-        onError={handleError}
-        onContextMenu={handleContextMenu}
         draggable={false}
-        onDragStart={(e) => e.preventDefault()}
-        onMouseDown={(e) => { if (e.detail > 1) e.preventDefault(); }}
       />
-      </div>
-    );
-  };
+    </div>
+  );
+};
+
+// --- IMAGE CAROUSEL COMPONENT (Clean Controls) ---
 const ImageCarousel = ({ images }) => {
   const [current, setCurrent] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isCurrentLoaded, setIsCurrentLoaded] = useState(false);
   const length = images.length;
 
-  // Auto-play functionality
+  // Reset load state when slide changes
+  useEffect(() => {
+    setIsCurrentLoaded(false);
+  }, [current]);
+
+  // Autoplay Effect - Pauses logic if current image isn't loaded yet
   useEffect(() => {
     let interval;
-    if (isPlaying && length > 1) {
+    if (isPlaying && length > 1 && isCurrentLoaded) {
       interval = setInterval(() => {
         setCurrent((prev) => (prev === length - 1 ? 0 : prev + 1));
-      }, 3000); // 3 seconds per slide
+      }, 3500);
     }
     return () => clearInterval(interval);
-  }, [length, isPlaying]);
+  }, [length, isPlaying, isCurrentLoaded]);
 
-  const nextSlide = () => {
-    setCurrent(current === length - 1 ? 0 : current + 1);
+  const nextSlide = () => setCurrent(current === length - 1 ? 0 : current + 1);
+  const prevSlide = () => setCurrent(current === 0 ? length - 1 : current - 1);
+  const togglePlay = () => setIsPlaying(!isPlaying);
+
+  const handleImageLoad = (index) => {
+    if (index === current) {
+      setIsCurrentLoaded(true);
+    }
   };
 
-  const prevSlide = () => {
-    setCurrent(current === 0 ? length - 1 : current - 1);
-  };
-
-  const togglePlay = () => {
-    setIsPlaying(!isPlaying);
-  };
-
-  if (!Array.isArray(images) || images.length === 0) {
-    return null;
-  }
+  if (!Array.isArray(images) || images.length === 0) return null;
 
   return (
-    <div className="w-full aspect-video max-w-3xl mx-auto my-6 flex flex-col rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 shadow-md">
+    <div className="w-full aspect-video max-w-3xl mx-auto my-6 flex flex-col rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 shadow-md select-none bg-black">
       
-      {/* Slide Area */}
-      <div className="relative w-full h-full flex-1 bg-black overflow-hidden group">
-        {images.map((imgSrc, index) => (
-          <div
-            key={index}
-            className={`absolute inset-0 w-full h-full transition-opacity duration-500 ease-in-out ${
-              index === current ? 'opacity-100 z-10' : 'opacity-0 z-0'
-            }`}
-          >
-            <SecureImage 
-              src={imgSrc} 
-              alt={`Slide ${index + 1}`}
-              className="!w-full !h-full !object-fill !max-w-none !rounded-none !border-0 !shadow-none !m-0 !p-0"
-              style={{ 
-                objectFit: 'fill', 
-                width: '100%',
-                height: '100%',
-                maxHeight: 'none'
-              }} 
-            />
-          </div>
-        ))}
+      <div className="relative w-full h-full flex-1 overflow-hidden group">
+        {images.map((imgSrc, index) => {
+          const isVisible = index === current;
+          const isNext = index === (current + 1) % length;
+          const isPrev = index === (current - 1 + length) % length;
+          
+          if (!isVisible && !isNext && !isPrev) return null;
+
+          return (
+            <div
+              key={index}
+              className={`absolute inset-0 w-full h-full transition-opacity duration-500 ease-in-out ${isVisible ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}
+            >
+              <SecureImage 
+                src={imgSrc} 
+                alt={`Slide ${index + 1}`}
+                onLoad={() => handleImageLoad(index)}
+                className="!w-full !h-full !object-fill !max-w-none !rounded-none !border-0 !shadow-none !m-0 !p-0"
+                style={{ objectFit: 'fill', width: '100%', height: '100%', maxHeight: 'none' }} 
+              />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Control Bar (Footer) - Height Reduced */}
-      {/* CHANGED: h-8 to h-6 (24px height) */}
-      <div className="h-6 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 z-20 relative">
-        
-        {/* Empty div for layout balance */}
+      <div className="h-8 bg-gray-100 dark:bg-[#121214] border-t border-gray-200 dark:border-gray-700 flex items-center justify-between px-4 z-30 relative">
         <div className="w-12 hidden sm:block"></div>
-
-        {/* Center Controls: Prev | Play/Pause | Next */}
         <div className="flex items-center justify-center gap-4 sm:gap-6 flex-1">
-          <button 
-            onClick={prevSlide}
-            className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors p-0.5"
-            title="Previous Slide"
-          >
-            {/* CHANGED: w-4 h-4 to w-3 h-3 */}
-            <FaChevronLeft className="w-3 h-3" />
+          <button onClick={prevSlide} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors p-1" title="Previous Slide">
+            <FaChevronLeft className="w-3.5 h-3.5" />
           </button>
-
-          <button 
-            onClick={togglePlay}
-            // CHANGED: p-2 to p-1 to fit the smaller height
-            className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-            title={isPlaying ? "Pause" : "Play"}
-          >
-            {isPlaying ? (
-              // CHANGED: w-4 h-4 to w-3 h-3
-              <FaPause className="w-3 h-3" />
-            ) : (
-              // CHANGED: w-4 h-4 to w-3 h-3
-              <FaPlay className="w-3 h-3 ml-0.5" />
-            )}
+          
+          <button onClick={togglePlay} className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white transition-colors p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" title={isPlaying ? "Pause" : "Play"}>
+            {isPlaying ? <FaPause className="w-3.5 h-3.5" /> : <FaPlay className="w-3.5 h-3.5 ml-0.5" />}
           </button>
-
-          <button 
-            onClick={nextSlide}
-            className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors p-0.5"
-            title="Next Slide"
-          >
-            {/* CHANGED: w-4 h-4 to w-3 h-3 */}
-            <FaChevronRight className="w-3 h-3" />
+          
+          <button onClick={nextSlide} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors p-1" title="Next Slide">
+            <FaChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
-
-        {/* Right: Page Counter */}
         <div className="w-12 text-right">
-          {/* CHANGED: Forced text-xs to fit smaller bar */}
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            {current + 1} / {length}
+          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 font-mono">
+            {current + 1}/{length}
           </span>
         </div>
       </div>
     </div>
   );
 };
-const loadProblemAndEditorial = async () => {
-  try {
-    setLoading(true);
-    setError(null);
 
-    // Try fetching problem directly first
-    try {
-      const directProblemResponse = await fetch(`${API_BASE_URL}/api/problems/${problemId}`);
-      if (directProblemResponse.ok) {
-        const data = await directProblemResponse.json();
-        if (data.success && data.problem) {
-          setProblem(data.problem);
-          // Process editorial for direct problem
-          processEditorial(data.problem);
-          return;
-        }
-      }
-    } catch (directError) {
-      //console.log('Direct problem fetch failed, trying sheets...', directError);
+
+ // --- MARKDOWN COMPONENT CONFIG (RESPONSIVE + INLINE CODE SAFE) ---
+const MarkdownComponents = {
+  hr: ({ node, ...props }) => (
+    <hr 
+      className="
+        border-0 
+        border-t 
+        border-gray-200 dark:border-gray-800 
+      " 
+      {...props} 
+    />
+  ),
+  h1: ({ node, ...props }) => (
+    <h1
+      className="
+        text-lg sm:text-xl lg:text-3xl
+        font-bold
+        text-gray-900 dark:text-white
+        mt-6 sm:mt-8
+        mb-4 sm:mb-6
+        border-b border-gray-200 dark:border-gray-800
+        pb-2
+      "
+    >
+      {props.children}
+    </h1>
+  ),
+
+  h2: ({ node, ...props }) => (
+    <h2
+      className="
+        text-base sm:text-lg lg:text-2xl
+        font-bold
+        text-gray-900 dark:text-white
+        mt-6 sm:mt-8
+        mb-3 sm:mb-4
+      "
+    >
+      {props.children}
+    </h2>
+  ),
+
+  /* 🔥 APPROACH HEADINGS (h3) – FIXED & RESPONSIVE */
+  h3: ({ node, ...props }) => (
+  <h3
+    className="
+      text-[15px] sm:text-lg lg:text-xl
+      font-semibold
+      text-gray-900 dark:text-white
+      leading-snug
+      mt-4 sm:mt-6
+      mb-2 sm:mb-3
+      break-words
+    "
+  >
+    {props.children}
+  </h3>
+),
+
+
+
+  p: ({ node, ...props }) => (
+  <p
+    className="
+      text-gray-700 dark:text-gray-300
+      text-[15px] sm:text-[15px] lg:text-[16px]
+      leading-7 sm:leading-7
+      mb-4
+      whitespace-pre-wrap
+      break-words
+    "
+  >
+    {props.children}
+  </p>
+),
+
+
+  ul: ({ node, ...props }) => (
+    <ul
+      className="
+        text-gray-700 dark:text-gray-300
+        text-[13px] sm:text-[15px] lg:text-[16px]
+        list-disc list-outside
+        ml-4 sm:ml-5
+        mb-4
+        space-y-1
+      "
+    >
+      {props.children}
+    </ul>
+  ),
+
+  ol: ({ node, ...props }) => (
+    <ol
+      className="
+        text-gray-700 dark:text-gray-300
+        text-[13px] sm:text-[15px] lg:text-[16px]
+        list-decimal list-outside
+        ml-4 sm:ml-5
+        mb-4
+        space-y-1
+      "
+    >
+      {props.children}
+    </ol>
+  ),
+
+  li: ({ node, ...props }) => (
+    <li className="pl-1 leading-6 sm:leading-7 break-words whitespace-pre-wrap">
+      {props.children}
+    </li>
+  ),
+
+  blockquote: ({ node, ...props }) => (
+    <blockquote
+      className="
+        border-l-4 border-indigo-500
+        pl-4 pr-3 py-2
+        italic
+        text-gray-600 dark:text-gray-400
+        text-[13px] sm:text-[14px]
+        my-4
+        bg-gray-50 dark:bg-gray-800/30
+        rounded-r
+      "
+    >
+      {props.children}
+    </blockquote>
+  ),
+
+  a: ({ node, href, ...props }) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="
+        text-indigo-600 dark:text-indigo-400
+        hover:underline
+        break-all
+      "
+    >
+      {props.children}
+    </a>
+  ),
+
+
+
+  /* 🔥 MINIMALIST BORDER-ONLY TABLES */
+  table: ({ node, ...props }) => (
+    <div className="my-6 w-full overflow-x-auto rounded-lg border border-indigo-200 dark:border-indigo-500/30">
+      <table className="w-full text-sm border-collapse text-left" {...props} />
+    </div>
+  ),
+
+  thead: ({ node, ...props }) => (
+    <thead className="bg-transparent text-indigo-900 dark:text-indigo-300 border-b border-indigo-200 dark:border-indigo-500/30" {...props} />
+  ),
+
+  tbody: ({ node, ...props }) => (
+    <tbody className="bg-transparent" {...props} />
+  ),
+
+  tr: ({ node, ...props }) => (
+    <tr 
+      className="border-b border-indigo-100 dark:border-indigo-500/20 last:border-b-0" 
+      {...props} 
+    />
+  ),
+
+  th: ({ node, ...props }) => (
+    <th 
+      className="px-4 py-3 font-semibold border-r border-indigo-100 dark:border-indigo-500/20 last:border-r-0 whitespace-nowrap" 
+      {...props} 
+    />
+  ),
+
+  td: ({ node, ...props }) => (
+    <td 
+      className="px-4 py-3 border-r border-indigo-100 dark:border-indigo-500/20 last:border-r-0 align-top text-gray-700 dark:text-gray-300" 
+      {...props} 
+    />
+  ),
+
+
+  /* 🔥 INLINE CODE + BLOCK CODE – RESPONSIVE & SAFE */
+  code: ({ node, inline, className, children }) => {
+    const content = String(children).replace(/\n$/, '');
+    const isMultiLine = content.includes('\n');
+
+    /* INLINE CODE */
+    if (inline || !isMultiLine) {
+      return (
+        <code
+          className="
+            bg-gray-100 dark:bg-gray-800
+            text-gray-800 dark:text-gray-200
+            px-1.5 py-0.5
+            rounded
+            text-[12px] sm:text-[13px] lg:text-[14px]
+            font-mono
+            border border-gray-200 dark:border-gray-700/50
+            inline
+            break-all
+            whitespace-normal
+          "
+        >
+          {children}
+        </code>
+      );
     }
 
-    // Fallback: search in sheets
-    const sheetsResponse = await sheetAPI.getAll();
-    const sheets = sheetsResponse.data?.sheets;
-
-    let foundProblem = null;
-    let foundSheet = null;
-
-    for (const sheet of sheets) {
-      for (const section of sheet.sections) {
-        for (const subsection of section.subsections) {
-          const problem = subsection.problems?.find(p => p.id === problemId);
-          if (problem) {
-            foundProblem = problem;
-            foundSheet = sheet;
-            break;
-          }
-        }
-        if (foundProblem) break;
-      }
-      if (foundProblem) break;
-    }
-
-    if (!foundProblem) {
-      throw new Error(`Problem with ID "${problemId}" not found in any sheet or problem database`);
-    }
-
-    setProblem(foundProblem);
-    processEditorial(foundProblem);
-
-  } catch (error) {
-    setError(error.message);
-  } finally {
-    setLoading(false);
+    /* BLOCK CODE (FALLBACK) */
+    return (
+      <div
+        className="
+          my-4
+          rounded-lg
+          overflow-hidden
+          bg-gray-100 dark:bg-[#0c0c0e]
+          border border-gray-200 dark:border-zinc-800
+        "
+      >
+        <div
+          className="
+            p-3 sm:p-4
+            overflow-x-auto
+            text-[12px] sm:text-[13px] lg:text-[14px]
+            font-mono
+            text-gray-800 dark:text-gray-200
+          "
+        >
+          {children}
+        </div>
+      </div>
+    );
   }
 };
 
-// Extract editorial processing into separate function
-const processEditorial = (problemData) => {
-  let fileName = '';
-  if (problemData.editorialLink) {
-    try {
-      const url = problemData.editorialLink.trim();
-      const urlParts = url.split('?')[0].split('#')[0].split('/');
-      fileName = urlParts[urlParts.length - 1].toLowerCase();
-    } catch {
-      fileName = '';
-    }
-  }
 
-  const isEditorialContent =
-    fileName.includes('-editorial') ||
-    problemData.title?.toLowerCase().includes('-editorial') ||
-    problemId?.toLowerCase().includes('-editorial');
-
-  const isSolutionContent =
-    fileName.endsWith('-solution.md') ||
-    problemData.title?.toLowerCase().endsWith('-solution') ||
-    problemId?.toLowerCase().endsWith('-solution');
-
-  if (isEditorialContent) {
-    setContentType('editorial');
-  } else if (isSolutionContent) {
-    setContentType('solution');
-  } else {
-    setContentType('solution');
-  }
-
-  // Fetch editorial content
-  if (problemData.editorialLink && problemData.editorialLink.trim()) {
-    fetchEditorialContent(problemData.editorialLink.trim());
-  } else {
-    const noEditorialContent = `No ${contentType === 'editorial' ? 'Editorial' : 'Solution'} Available\n\nThis ${contentType === 'editorial' ? 'concept' : 'problem'} (${problemData.title}) does not have ${contentType === 'editorial' ? 'an editorial' : 'a solution'} yet.`;
-    setEditorial(noEditorialContent);
-    setEditorialContent(noEditorialContent);
-  }
-};
-
-const fetchEditorialContent = async (editorialUrl) => {
-  try {
-    let processedUrl = editorialUrl;
-    if (processedUrl.includes('github.com') && !processedUrl.includes('raw.githubusercontent.com')) {
-      if (processedUrl.includes('/blob/')) {
-        processedUrl = processedUrl
-          .replace('github.com', 'raw.githubusercontent.com')
-          .replace('/blob/', '/');
-      }
-    }
-
-    const response = await fetch(processedUrl);
-    if (response.ok) {
-      const content = await response.text();
-      setEditorial(content);
-      setEditorialContent(content);
-
-      if (contentType === 'solution') {
-        const parsedData = parseMarkdown(content);
-        setEditorialData(parsedData);
-        // ... rest of initialization
-      }
-    } else {
-      throw new Error(`Failed to fetch editorial content: ${response.status}`);
-    }
-  } catch (fetchError) {
-    const errorContent = `## Editorial Content Error\n\n**Error loading editorial from:** ${editorialUrl}\n\n**Error Details:** ${fetchError.message}\n\nThe editorial link exists but the content could not be fetched.`;
-    setEditorial(errorContent);
-    setEditorialContent(errorContent);
-  }
-};
-
-  const parseMarkdown = (markdown) => {
-    const lines = markdown.split('\n');
-    const result = {
-      title: '',
-      description: '',
-      approaches: [],
-      videoExplanation: '',
-      specialThanks: null
-    };
-
-    let currentApproach = null;
-    let currentSection = null;
-    let codeBlock = null;
-    let inCodeBlock = false;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      if (line.startsWith('# ') && !result.title) {
-        result.title = line.substring(2).trim();
-        continue;
-      }
-
-      const specialThanksMatch = line.match(/Special thanks to \[([^\]]+)\]\(([^)]+)\)(.*)/);
-      if (specialThanksMatch) {
-        const [, name, url, restOfText] = specialThanksMatch;
-        result.specialThanks = {
-          name: name,
-          url: url,
-          additionalText: restOfText.trim()
-        };
-        continue;
-      }
-
-      if (!currentApproach && line.trim() && !line.startsWith('#') && !result.specialThanks) {
-        result.description += line + '\n';
-        continue;
-      }
-
-      if (line.startsWith('## ')) {
-        if (currentApproach) {
-          result.approaches.push(currentApproach);
-        }
-        
-        currentApproach = {
-          id: line.substring(3).toLowerCase().replace(/\s+/g, '-'),
-          name: line.substring(3).trim(),
-          explanation: '',
-          code: [],
-          complexity: {
-            time: '',
-            space: ''
-          }
-        };
-        currentSection = 'explanation';
-        continue;
-      }
-
-      if (line.startsWith('### Algorithm Explanation') || 
-          line.startsWith('### Implementation') ||
-          line.startsWith('### Early Termination with Sentinel') ||
-          line.startsWith('### Pre-sorting + Binary Search')) {
-        continue;
-      }
-
-      if (line.startsWith('### Time Complexity')) {
-        currentSection = 'timeComplexity';
-        continue;
-      }
-      if (line.startsWith('### Space Complexity')) {
-        currentSection = 'spaceComplexity';
-        continue;
-      }
-
-      if (line.startsWith('```')) {
-        if (!inCodeBlock) {
-          inCodeBlock = true;
-          const language = line.substring(3).trim() || '';
-          codeBlock = {
-            language: language,
-            code: ''
-          };
-        } else {
-          inCodeBlock = false;
-          if (currentApproach && codeBlock) {
-            currentApproach.code.push(codeBlock);
-            codeBlock = null;
-          }
-        }
-        continue;
-      }
-
-      if (inCodeBlock && codeBlock) {
-        codeBlock.code += line + '\n';
-      } else if (currentApproach) {
-        if (currentSection === 'explanation') {
-          currentApproach.explanation += line + '\n';
-        } else if (currentSection === 'timeComplexity') {
-          currentApproach.complexity.time += line + '\n';
-        } else if (currentSection === 'spaceComplexity') {
-          currentApproach.complexity.space += line + '\n';
-        }
-      }
-    }
-
-    if (currentApproach) {
-      result.approaches.push(currentApproach);
-    }
-
-    return result;
-  };
-
-const parseEditorialMarkdown = (markdown) => {
-  const lines = markdown.split('\n');
-  const result = {
-    title: '',
-    content: [],
-  };
-
-  let currentTextBlock = '';
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    if (line.startsWith('# ') && !result.title) {
-      result.title = line.substring(2).trim();
-      i += 1;
-      continue;
-    }
-
-    // --- CAROUSEL PARSING START ---
-    if (line.trim() === '<carousel>') {
-      // Flush existing text
-      if (currentTextBlock.trim()) {
-        result.content.push({
-          type: 'text',
-          content: currentTextBlock.trim(),
-          id: `text-${result.content.length}`
-        });
-        currentTextBlock = '';
-      }
-
-      const carouselImages = [];
-      i += 1; // Move past <carousel>
-      
-      // Collect images until </carousel>
-      while (i < lines.length && lines[i].trim() !== '</carousel>') {
-        const imgMatch = lines[i].match(/src=["']([^"']+)["']/);
-        if (imgMatch) {
-          carouselImages.push(imgMatch[1]);
-        }
-        i += 1;
-      }
-
-      if (carouselImages.length > 0) {
-        result.content.push({
-          type: 'carousel',
-          images: carouselImages,
-          id: `carousel-${result.content.length}`
-        });
-      }
-      
-      if (i < lines.length) i += 1; // Move past </carousel>
-      continue;
-    }
-    // --- CAROUSEL PARSING END ---
-
-    if (line.startsWith('```')){
-      if (currentTextBlock.trim()) {
-        result.content.push({
-          type: 'text',
-          content: currentTextBlock.trim(),
-          id: `text-${result.content.length}`
-        });
-        currentTextBlock = '';
-      }
-
-      const blockId = `code-block-${result.content.length}`;
-      const codeContents = [];
-
-      // Parse first code block
-      let language = line.substring(3).trim() || 'text';
-      i += 1;
-
-      let codeContent = '';
-      while (i < lines.length && !lines[i].startsWith('```')){
-        codeContent = codeContent + lines[i] + '\n';
-        i += 1;
-      }
-
-      if (i < lines.length && lines[i].startsWith('```')){
-        i += 1;
-      }
-
-      codeContents.push({ language, code: codeContent.trim(), output: null });
-
-      // Look for immediately consecutive code blocks
-      while (i < lines.length) {
-        let tempI = i;
-        while (tempI < lines.length && lines[tempI].trim() === '') {
-          tempI += 1;
-        }
-        
-        if (tempI < lines.length && lines[tempI].startsWith('```')){
-          const nextLanguage = lines[tempI].substring(3).trim();
-          if (nextLanguage && nextLanguage.match(/^(cpp|c\+\+|java|python|py|javascript|js|c|go|rust|typescript|ts)$/i)) {
-            i = tempI + 1; // Move real index to start of code
-            let nextCode = '';
-            while (i < lines.length && !lines[i].startsWith('```')){
-              nextCode = nextCode + lines[i] + '\n';
-              i += 1;
-            }
-            if (i < lines.length && lines[i].startsWith('```')){
-              i += 1;
-            }
-            codeContents.push({ language: nextLanguage, code: nextCode.trim(), output: null });
-          } else {
-            break;
-          }
-        } else {
-          break;
-        }
-      }
-
-      // Look for output section
-      let k = i;
-      while (k < lines.length && k < i + 5) {
-        const currentLine = lines[k].trim();
-
-        if (currentLine.includes('**Output:**') || currentLine.includes('**Output**') || currentLine.includes('### Output')) {
-          k += 1;
-
-          while (k < lines.length && lines[k].trim() === '') {
-            k += 1;
-          }
-
-          let outputContent = '';
-
-          if (k < lines.length && lines[k].startsWith('```')){
-            k += 1;
-            while (k < lines.length && !lines[k].startsWith('```')){
-              outputContent = outputContent + lines[k] + '\n';
-              k += 1;
-            }
-            if (k < lines.length && lines[k].startsWith('```')){
-              k += 1;
-            }
-          } else {
-            while (k < lines.length && lines[k].trim() !== '' && !lines[k].startsWith('#') && !lines[k].startsWith('```')){
-              outputContent = outputContent + lines[k] + '\n';
-              k += 1;
-            }
-          }
-
-          codeContents.forEach(item => {
-            item.output = outputContent.trim();
-          });
-
-          i = k;
-          break;
-        } else if (currentLine === '') {
-          k += 1;
-        } else {
-          break;
-        }
-      }
-
-      // Parse complexity sections
-      const complexity = { time: '', space: '' };
-      let lookAhead = i;
-      while (lookAhead < lines.length && lookAhead < i + 20) {
-        const lookLine = lines[lookAhead];
-
-        if (lookLine.startsWith('### Time Complexity') || lookLine.startsWith('## Time Complexity')) {
-          lookAhead += 1;
-          let timeContent = '';
-          while (lookAhead < lines.length && !lines[lookAhead].startsWith('#')) {
-            if (lines[lookAhead].trim()) {
-              timeContent = timeContent + lines[lookAhead] + '\n';
-            }
-            lookAhead += 1;
-            if (lines[lookAhead] && lines[lookAhead].startsWith('###')) break;
-          }
-          complexity.time = timeContent.trim();
-          continue;
-        }
-
-        if (lookLine.startsWith('### Space Complexity') || lookLine.startsWith('## Space Complexity')) {
-          lookAhead += 1;
-          let spaceContent = '';
-          while (lookAhead < lines.length && !lines[lookAhead].startsWith('#')) {
-            if (lines[lookAhead].trim()) {
-              spaceContent = spaceContent + lines[lookAhead] + '\n';
-            }
-            lookAhead += 1;
-            if (lines[lookAhead] && lines[lookAhead].startsWith('###')) break;
-          }
-          complexity.space = spaceContent.trim();
-          continue;
-        }
-
-        lookAhead += 1;
-      }
-
-      result.content.push({
-        type: 'code',
-        code: codeContents,
-        id: blockId,
-        complexity: complexity
-      });
-
-      continue;
-    }
-
-    // Check for standard image tags (outside carousel)
-    const imgMatch = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
-
-    if (imgMatch) {
-      if (currentTextBlock.trim()) {
-        result.content.push({
-          type: 'text',
-          content: currentTextBlock.trim(),
-          id: `text-${result.content.length}`
-        });
-        currentTextBlock = '';
-      }
-
-      const [, src, style] = imgMatch;
-      result.content.push({
-        type: 'image',
-        src: src,
-        style: style || '',
-        id: `image-${result.content.length}`
-      });
-      i += 1;
-      continue;
-    }
-
-    // Strong filter for complexity lines
-    const trimmed = line.trim();
-    let skipThisLine = false;
-    if (
-      trimmed.startsWith('### Time Complexity') ||
-      trimmed.startsWith('## Time Complexity') ||
-      trimmed.startsWith('### Space Complexity') ||
-      trimmed.startsWith('## Space Complexity')
-    ) {
-      skipThisLine = true;
-      i += 1;
-      while (
-        i < lines.length &&
-        !lines[i].startsWith('###') &&
-        !lines[i].startsWith('##') &&
-        !lines[i].startsWith('#') &&
-        !lines[i].startsWith('```')
-      ) {
-        i += 1;
-      }
-      i -= 1; 
-    }
-
-    if (!line.includes('**Output:**') && !skipThisLine) {
-      currentTextBlock = currentTextBlock + line + '\n';
-    }
-
-    i += 1;
-  }
-
-  if (currentTextBlock.trim()) {
-    result.content.push({
-      type: 'text',
-      content: currentTextBlock.trim(),
-      id: `text-${result.content.length}`
-    });
-  }
-
-  return result;
-};
-
-  const switchCodeTab = (blockId, tab) => {
-    setCodeTabStates(prev => ({
-      ...prev,
-      [blockId]: tab
-    }));
-  };
-
-  const changeLanguage = (blockId, language) => {
-    setSelectedLanguages(prev => ({
-      ...prev,
-      [blockId]: language
-    }));
+  const getYouTubeVideoId = (url) => {
+    if (!url) return '';
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
   };
 
   const copyCode = async (code, key) => {
     try {
       await navigator.clipboard.writeText(code);
       setCopiedCode(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => {
-        setCopiedCode(prev => ({ ...prev, [key]: false }));
-      }, 2000);
-    } catch (err) {
-      console.error('Failed to copy code:', err);
-    }
+      setTimeout(() => setCopiedCode(prev => ({ ...prev, [key]: false })), 2000);
+    } catch (err) {}
   };
 
- const parseContentWithImages = (content) => {
-    if (!content) return [];
+  const toggleSection = (id) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
 
-    const lines = content.split('\n');
-    const elements = [];
-    let currentTextBlock = '';
-    let i = 0;
-
-    while (i < lines.length) {
-      const line = lines[i].trim();
-
-      // Check for Carousel Block
-      if (line === '<carousel>') {
-        // Flush Text
-        if (currentTextBlock.trim()) {
-          elements.push({
-            type: 'text',
-            content: currentTextBlock,
-            key: `text-${elements.length}`
-          });
-          currentTextBlock = '';
-        }
-
-        const carouselImages = [];
-        i++; // skip <carousel>
-        while (i < lines.length && lines[i].trim() !== '</carousel>') {
-          const imgMatch = lines[i].match(/src=["']([^"']+)["']/);
-          if (imgMatch) {
-            carouselImages.push(imgMatch[1]);
-          }
-          i++;
-        }
-        
-        if (carouselImages.length > 0) {
-          elements.push({
-            type: 'carousel',
-            images: carouselImages,
-            key: `carousel-${elements.length}`
-          });
-        }
-        i++; // skip </carousel>
-        continue;
-      }
-
-      // Check for Standard Image
-      const imgMatch = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
-      
-      if (imgMatch) {
-        if (currentTextBlock.trim()) {
-          elements.push({
-            type: 'text',
-            content: currentTextBlock,
-            key: `text-${elements.length}`
-          });
-          currentTextBlock = '';
-        }
-
-        const [, src, style] = imgMatch;
-        elements.push({
-          type: 'image',
-          src: src,
-          style: style || '',
-          key: `image-${elements.length}`
-        });
-      } else if (line) {
-        currentTextBlock += line + '\n';
-      } else {
-        currentTextBlock += '\n';
-      }
-      
-      i++;
-    }
-
-    if (currentTextBlock.trim()) {
-      elements.push({
-        type: 'text',
-        content: currentTextBlock,
-        key: `text-${elements.length}`
-      });
-    }
-
-    return elements;
-  };
-
-  const handleImageError = (imageKey) => {
-    setImageLoadErrors(prev => ({
-      ...prev,
-      [imageKey]: true
-    }));
-  };
-
-const renderContentElements = (elements) => {
-  return elements.map((element) => {
-    if (element.type === 'carousel') {
-      return (
-        <div key={element.key} className="my-6">
-          <ImageCarousel images={element.images} />
-        </div>
-      );
-    }
-    if (element.type === 'image') {
-      const imageKey = `${element.src}-${element.key}`;
-      const hasError = imageLoadErrors[imageKey];
-
-      if (hasError) {
-        return (
-          <div 
-            key={element.key}
-            className="my-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-500/30 rounded-xl flex items-center space-x-3"
-          >
-            <FaImage className="w-5 h-5 text-red-500" />
-            <div>
-              <p className="text-red-700 dark:text-red-400 font-medium">Failed to load image</p>
-              <p className="text-red-600 dark:text-red-500 text-sm break-all">{element.src}</p>
-            </div>
-          </div>
-        );
-      }
-
-      const inlineStyles = {};
-      if (element.style) {
-        element.style.split(';').forEach((stylePair) => {
-          const parts = stylePair.split(':').map((s) => s.trim());
-          const property = parts[0];
-          const value = parts[1];
-          if (property && value) {
-            const camelProperty = property.replace(/-([a-z])/g, (g) => {
-              return g[1].toUpperCase();
-            });
-            inlineStyles[camelProperty] = value;
-          }
-        });
-      }
-
-      return (
-        <SecureImage
-          key={element.key}
-          src={element.src}
-          alt="Editorial illustration"
-          className="max-w-full"
-          style={inlineStyles}
-          onError={() => {
-            setImageLoadErrors((prev) => ({
-              ...prev,
-              [imageKey]: true,
-            }));
-          }}
-        />
-      );
-    }
-
-    return element.content.split('\n').map((line, lineIndex) => {
-      if (!line.trim()) return null;
-      return (
-        <p
-          key={`${element.key}-${lineIndex}`}
-          className="text-gray-700 dark:text-gray-300 leading-relaxed text-base sm:text-lg mb-4"
-        >
-          {line}
-        </p>
-      );
-    });
-  });
-};
-  const getYouTubeVideoId = (url) => {
-    if (!url) return null;
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/);
-    return match ? match[1] : null;
-  };
-
-  const renderSpecialThanks = () => {
-    if (!editorialData?.specialThanks) return null;
-
-    return (
-      <div className="mt-8 pt-6 border-t border-gray-200/60 dark:border-gray-700/60">
-        <p className="text-gray-600 dark:text-gray-400 text-base leading-relaxed">
-          Special thanks to{' '}
-          <a
-            href={editorialData.specialThanks.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium transition-colors duration-200"
-          >
-            {editorialData.specialThanks.name}
-          </a>
-          {editorialData.specialThanks.additionalText && (
-            <span className="text-gray-600 dark:text-gray-400">
-              {' '}{editorialData.specialThanks.additionalText}
-            </span>
-          )}
-        </p>
-      </div>
-    );
-  };
-
-  const toggleSection = (approachId) => {
-    setExpandedSections(prev => ({
-      ...prev,
-      [approachId]: !prev[approachId]
-    }));
-  };
-
-  const getApproachBadgeStyle = (approachName) => {
-    const name = approachName.toLowerCase();
-    if (name.includes('brute') || name.includes('naive')) {
-      return 'bg-gradient-to-r from-red-100 to-red-50 dark:from-red-500/20 dark:to-red-400/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/30';
-    } else if (name.includes('better') || name.includes('improved')) {
-      return 'bg-gradient-to-r from-amber-100 to-amber-50 dark:from-amber-500/20 dark:to-amber-400/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30';
-    } else if (name.includes('optimal') || name.includes('efficient')) {
-      return 'bg-gradient-to-r from-green-100 to-green-50 dark:from-green-500/20 dark:to-green-400/10 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-500/30';
-    }
-    return 'bg-gradient-to-r from-blue-100 to-blue-50 dark:from-blue-500/20 dark:to-blue-400/10 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-500/30';
-  };
-
-  const handleSaveEditorial = async () => {
-    if (!problem) return;
-    
-    setSaving(true);
+  // --- 3. DATA FETCHING ---
+  const loadProblemAndContent = async () => {
     try {
-      setEditorial(editorialContent);
-      setIsEditing(false);
-      alert('Editorial saved successfully!');
-    } catch (error) {
-      console.error('Error saving editorial:', error);
-      alert('Failed to save editorial: ' + error.message);
-    } finally {
-      setSaving(false);
+      setLoading(true); setError(null);
+      
+      let problemData = null;
+      try {
+        const directProblemResponse = await fetch(`${API_BASE_URL}/api/problems/${problemId}`);
+        if (directProblemResponse.ok) {
+          const data = await directProblemResponse.json();
+          if (data.success && data.problem) problemData = data.problem;
+        }
+      } catch (e) { console.warn("Direct API fetch failed, trying sheets fallback."); }
+      
+      if (!problemData) {
+        const sheetsResponse = await sheetAPI.getAll();
+        const sheets = sheetsResponse.data?.sheets;
+        if (sheets) {
+          for (const sheet of sheets) {
+            for (const section of sheet.sections) {
+              for (const subsection of section.subsections) {
+                const p = subsection.problems?.find(p => p.id === problemId);
+                if (p) { problemData = p; break; }
+              }
+              if (problemData) break;
+            }
+            if (problemData) break;
+          }
+        }
+      }
+
+      if (!problemData) throw new Error(`Problem with ID "${problemId}" not found`);
+      setProblem(problemData);
+      
+      if (problemData.editorialLink) {
+        let processedUrl = problemData.editorialLink.trim();
+        if (processedUrl.includes('github.com') && !processedUrl.includes('raw.githubusercontent.com')) {
+           processedUrl = processedUrl.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+        }
+        const response = await fetch(processedUrl);
+        if (!response.ok) throw new Error('Failed to fetch content file');
+        const text = await response.text();
+        setParsedContent(universalParse(text));
+      } else {
+        setParsedContent({ title: 'No Content', sections: [] });
+      }
+
+    } catch (error) { 
+        console.error("Error loading content:", error);
+        setError(error.message); 
+    } finally { 
+        setLoading(false); 
     }
   };
 
-  const handleCancelEdit = () => {
-    setEditorialContent(editorial);
-    setIsEditing(false);
-  };
+  // ==========================================
+  // 4. UNIVERSAL PARSER LOGIC
+  // ==========================================
+  
+  const universalParse = (markdown) => {
+    const lines = markdown.split('\n');
+    const result = { title: '', sections: [] };
 
-  const renderEditorialContentBlock = (block) => {
-    switch (block.type) {
-      case 'text':
-        return (
-          <div key={block.id} className="prose prose-gray dark:prose-invert prose-lg max-w-none mb-6">
-            <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-  components={{
-    h1: ({node, ...props}) => {
-      return (
-        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-6 pb-3 border-b border-gray-200 dark:border-gray-700">
-    {props.children}
-  </h1>
-      );
-    },
-    h2: ({node, ...props}) => {
-      return (
-        <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mt-8 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700">
-    {props.children}
-  </h2>
-      );
-    },
-    h3: ({node, ...props}) => {
-      return (
-        <h3 className="text-lg sm:text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mt-6 mb-3">
-    {props.children}
-  </h3>
-      );
-    },
-    h4: ({node, ...props}) => {
-      return (
-        <h4 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 dark:text-white mt-4 mb-2">
-    {props.children}
-  </h4>
-      );
-    },
-    h5: ({node, ...props}) => {
-      return (
-         <h5 className="text-sm sm:text-base md:text-lg font-semibold text-gray-900 dark:text-white mt-3 mb-2">
-    {props.children}
-  </h5>
-      );
-    },
-    h6: ({node, ...props}) => {
-      return (
-       <h6 className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2 mb-1">
-    {props.children}
-  </h6>
-      );
-    },
-    p: ({node, ...props}) => {
-      return (
-        <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-base sm:text-lg mb-4 lg:mb-6">
-          {props.children}
-        </p>
-      );
-    },
-    ul: ({node, ...props}) => {
-      return (
-        <ul className="text-gray-700 dark:text-gray-300 list-disc list-inside mb-4 lg:mb-6 space-y-2">
-          {props.children}
-        </ul>
-      );
-    },
-    ol: ({node, ...props}) => {
-      return (
-        <ol className="text-gray-700 dark:text-gray-300 list-decimal list-inside mb-4 lg:mb-6 space-y-2">
-          {props.children}
-        </ol>
-      );
-    },
-    li: ({node, ...props}) => {
-      return (
-        <li className="text-gray-700 dark:text-gray-300 text-base sm:text-lg leading-relaxed">
-          {props.children}
-        </li>
-      );
-    },
-    blockquote: ({node, ...props}) => {
-      return (
-        <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic text-gray-600 dark:text-gray-400 my-4 lg:my-6">
-          {props.children}
-        </blockquote>
-      );
-    },
-    a: ({node, href, ...props}) => {
-      return (
-        <a
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 underline"
-        >
-          {props.children}
-        </a>
-      );
-    },
-    table: ({ node, ...props }) => (
-  <div className="relative my-6 overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700">
-    <table className="min-w-full border-collapse text-sm text-left">
-      {props.children}
-    </table>
-  </div>
-),
+    const parseBlockLines = (blockLines, prefix = '') => {
+        const elements = [];
+        let i = 0;
+        let currentText = '';
 
-thead: ({ node, ...props }) => (
-  <thead className="bg-gray-100 dark:bg-gray-800">
-    {props.children}
-  </thead>
-),
+        const flushText = () => {
+            if (currentText.trim()) {
+                elements.push({ type: 'text', content: currentText.trim(), id: `${prefix}txt-${elements.length}` });
+                currentText = '';
+            }
+        };
 
-tbody: ({ node, ...props }) => (
-  <tbody className="bg-white dark:bg-[#030014]">
-    {props.children}
-  </tbody>
-),
+        const isOutputHeader = (line) => !!line.match(/^(\*\*Output:?\*\*|### Output|Output:|Output\s*-|\*OUTPUT)/i);
 
-tr: ({ node, ...props }) => (
-  <tr className="border-t border-gray-200 dark:border-gray-700 odd:bg-white even:bg-gray-50 dark:odd:bg-[#030014] dark:even:bg-gray-900/40">
-    {props.children}
-  </tr>
-),
+        while(i < blockLines.length) {
+            const line = blockLines[i];
 
-th: ({ node, ...props }) => (
-  <th className="px-4 py-2 font-semibold text-gray-900 dark:text-gray-200 border border-gray-300 dark:border-gray-700 whitespace-nowrap">
-    {props.children}
-  </th>
-),
+            if (line.trim() === '<carousel>') {
+                flushText();
+                const images = [];
+                i++;
+                while(i < blockLines.length && blockLines[i].trim() !== '</carousel>') {
+                    const m = blockLines[i].match(/src=["']([^"']+)["']/);
+                    if (m) images.push(m[1]);
+                    i++;
+                }
+                if (images.length) elements.push({ type: 'carousel', images, id: `${prefix}car-${elements.length}` });
+                i++; continue;
+            }
 
-td: ({ node, ...props }) => (
-  <td className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-700 whitespace-nowrap">
-    {props.children}
-  </td>
-),
+            const imgM = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
+            if (imgM) {
+                flushText();
+                elements.push({ type: 'image', src: imgM[1], style: imgM[2] || '', id: `${prefix}img-${elements.length}` });
+                i++; continue;
+            }
 
-    code: ({node, inline, ...props}) => {
-      if (inline) {
-        return (
-          <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-sm font-mono">
-            {props.children}
-          </code>
-        );
-      }
-      return (
-        <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-2 py-1 rounded text-sm font-mono">
-          {props.children}
-        </code>
-      );
-    },
-  }}
->
-  {block.content}
-</ReactMarkdown>
-          </div>
-        );
+            if (line.trim().startsWith('```')) {
+                flushText();
+                const codeGroup = [];
+                const blockId = `${prefix}code-${elements.length}`;
+                let complexity = { time: '', space: '' };
 
-        // ADD THIS CASE
-      case 'carousel':
-        return (
-          <div key={block.id} className="my-8">
-            <ImageCarousel images={block.images} />
-          </div>
-        );
-      case 'code':
-        const hasValidLanguages = block.code && block.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
+                while(i < blockLines.length) {
+                    if (!blockLines[i].trim().startsWith('```')) break; 
+                    
+                    let lang = blockLines[i].substring(3).trim() || 'Code';
+                    i++;
+                    let codeContent = '';
+                    while(i < blockLines.length && !blockLines[i].trim().startsWith('```')) {
+                        codeContent += blockLines[i] + '\n';
+                        i++;
+                    }
+                    if (i < blockLines.length) i++; 
+                    
+                    codeGroup.push({ language: lang, code: codeContent.trim(), output: null });
 
-        // Single language or no valid languages path
-        if (!block.code || block.code.length === 0 || !hasValidLanguages || block.code.length === 1) {
-          const firstCode = block.code && block.code.length > 0 ? block.code[0] : null;
-          return (
-            <div key={block.id} className="my-6 lg:my-8">
-              <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-200/50 dark:border-gray-600/30 overflow-hidden mb-6">
-                <div className="flex justify-start items-center p-3 border-b border-gray-200/30 dark:border-gray-600/30">
-                  <div className="flex gap-0.5 rounded-lg p-0.5">
-                    <button 
-                      onClick={() => switchCodeTab(block.id, 'code')}
-                      className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                        getCurrentTab(block.id) === 'code'
-                          ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-600'
-                          : 'text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                      }`}
-                    >
-                      Code
-                    </button>
-                    <button 
-                      onClick={() => switchCodeTab(block.id, 'output')}
-                      className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                        getCurrentTab(block.id) === 'output'
-                          ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
-                          : 'text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                      }`}
-                    >
-                      Output
-                    </button>
-                  </div>
-                </div>
+                    let peek = i;
+                    while(peek < blockLines.length && blockLines[peek].trim() === '') peek++;
+                    if (peek < blockLines.length && blockLines[peek].trim().startsWith('```')) {
+                        i = peek; 
+                        continue; 
+                    } else {
+                        break; 
+                    }
+                }
 
-                {getCurrentTab(block.id) === 'output' ? (
-                  <div className="bg-gray-900 dark:bg-black/80">
-                    <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
-                      <span className="text-gray-300 text-sm font-medium">OUTPUT</span>
-                      <button
-                        onClick={() => copyCode(firstCode?.output || 'No output provided', `${block.id}-output`)}
-                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                      >
-                        {copiedCode[`${block.id}-output`] ? (
-                          <FaCheck className="w-3 h-3 text-green-400" />
-                        ) : (
-                          <FaCopy className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
-                    <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500">
-                      <div className="p-4 text-gray-100 font-mono text-sm leading-relaxed">
-                        {firstCode?.output ? (
-                          <pre className="whitespace-pre-wrap text-green-400">{firstCode.output}</pre>
-                        ) : (
-                          <>
-                            <div className="text-amber-400 mb-2">No output provided</div>
-                            <div className="text-gray-400">Output will be shown here when available</div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-gray-900 dark:bg-black/80">
-                    <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
-                      <span className="text-gray-300 text-sm font-medium">
-                        {firstCode?.language ? firstCode.language.toUpperCase() : 'CODE'}
-                      </span>
-                      <button
-                        onClick={() => copyCode(firstCode?.code || '', `${block.id}-simple`)}
-                        className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                      >
-                        {copiedCode[`${block.id}-simple`] ? (
-                          <FaCheck className="w-3 h-3 text-green-400" />
-                        ) : (
-                          <FaCopy className="w-3 h-3" />
-                        )}
-                      </button>
-                    </div>
-                    <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500">
-                      <SyntaxHighlighter
-                        style={tomorrow}
-                        language={firstCode?.language ? firstCode.language.toLowerCase() : 'text'}
-                        PreTag="div"
-                        className="text-sm"
-                        customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
-                      >
-                        {firstCode?.code?.trim() || 'No code available'}
-                      </SyntaxHighlighter>
-                    </div>
-                  </div>
-                )}
-              </div>
+                let k = i;
+                while(k < blockLines.length && blockLines[k].trim() === '') k++;
 
-              {/* Complexity Section */}
-              {block.complexity && (block.complexity.time || block.complexity.space) && (
-                <div className="space-y-4">
-                  {block.complexity.time && (
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                      <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                        <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                        Time Complexity
-                      </h4>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                        <ReactMarkdown>{block.complexity.time}</ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
+                if (k < blockLines.length && isOutputHeader(blockLines[k])) {
+                    let outputText = '';
+                    k++; 
+                    while(k < blockLines.length) {
+                        const nl = blockLines[k];
+                        if (
+    nl.startsWith('#') ||
+    nl.startsWith('```') ||
+    nl.match(/^#+\s*(Time|Space) Complexity/i) ||
+    nl === '<carousel>' ||
+    nl === '</carousel>' ||
+    nl.startsWith('<img')
+  ) break;
+                        outputText += nl + '\n';
+                        k++;
+                    }
+                    codeGroup.forEach(c => c.output = outputText.trim());
+                    i = k; 
+                }
 
-                  {block.complexity.space && (
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-                      <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                        <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                        Space Complexity
-                      </h4>
-                      <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                        <ReactMarkdown>{block.complexity.space}</ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
+                while(i < blockLines.length) {
+                    const currentLine = blockLines[i];
+                    if (currentLine.match(/^#+\s*Time Complexity/i)) {
+                        i++;
+                        let t = '';
+                        while(i < blockLines.length && !blockLines[i].startsWith('#')) {
+                            if(blockLines[i].trim()) t += blockLines[i] + '\n';
+                            i++;
+                        }
+                        complexity.time = t.trim();
+                    } else if (currentLine.match(/^#+\s*Space Complexity/i)) {
+                        i++;
+                        let s = '';
+                        while(i < blockLines.length && !blockLines[i].startsWith('#')) {
+                            if(blockLines[i].trim()) s += blockLines[i] + '\n';
+                            i++;
+                        }
+                        complexity.space = s.trim();
+                    } else if (currentLine.trim() === '') {
+                        i++; 
+                    } else {
+                        break; 
+                    }
+                }
+
+                elements.push({ type: 'code', code: codeGroup, complexity, id: blockId });
+                continue;
+            }
+
+            if (!line.match(/^#+\s*(Time|Space) Complexity/i) && !isOutputHeader(line)) {
+                if (line.startsWith('# ') && !result.title) result.title = line.substring(2);
+                else currentText += line + '\n';
+            }
+            i++;
+        }
+        flushText();
+        return elements;
+    };
+
+    const approachesStart = lines.findIndex(l => l.trim() === '<approaches>');
+    const approachesEnd = lines.findIndex(l => l.trim() === '</approaches>');
+
+    if (approachesStart !== -1 && approachesEnd !== -1) {
+        const preLines = lines.slice(0, approachesStart);
+        result.sections.push({ type: 'standard', content: parseBlockLines(preLines, 'pre-') });
+
+        const approachLines = lines.slice(approachesStart + 1, approachesEnd);
+        const approaches = [];
+        let currentApp = null;
+        let buffer = [];
+
+        const saveApproach = () => {
+            if (currentApp) {
+                currentApp.content = parseBlockLines(buffer, `app-${currentApp.id}-`);
+                approaches.push(currentApp);
+            }
+        };
+
+        for (let line of approachLines) {
+            if (line.trim().startsWith('## ')) {
+                saveApproach();
+                buffer = [];
+                currentApp = { 
+                    name: line.substring(3).trim(), 
+                    id: `approach-${approaches.length}` 
+                };
+            } else {
+                buffer.push(line);
+            }
+        }
+        saveApproach(); 
+        result.sections.push({ type: 'approaches', items: approaches });
+
+        const postLines = lines.slice(approachesEnd + 1);
+        if (postLines.some(l => l.trim())) {
+             result.sections.push({ type: 'standard', content: parseBlockLines(postLines, 'post-') });
         }
 
-        // Multi-language path - WITH SOLUTION-STYLE COPY BUTTON
-        return (
-          <div key={block.id} className="my-6 lg:my-8">
-            <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-200/50 dark:border-gray-600/30 overflow-hidden mb-6">
-              <div className="flex justify-start items-center p-3 border-b border-gray-200/30 dark:border-gray-600/30">
-                <div className="flex gap-0.5 rounded-lg p-0.5">
-                  <button 
-                    onClick={() => switchCodeTab(block.id, 'code')}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                      getCurrentTab(block.id) === 'code'
-                        ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-600'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                    }`}
-                  >
-                    Code
-                  </button>
-                  <button 
-                    onClick={() => switchCodeTab(block.id, 'output')}
-                    className={`px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
-                      getCurrentTab(block.id) === 'output'
-                        ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-600'
-                        : 'text-gray-600 dark:text-gray-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
-                    }`}
-                  >
-                    Output
-                  </button>
-                </div>
-              </div>
+    } else {
+        result.sections.push({ type: 'standard', content: parseBlockLines(lines) });
+    }
 
-              {getCurrentTab(block.id) === 'output' ? (
-                <div className="bg-gray-900 dark:bg-black/80">
-                  <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
-                    <span className="text-gray-300 text-sm font-medium">OUTPUT</span>
-                    <button
-                      onClick={() => {
-                        const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
-                        const outputToCopy = currentCode?.output || 'No output provided';
-                        copyCode(outputToCopy, `${block.id}-output`);
-                      }}
-                      className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                    >
-                      {copiedCode[`${block.id}-output`] ? (
-                        <FaCheck className="w-3 h-3 text-green-400" />
-                      ) : (
-                        <FaCopy className="w-3 h-3" />
-                      )}
-                    </button>
-                  </div>
-                  <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500">
-                    <div className="p-4 text-gray-100 font-mono text-sm leading-relaxed">
-                      {(() => {
-                        const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
-                        const output = currentCode?.output;
-                        if (output && output.trim()) {
-                          return <pre className="whitespace-pre-wrap text-green-400">{output}</pre>;
-                        } else {
-                          return (
-                            <>
-                              <div className="text-amber-400 mb-2">No output provided for this code example</div>
-                              <div className="text-gray-400">Output will be shown here when available</div>
-                            </>
-                          );
-                        }
-                      })()}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-gray-900 dark:bg-black/80 relative">
-                  {/* Language Tabs (only if multiple languages) */}
-                  {block.code.length > 1 && (
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50 border-b border-gray-700/50 space-y-2 sm:space-y-0">
-                      <div className="flex flex-wrap gap-1">
-                        {block.code.map(codeItem => {
-                          if (!codeItem || !codeItem.language) return null;
-                          return (
-                            <button
-                              key={codeItem.language}
-                              onClick={() => changeLanguage(block.id, codeItem.language)}
-                              className={`px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm font-semibold transition-all duration-200 ${
-                                selectedLanguages[block.id] === codeItem.language
-                                  ? 'bg-indigo-600 text-white shadow-md'
-                                  : 'text-gray-400 hover:text-indigo-400 hover:bg-gray-700/50'
-                              }`}
-                            >
-                              {codeItem.language}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+    return result;
+  };
 
-                  {/* Header for single language */}
-                  {block.code.length === 1 && block.code[0] && (
-                    <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
-                      <span className="text-gray-300 text-sm font-medium">
-                        {block.code[0].language ? block.code[0].language.toUpperCase() : 'CODE'}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Code Display */}
-                  <div className="max-h-96 overflow-x-auto overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800 hover:scrollbar-thumb-gray-500">
-                    <SyntaxHighlighter
-                      style={tomorrow}
-                      language={(() => {
-                        const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
-                        return (selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'text').toLowerCase();
-                      })()}
-                      PreTag="div"
-                      className="text-sm"
-                      customStyle={{ margin: 0, padding: '1rem', background: 'transparent', minHeight: 'auto' }}
-                    >
-                      {(() => {
-                        const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
-                        return currentCode?.code?.trim() || 'No code available';
-                      })()}
-                    </SyntaxHighlighter>
-                  </div>
-
-                  {/* ABSOLUTE POSITIONED COPY BUTTON - SAME AS SOLUTION */}
-                  <button
-                    onClick={() => {
-                      const currentCode = block.code.find(codeItem => codeItem && codeItem.language === selectedLanguages[block.id]) || block.code[0] || block.code[0].language;
-                      copyCode(currentCode?.code || '', `${block.id}-${currentCode?.language || 'code'}`);
-                    }}
-                    className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 sm:p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg sm:rounded-xl transition-all duration-200 backdrop-blur-sm border border-white/10"
-                  >
-                    {copiedCode[`${block.id}-${selectedLanguages[block.id] || (block.code[0] && block.code[0].language) || 'code'}`] ? (
-                      <FaCheck className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
-                    ) : (
-                      <FaCopy className="w-3 h-3 sm:w-4 sm:h-4" />
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Complexity Section */}
-            {block.complexity && (block.complexity.time || block.complexity.space) && (
-              <div className="space-y-4">
-                {block.complexity.time && (
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                    <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                      <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Time Complexity
-                    </h4>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                      <ReactMarkdown>{block.complexity.time}</ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-
-                {block.complexity.space && (
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-                    <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                      <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                      Space Complexity
-                    </h4>
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                      <ReactMarkdown>{block.complexity.space}</ReactMarkdown>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-
-      case 'image':
-        return (
-          <div key={block.id} className="my-6">
-            <SecureImage
-              src={block.src}
-              alt="Editorial illustration"
-              className="max-w-full"
-              style={block.style ? (() => {
-                try {
-                  const styleObj = {};
-                  block.style.split(';').forEach((rule) => {
-                    const [key, value] = rule.split(':').map((s) => s.trim());
-                    if (key && value) {
-                      const camelKey = key.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-                      styleObj[camelKey] = value;
-                    }
-                  });
-                  return styleObj;
-                } catch {
-                  return {};
-                }
-              })() : {}}
-            />
-          </div>
-        );
-
-      default:
-        return null;
+  const renderBlock = (block) => {
+    switch(block.type) {
+        case 'text': return <div key={block.id} className="prose prose-gray dark:prose-invert prose-lg max-w-none mb-6"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>{block.content}</ReactMarkdown></div>;
+        case 'carousel': return <ImageCarousel key={block.id} images={block.images} />;
+        case 'image': return <SecureImage key={block.id} src={block.src} className="max-w-full my-6" />;
+        case 'code': 
+            return (
+                <CodeBlockViewer 
+                    key={block.id} 
+                    blocks={block.code} 
+                    id={block.id} 
+                    complexity={block.complexity}
+                    activeTabState={codeTabStates[block.id]}
+                    onTabChange={(val) => setCodeTabStates(prev => ({ ...prev, [block.id]: val }))}
+                    copiedState={copiedCode[`${block.id}-${codeTabStates[block.id] || (block.code[0]?.language || 'Code')}`]}
+                    onCopy={copyCode}
+                />
+            );
+        default: return null;
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-[#030014] flex items-center justify-center px-4">
-        <div className="text-center space-y-4 sm:space-y-6">
-          <div className="relative">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-              <FaSpinner className="w-6 h-6 sm:w-8 sm:h-8 animate-spin text-white" />
-            </div>
-          </div>
-          <div>
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              Loading {contentType === 'editorial' ? 'Editorial' : 'Solution'}
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-              Please wait while we fetch the {contentType === 'editorial' ? 'concept explanation' : 'solution'}...
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-[#030014] flex items-center justify-center px-4">
-        <div className="max-w-md w-full text-center">
-          <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-3xl shadow-xl border border-gray-200/50 dark:border-gray-700/50 p-8 sm:p-12">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg mb-6">
-              <FaExclamationTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              {contentType === 'editorial' ? 'Editorial' : 'Solution'} Not Found
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">
-              {error}
-            </p>
-            <button
-              onClick={() => window.close()}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300"
-            >
-              <FaArrowLeft className="w-4 h-4 inline mr-2" />
-              <span>Close</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (<div className="min-h-screen bg-white dark:bg-[#030014] flex items-center justify-center"><div className="flex flex-col items-center gap-4"><FaSpinner className="w-8 h-8 animate-spin text-indigo-600" /><p className="text-gray-500">Loading content...</p></div></div>);
+  if (error) return (<div className="min-h-screen bg-white dark:bg-[#030014] flex items-center justify-center p-4"><div className="text-center max-w-md bg-white/50 dark:bg-gray-800/50 backdrop-blur p-8 rounded-2xl border border-gray-200 dark:border-gray-700"><FaExclamationTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" /><h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Content Not Found</h2><p className="text-gray-500 mb-6">{error}</p><button onClick={() => navigate(-1)} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">Go Back</button></div></div>);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#030014]">
-      {/* UPDATED: Header - matches navbar styling */}
-      <div className="sticky top-0 z-50 bg-white/95 dark:bg-[#030014]/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
-            <div className="flex items-start sm:items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
-              <button
-                onClick={() => window.close()}
-                className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-xl flex items-center justify-center transition-all duration-200 shrink-0 mt-1 sm:mt-0"
-                title="Close window"
-              >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-400" />
-              </button>
+    <div className="
+  min-h-screen
+  bg-white dark:bg-[#030014]
+  text-[14px] sm:text-[15px] lg:text-[16px]
+">
+      {/* ================= RESPONSIVE HEADER ================= */}
+    <div
+  className="
+    sticky top-0 z-50
+    bg-white/95 dark:bg-[#030014]/95
+    backdrop-blur-xl
+    border-b border-gray-200/50 dark:border-gray-800/50
+  "
+>
+  <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 lg:py-4">
 
-              <div className="flex items-start sm:items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 ${
-                  contentType === 'editorial'
-                    ? 'bg-gradient-to-br from-emerald-500 via-green-500 to-teal-500'
-                    : 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500'
-                } rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg ${
-                  contentType === 'editorial' ? 'shadow-emerald-500/25' : 'shadow-indigo-500/25'
-                } shrink-0 mt-1 sm:mt-0`}>
-                  {contentType === 'editorial' ? (
-                    <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-white" />
-                  ) : (
-                    <FaBook className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
-                  )}
-                </div>
+    <div className="flex items-center justify-between gap-3 lg:gap-4">
 
-                <div className="min-w-0 flex-1">
-                  {contentType === 'editorial' ? (
-                    <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl font-bold bg-gradient-to-r from-emerald-700 via-green-600 to-teal-600 bg-clip-text text-transparent dark:from-emerald-300 dark:via-green-300 dark:to-teal-300 leading-normal pb-1 break-words">
-                      {editorialData?.title || problem?.title || 'Concept Editorial'}
-                    </h1>
-                  ) : (
-                    <h1 className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-gray-900 via-indigo-700 to-purple-600 bg-clip-text text-transparent dark:from-white dark:via-indigo-300 dark:to-purple-300 truncate">
-                      {editorialData?.title || problem?.title || 'Problem Solution'}
-                    </h1>
-                  )}
-                </div>
-              </div>
-            </div>
+      {/* LEFT */}
+      <div className="flex items-center gap-3 lg:gap-4 min-w-0">
 
-            {/* Tab Navigation */}
-            <div className="flex items-center space-x-1 sm:space-x-2 bg-gray-100/60 dark:bg-gray-800/60 rounded-xl sm:rounded-2xl p-1 sm:p-1.5 backdrop-blur-sm w-full sm:w-auto">
-              <button
-                onClick={() => setActiveTab('editorial')}
-                className={`px-2 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial flex items-center justify-center space-x-1 sm:space-x-2 ${
-                  activeTab === 'editorial'
-                    ? contentType === 'editorial'
-                      ? 'bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 shadow-lg shadow-emerald-500/10'
-                      : 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-lg shadow-indigo-500/10'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white/50 dark:hover:bg-gray-700/50'
-                }`}
-              >
-                {contentType === 'editorial' ? (
-                  <GraduationCap className="w-3 h-3 sm:w-4 sm:h-4" />
-                ) : (
-                  <BookOpen className="w-3 h-3 sm:w-4 sm:h-4" />
-                )}
-                <span className="hidden xs:inline sm:inline">{contentType === 'editorial' ? 'Editorial' : 'Solution'}</span>
-                <span className="inline xs:hidden sm:hidden">{contentType === 'editorial' ? 'Editorial' : 'Solution'}</span>
-              </button>
+        {/* BACK BUTTON */}
+        <button
+          onClick={handleBack}
+          aria-label="Go back"
+          className="
+            h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10
+            flex items-center justify-center
+            rounded-lg
+            bg-gray-100 dark:bg-gray-800
+            hover:bg-gray-200 dark:hover:bg-gray-700
+            transition active:scale-95
+          "
+        >
+          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-gray-600 dark:text-gray-400" />
+        </button>
 
-              <button
-                onClick={() => setActiveTab('video')}
-                className={`px-2 py-2 sm:px-4 sm:py-2 md:px-6 md:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold transition-all duration-300 flex-1 sm:flex-initial flex items-center justify-center space-x-1 sm:space-x-2 ${
-                  activeTab === 'video'
-                    ? 'bg-white dark:bg-gray-700 text-red-600 dark:text-red-400 shadow-lg shadow-red-500/10'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white/50 dark:hover:bg-gray-700/50'
-                }`}
-              >
-                <FaYoutube className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden xs:inline sm:inline">Video</span>
-                <span className="inline xs:hidden sm:hidden">Video</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* TITLE */}
+<div className="flex items-center gap-2 lg:gap-3 min-w-0 group">
+  <h1
+    className="
+      text-lg sm:text-xl lg:text-2xl
+      font-bold
+      truncate
+      max-w-[200px] sm:max-w-[400px] lg:max-w-[600px]
+      
+      bg-gradient-to-r from-[#6366f1] to-[#a855f7] 
+      bg-clip-text text-transparent 
+      group-hover:from-[#5855eb] group-hover:to-[#9333ea] 
+      transition-all
+    "
+  >
+    {parsedContent?.title || problem?.title || 'Editorial'}
+  </h1>
+</div>
       </div>
 
-      {/* UPDATED: Main Content Area - Full page, no boxes */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
-        {activeTab === 'editorial' && (
-          <div>
-            {!editorial && !loading ? (
-              <div className="flex items-center justify-center h-64 sm:h-96">
-                <div className="text-center space-y-4 sm:space-y-6">
-                  <div>
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-r bg-purple-500/10 dark:bg-gray-900 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-                      <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-                    </div>
-                  </div>
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                      No {contentType === 'editorial' ? 'Editorial' : 'Solution'} Available
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto text-sm sm:text-base px-4">
-                      The {contentType === 'editorial' ? 'editorial' : 'solution'} for this {contentType === 'editorial' ? 'concept' : 'problem'} is not available at the moment.
-                    </p>
-                  </div>
+      {/* RIGHT : GUIDE / VIDEO */}
+      <div
+        className="
+          flex items-center p-0.5
+          bg-gray-100 dark:bg-gray-800
+          rounded-lg
+          border border-gray-300 dark:border-gray-700/60
+        "
+      >
+        {[
+          { key: 'editorial', label: 'Guide', icon: BookOpen },
+          { key: 'video', label: 'Video', icon: FaYoutube }
+        ].map(({ key, label, icon: Icon }) => {
+          const active = activeTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={cn(
+                "px-3 sm:px-4 lg:px-5 py-1.5 lg:py-2",
+                "text-[10px] sm:text-[11px]",
+                "font-bold uppercase",
+                "rounded-md flex items-center gap-1.5 transition-colors",
+                active
+                  ? "bg-white dark:bg-gray-700 text-indigo-600 dark:text-white"
+                  : "text-gray-500 dark:text-zinc-500 hover:text-gray-900 dark:hover:text-zinc-300"
+              )}
+            >
+              <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          );
+        })}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+      {/* MAIN CONTENT */}
+      <div className="
+  max-w-7xl mx-auto
+  px-3 sm:px-4 lg:px-6
+  pt-1 sm:pt-2
+  pb-8
+">
+        {activeTab === 'editorial' && parsedContent && (
+            <div className="space-y-8">
+                {parsedContent.sections.map((section, idx) => {
+                    if (section.type === 'standard') {
+                        return <div key={idx}>{section.content.map(renderBlock)}</div>;
+                    }
+                    if (section.type === 'approaches') {
+                        return (
+                            <div key={idx} className="space-y-4">
+                                {section.items.map((approach, aIdx) => (
+    <div key={approach.id} className="border border-indigo-200/60 dark:border-indigo-500/30 rounded-xl overflow-hidden bg-transparent">
+        <div 
+            onClick={() => toggleSection(approach.id)} 
+            className="cursor-pointer p-5 flex items-center justify-between hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-colors select-none"
+        >
+            <div className="flex items-center gap-4">
+                <div className="w-8 h-8 rounded-lg bg-transparent border border-indigo-200 dark:border-indigo-500/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
+                    {aIdx + 1}
                 </div>
-              </div>
-            ) : contentType === 'editorial' && editorial && !loading && !error ? (
-              // Editorial content - DIRECTLY RENDERED WITHOUT BOXES
-              <div>
-                {(() => {
-                  const parsedEditorial = parseEditorialMarkdown(editorial);
-                  return (
-                    <div className="space-y-6">
-                      {parsedEditorial.title && (
-                        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 dark:text-white mb-6 pb-3 border-b border-gray-200 dark:border-gray-700">
-                          {parsedEditorial.title}
-                        </h1>
-                      )}
-                      {parsedEditorial.content.map(block => renderEditorialContentBlock(block))}
+                <h3 className="text-[15px] sm:text-base font-semibold text-gray-900 dark:text-zinc-100 leading-snug">
+                    {approach.name}
+                </h3>
+            </div>
+            {expandedSections[approach.id] 
+                ? <ChevronDownLucide className="w-5 h-5 text-indigo-600 dark:text-indigo-400 rotate-180 transition-transform" /> 
+                : <ChevronRight className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+            }
+        </div>
+        
+        <AnimatePresence>
+            {expandedSections[approach.id] && (
+                <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                >
+                    {/* Background is explicitly transparent here */}
+                    <div className="p-6 border-t border-indigo-100 dark:border-indigo-500/20 bg-transparent">
+                        {approach.content.map(renderBlock)}
                     </div>
-                  );
-                })()}
-              </div>
-            ) : contentType === 'solution' && editorialData && !loading && !error ? (
-              // Solution content - DIRECTLY RENDERED WITHOUT BOXES
-              <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-                {/* Description */}
-                {editorialData.description && (
-                  <div>
-                    <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shrink-0">
-                        <Lightbulb className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-                      </div>
-                      <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">Problem Overview</h2>
-                    </div>
-                    <div className="prose prose-gray dark:prose-invert max-w-none">
-                      {renderContentElements(parseContentWithImages(editorialData.description))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Approaches */}
-                <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-                  {editorialData.approaches.map((approach, index) => (
-                    <div key={approach.id}>
-                      <div
-                        onClick={() => toggleSection(approach.id)}
-                        className="cursor-pointer p-4 sm:p-6 lg:p-8 hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-all duration-300 border-b border-gray-200/30 dark:border-gray-700/30"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3 sm:space-x-4 lg:space-x-6">
-                            <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
-                              {expandedSections[approach.id] ? (
-                                <ChevronDownLucide className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-indigo-600 dark:text-indigo-400" />
-                              ) : (
-                                <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 text-gray-400 dark:text-gray-500" />
-                              )}
-                              
-                              <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shrink-0">
-                                <span className="text-white font-bold text-sm sm:text-base lg:text-lg">{index + 1}</span>
-                              </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    </div>
+))}
                             </div>
-
-                            <div className="min-w-0">
-                              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white mb-2 sm:mb-3">
-                                {approach.name}
-                              </h3>
-                              <span className={`inline-block px-2 sm:px-3 lg:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-sm font-semibold ${getApproachBadgeStyle(approach.name)}`}>
-                                Solution Approach
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expanded Content */}
-                      {expandedSections[approach.id] && (
-                        <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 lg:space-y-8">
-                          {/* Explanation */}
-                          {approach.explanation && (
-                            <div>
-                              <h4 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 dark:text-white mb-3 sm:mb-4 flex items-center">
-                                <Lightbulb className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 mr-2 sm:mr-3 text-amber-500 dark:text-amber-400" />
-                                Algorithm Explanation
-                              </h4>
-                              <div className="prose prose-gray dark:prose-invert max-w-none">
-                                {renderContentElements(parseContentWithImages(approach.explanation))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Code */}
-                          {approach.code && approach.code.length > 0 && (() => {
-                            const hasValidLanguages = approach.code.some(codeItem => codeItem && codeItem.language && codeItem.language.trim());
-                            if (!hasValidLanguages) return null;
-
-                            // Render code blocks directly without wrapping boxes
-                            return approach.code.map((codeItem, codeIndex) => {
-                              if (!codeItem || !codeItem.language) return null;
-                              return (
-                                <div key={codeIndex} className="my-6 lg:my-8">
-                                  <div className="bg-white/5 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border border-gray-200/50 dark:border-gray-600/30 overflow-hidden mb-6">
-                                    <div className="bg-gray-900 dark:bg-black/80">
-                                      <div className="flex justify-between items-center px-4 py-2 bg-gray-800 dark:bg-gray-700/50">
-                                        <span className="text-gray-300 text-sm font-medium">
-                                          {codeItem.language ? codeItem.language.toUpperCase() : 'CODE'}
-                                        </span>
-                                        <button
-                                          onClick={() => copyCode(codeItem.code || '', `${approach.id}-${codeItem.language}-${codeIndex}`)}
-                                          className="p-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200"
-                                        >
-                                          {copiedCode[`${approach.id}-${codeItem.language}-${codeIndex}`] ? (
-                                            <FaCheck className="w-3 h-3 text-green-400" />
-                                          ) : (
-                                            <FaCopy className="w-3 h-3" />
-                                          )}
-                                        </button>
-                                      </div>
-                                      <div className="max-h-96 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-                                        <SyntaxHighlighter
-                                          style={tomorrow}
-                                          language={(codeItem.language || 'text').toLowerCase()}
-                                          PreTag="div"
-                                          className="text-sm"
-                                          customStyle={{ margin: 0, padding: '1rem', background: 'transparent' }}
-                                        >
-                                          {codeItem.code?.trim() || 'No code available'}
-                                        </SyntaxHighlighter>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            });
-                          })()}
-
-                          {/* Complexity */}
-                          {(approach.complexity.time || approach.complexity.space) && (
-                            <div className="space-y-4">
-                              {approach.complexity.time && (
-                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 sm:p-6 rounded-xl border border-blue-200 dark:border-blue-700/30">
-                                  <h4 className="text-sm sm:text-base font-bold text-blue-900 dark:text-blue-300 mb-3 flex items-center gap-2">
-                                    <Timer className="w-4 h-4 sm:w-5 sm:h-5" />
-                                    Time Complexity
-                                  </h4>
-                                  <div className="prose prose-sm dark:prose-invert max-w-none text-blue-800 dark:text-blue-200">
-                                    <ReactMarkdown>{approach.complexity.time}</ReactMarkdown>
-                                  </div>
-                                </div>
-                              )}
-
-                              {approach.complexity.space && (
-                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 p-4 sm:p-6 rounded-xl border border-green-200 dark:border-green-700/30">
-                                  <h4 className="text-sm sm:text-base font-bold text-green-900 dark:text-green-300 mb-3 flex items-center gap-2">
-                                    <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-                                    Space Complexity
-                                  </h4>
-                                  <div className="prose prose-sm dark:prose-invert max-w-none text-green-800 dark:text-green-200">
-                                    <ReactMarkdown>{approach.complexity.space}</ReactMarkdown>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {renderSpecialThanks()}
-              </div>
-            ) : (contentType === 'solution' && !editorial && !editorialData && !loading && !error) ? (
-              // No editorial/solution content
-              <div>
-                {isEditing ? (
-                  <div className="space-y-4">
-                    <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Edit Editorial Content</h2>
-                    <textarea
-                      value={editorialContent}
-                      onChange={(e) => setEditorialContent(e.target.value)}
-                      className="w-full h-96 p-4 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white font-mono text-sm resize-vertical"
-                      placeholder="Enter editorial content in Markdown format..."
-                    />
-                    <div className="flex justify-end space-x-2">
-                      <button
-                        onClick={handleCancelEdit}
-                        className="px-4 py-2 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSaveEditorial}
-                        disabled={saving}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {saving ? 'Saving...' : 'Save Changes'}
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="prose prose-gray dark:prose-invert prose-lg max-w-none">
-                    <ReactMarkdown>{editorial}</ReactMarkdown>
-                  </div>
-                )}
-              </div>
-            ) : null}
-          </div>
+                        );
+                    }
+                    return null;
+                })}
+            </div>
         )}
 
         {activeTab === 'video' && (
-          <div>
-            <div className="flex items-center space-x-2 sm:space-x-3 mb-4 sm:mb-6">
-              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center">
-                <FaYoutube className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
-              </div>
-              <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white">
-                Video Explanation
-              </h2>
-            </div>
+            <div className="max-w-4xl mx-auto">
+                <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+  <div
+    className="
+      w-7 h-7 sm:w-8 sm:h-8
+      bg-red-500
+      rounded-lg
+      flex items-center justify-center
+      shrink-0
+    "
+  >
+    <FaYoutube className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+  </div>
 
-            {problem?.videoExplanation ? (
-              <div className="aspect-video bg-gray-900 rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl">
-                <iframe
-                  src={`https://www.youtube.com/embed/${getYouTubeVideoId(problem.videoExplanation)}?rel=0&modestbranding=1`}
-                  title={`${problem.title} Problem - Video Explanation`}
-                  className="w-full h-full"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-            ) : (
-              <div className="aspect-video bg-gray-50 dark:bg-gray-800/50 rounded-xl sm:rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center">
-                <div className="text-center space-y-3 sm:space-y-4">
-                  <div>
-                    <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gray-200 dark:bg-gray-700 rounded-2xl flex items-center justify-center mx-auto">
-                      <PlayCircle className="w-6 h-6 sm:w-8 sm:h-8 text-gray-500 dark:text-gray-400" />
+  <h2
+    className="
+      text-base sm:text-xl lg:text-2xl
+      font-bold
+      text-gray-900 dark:text-white
+      leading-tight
+    "
+  >
+    Video Explanation
+  </h2>
+</div>
+                {problem?.videoExplanation ? (
+                    <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800">
+                        <iframe src={`https://www.youtube.com/embed/${getYouTubeVideoId(problem.videoExplanation)}?rel=0`} title="Video" className="w-full h-full" allowFullScreen />
                     </div>
-                  </div>
-                  <div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                      No Video Available
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto text-sm sm:text-base">
-                      A video explanation for this {contentType === 'editorial' ? 'concept' : 'problem'} is not available yet.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+                ) : (
+                    <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-2xl flex flex-col items-center justify-center text-gray-500 border border-gray-200 dark:border-gray-800">
+                        <PlayCircle className="w-12 h-12 mb-4 opacity-50" /><p>No video explanation available</p>
+                    </div>
+                )}
+            </div>
         )}
       </div>
 
-      {/* Back to top button */}
-      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 space-y-2 sm:space-y-3">
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="w-10 h-10 sm:w-12 sm:h-12 bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl hover:bg-white dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl sm:rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center border border-gray-200/50 dark:border-gray-700/50"
-          title="Back to top"
-        >
-          <ArrowUp className="w-4 h-4 sm:w-5 sm:h-5" />
-        </button>
-      </div>
-
-      {/* Custom styles */}
-      <style>{`
-        .complexity-code {
-          background-color: rgb(241, 245, 249);
-          color: rgb(51, 65, 85);
-          padding: 0.25rem 0.5rem;
-          border-radius: 0.375rem;
-          font-family: ui-monospace, 'SFMono-Regular', 'SF Mono', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
-          font-size: 0.875rem;
-          border: 1px solid rgb(226, 232, 240);
-        }
-        .dark .complexity-code {
-          background-color: rgb(30, 41, 59);
-          color: rgb(203, 213, 225);
-          border: 1px solid rgb(51, 65, 85);
-        }
-
-        .w-full-bleed {
-          width: 100vw;
-          max-width: 100vw;
-          margin-left: calc(50% - 50vw);
-          margin-right: calc(50% - 50vw);
-        }
-
-        @media (max-width: 640px) {
-  .scrollbar-thin {
-    scrollbar-width: thin;
-  }
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
-  }
-}
-
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: rgb(107, 114, 128) rgba(31, 41, 55, 0.3);
-}
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: rgba(31, 41, 55, 0.3);
-  border-radius: 3px;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, rgb(75, 85, 99), rgb(107, 114, 128));
-  border-radius: 3px;
-  border: 1px solid rgba(156, 163, 175, 0.1);
-}
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, rgb(107, 114, 128), rgb(156, 163, 175));
-}
-.dark .scrollbar-thin::-webkit-scrollbar-track {
-  background: rgba(17, 24, 39, 0.5);
-}
-.dark .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, rgb(55, 65, 81), rgb(75, 85, 99));
-  border: 1px solid rgba(107, 114, 128, 0.2);
-}
-.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, rgb(75, 85, 99), rgb(107, 114, 128));
-}
-
-    
-
-      `}</style>
+      <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="fixed bottom-6 right-6 p-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur shadow-lg rounded-full text-gray-600 dark:text-gray-300 hover:text-indigo-600 border border-gray-200 dark:border-gray-700 z-50"><ArrowUp className="w-5 h-5" /></button>
+      <style>{`.no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; } .mask-gradient-right { mask-image: linear-gradient(to right, black 85%, transparent 100%); }`}</style>
     </div>
   );
 };
 
 export default EditorialPage;
-
