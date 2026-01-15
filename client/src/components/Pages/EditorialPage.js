@@ -128,13 +128,13 @@ const CodeBlockViewer = React.memo(({
     <div className="my-6 sm:my-8 w-full rounded-lg sm:rounded-xl border border-zinc-800 bg-[#0c0c0e] overflow-hidden shadow-lg">
 
       {/* ================= HEADER ================= */}
-      <div className="flex items-center justify-between h-10 sm:h-12 px-3 sm:px-4 bg-[#18181b] border-b border-zinc-800 select-none">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between h-9 sm:h-12 px-2 sm:px-4 bg-[#18181b] border-b border-zinc-800 select-none">
+        <div className="flex items-center gap-2 sm:gap-4">
           {/* MAC DOTS */}
-          <div className="flex gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+          <div className="flex gap-1 sm:gap-1.5">
+            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500" />
+            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-500" />
+            <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-emerald-500" />
           </div>
 
           {/* CODE / OUTPUT SWITCH */}
@@ -147,13 +147,16 @@ const CodeBlockViewer = React.memo(({
                     key={mode}
                     onClick={() => setViewMode(mode)}
                     className={cn(
-                      "px-3 py-1 text-[11px] font-bold uppercase rounded-md flex items-center gap-1.5 transition-colors",
+                      "px-2 sm:px-3 py-0.5 sm:py-1 text-[10px] sm:text-[11px] font-bold uppercase rounded-md flex items-center gap-1 sm:gap-1.5 transition-colors",
                       active
                         ? "bg-zinc-700 text-white"
                         : "text-zinc-500 hover:text-zinc-300"
                     )}
                   >
-                    {mode === 'code' ? <Code2 className="w-3 h-3" /> : <Terminal className="w-3 h-3" />}
+                    {mode === 'code' 
+                      ? <Code2 className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> 
+                      : <Terminal className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    }
                     {mode}
                   </button>
                 );
@@ -165,10 +168,10 @@ const CodeBlockViewer = React.memo(({
         {/* COPY */}
         <button
           onClick={handleCopy}
-          className="flex items-center gap-2 px-3 py-1.5 text-xs text-zinc-400 hover:text-white transition"
+          className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs text-zinc-400 hover:text-white transition"
         >
           {localCopied ? <FaCheck className="text-emerald-500" /> : <FaCopy />}
-          {localCopied ? 'Copied' : 'Copy'}
+          <span className="hidden sm:inline">{localCopied ? 'Copied' : 'Copy'}</span>
         </button>
       </div>
 
@@ -1316,32 +1319,23 @@ const MarkdownComponents = {
         {activeTab === 'video' && (
             <div className="max-w-4xl mx-auto">
                 <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-  <div
-    className="
-      w-7 h-7 sm:w-8 sm:h-8
-      bg-red-500
-      rounded-lg
-      flex items-center justify-center
-      shrink-0
-    "
-  >
-    <FaYoutube className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
-  </div>
-
-  <h2
-    className="
-      text-base sm:text-xl lg:text-2xl
-      font-bold
-      text-gray-900 dark:text-white
-      leading-tight
-    "
-  >
-    Video Explanation
-  </h2>
-</div>
-                {problem?.videoExplanation ? (
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-red-500 rounded-lg flex items-center justify-center shrink-0">
+                    <FaYoutube className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                  </div>
+                  <h2 className="text-base sm:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white leading-tight">
+                    Video Explanation
+                  </h2>
+                </div>
+                
+                {/* CHECK BOTH PROPERTY NAMES HERE */}
+                {(problem?.youtubeLink || problem?.videoExplanation) ? (
                     <div className="aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-200 dark:border-gray-800">
-                        <iframe src={`https://www.youtube.com/embed/${getYouTubeVideoId(problem.videoExplanation)}?rel=0`} title="Video" className="w-full h-full" allowFullScreen />
+                        <iframe 
+                          src={`https://www.youtube.com/embed/${getYouTubeVideoId(problem.youtubeLink || problem.videoExplanation)}?rel=0`} 
+                          title="Video" 
+                          className="w-full h-full" 
+                          allowFullScreen 
+                        />
                     </div>
                 ) : (
                     <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-2xl flex flex-col items-center justify-center text-gray-500 border border-gray-200 dark:border-gray-800">

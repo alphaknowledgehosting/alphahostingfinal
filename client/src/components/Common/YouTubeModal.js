@@ -3,8 +3,6 @@ import { createPortal } from 'react-dom';
 import {
   FaTimes,
   FaYoutube,
-  FaExpand,
-  FaCompress,
   FaExternalLinkAlt,
   FaExclamationTriangle
 } from 'react-icons/fa';
@@ -19,7 +17,6 @@ const YouTubeModal = ({
   theme = 'dark'
 }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   const getVideoId = useCallback((url) => {
@@ -48,10 +45,6 @@ const YouTubeModal = ({
       onClose();
     }
   }, [isOpen, onClose]);
-
-  const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
-  };
 
   const openInNewTab = () => {
     if (videoUrl) {
@@ -103,66 +96,58 @@ const YouTubeModal = ({
       {/* Modal Container with Glassmorphism */}
       <div
         className={`
-          relative w-full max-w-6xl mx-auto 
+          relative w-full max-w-5xl mx-auto 
           bg-white/95 dark:bg-black/90 backdrop-blur-xl
           rounded-3xl shadow-2xl overflow-hidden
           border border-white/20 dark:border-white/10
           transform transition-all duration-300 ease-out
-          ${isFullscreen ? 'fixed inset-4' : 'max-h-[90vh]'}
+          max-h-[90vh]
           animate-in zoom-in-95 fade-in duration-300
         `}
         onClick={(e) => e.stopPropagation()}
       >
 
         {/* Header with Brand Styling */}
-<div className="flex items-center justify-between p-4 lg:p-6 bg-gray-50/80 dark:bg-black/50 backdrop-blur-sm border-b border-gray-200/50 dark:border-white/10">
-  <div className="flex items-center space-x-3">
-    <div className="text-red-600 dark:text-red-500">
-      <FaYoutube className="w-12 h-12" />
-    </div>
-    <div>
-      {problemName && (
-        <h3 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
-          {problemName}
-        </h3>
-      )}
-    </div>
-  </div>
+        <div className="flex items-center justify-between p-4 lg:p-6 bg-gray-50/80 dark:bg-black/50 backdrop-blur-sm border-b border-gray-200/50 dark:border-white/10">
+          <div className="flex items-center space-x-3">
+            <div className="text-red-600 dark:text-red-500">
+              <FaYoutube className="w-12 h-12" />
+            </div>
+            <div>
+              {problemName && (
+                <h3 className="text-lg lg:text-xl font-bold text-gray-900 dark:text-white">
+                  {problemName}
+                </h3>
+              )}
+            </div>
+          </div>
 
-  {/* Action Buttons with Brand Colors */}
-  <div className="flex items-center space-x-2">
-    {videoUrl && (
-      <button
-        onClick={openInNewTab}
-        className="group relative p-3 text-gray-600 dark:text-gray-400 hover:text-[#6366f1] dark:hover:text-[#a855f7] transition-all duration-200"
-        title="Open in new tab"
-      >
-        <div className="absolute inset-0 bg-[#6366f1]/10 dark:bg-[#a855f7]/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-        <FaExternalLinkAlt className="w-4 h-4 relative z-10" />
-      </button>
-    )}
-    <button
-      onClick={toggleFullscreen}
-      className="group relative p-3 text-gray-600 dark:text-gray-400 hover:text-[#6366f1] dark:hover:text-[#a855f7] transition-all duration-200"
-      title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-    >
-      <div className="absolute inset-0 bg-[#6366f1]/10 dark:bg-[#a855f7]/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-      {isFullscreen ? <FaCompress className="w-4 h-4 relative z-10" /> : <FaExpand className="w-4 h-4 relative z-10" />}
-    </button>
-    <button
-      onClick={onClose}
-      className="group relative p-3 text-gray-600 dark:text-gray-400 hover:text-red-500 transition-all duration-200"
-      title="Close modal (ESC)"
-    >
-      <div className="absolute inset-0 bg-red-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
-      <FaTimes className="w-4 h-4 relative z-10" />
-    </button>
-  </div>
-</div>
-
+          {/* Action Buttons with Brand Colors */}
+          <div className="flex items-center space-x-2">
+            {videoUrl && (
+              <button
+                onClick={openInNewTab}
+                className="group relative p-3 text-gray-600 dark:text-gray-400 hover:text-[#6366f1] dark:hover:text-[#a855f7] transition-all duration-200"
+                title="Open in new tab"
+              >
+                <div className="absolute inset-0 bg-[#6366f1]/10 dark:bg-[#a855f7]/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+                <FaExternalLinkAlt className="w-4 h-4 relative z-10" />
+              </button>
+            )}
+            
+            <button
+              onClick={onClose}
+              className="group relative p-3 text-gray-600 dark:text-gray-400 hover:text-red-500 transition-all duration-200"
+              title="Close modal (ESC)"
+            >
+              <div className="absolute inset-0 bg-red-500/10 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
+              <FaTimes className="w-4 h-4 relative z-10" />
+            </button>
+          </div>
+        </div>
 
         {/* Video Content */}
-        <div className={`relative bg-black ${isFullscreen ? 'h-[calc(100vh-140px)]' : 'h-[60vh]'}`}>
+        <div className="relative bg-black h-[60vh]">
           {embedUrl ? (
             <>
               {isLoading && (
@@ -208,7 +193,7 @@ const YouTubeModal = ({
               <iframe
                 src={embedUrl}
                 title={`Editorial Video${problemName ? ` - ${problemName}` : ''}`}
-                className="absolute inset-0 w-full h-full border-0 rounded-lg"
+                className="absolute inset-0 w-full h-full border-0 rounded-b-3xl"
                 allowFullScreen
                 allow="autoplay; encrypted-media; picture-in-picture"
                 onLoad={handleIframeLoad}
@@ -251,20 +236,9 @@ const YouTubeModal = ({
             </div>
           )}
         </div>
-
-        {/* Footer with Brand Styling */}
-        <div className="px-4 lg:px-6 py-4 bg-gray-50/80 dark:bg-black/50 backdrop-blur-sm border-t border-gray-200/50 dark:border-white/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-              <div className="w-1.5 h-1.5 bg-[#6366f1] rounded-full animate-pulse"></div>
-              <span>Press ESC to close</span>
-            </div>
-            <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-              <span>Use fullscreen for better viewing</span>
-              <div className="w-1.5 h-1.5 bg-[#a855f7] rounded-full animate-pulse"></div>
-            </div>
-          </div>
-        </div>
+        
+        {/* Footer Removed Completely */}
+        
       </div>
     </div>,
     document.body
