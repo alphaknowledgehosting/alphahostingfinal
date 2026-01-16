@@ -140,7 +140,7 @@ export const progressAPI = {
   getRevisionProblems: (userId) => api.get(`/progress/revision/${userId}`)
 };
 export const problemAPI = {
-   delete: (problemId) => api.delete(`/problems/${problemId}`),
+
   getBatch: (problemIds) => api.post('/problems/batch', { problemIds }),
   getAll: (filters) => api.get('/problems', { params: filters }),
   search: (params) => api.get('/problems/search', { params }),

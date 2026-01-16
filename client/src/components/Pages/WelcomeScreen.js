@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Code2, Github, Globe, User, Brain, Rocket, Award } from 'lucide-react';
+import { Code2,  Globe, Brain, Award } from 'lucide-react';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
 

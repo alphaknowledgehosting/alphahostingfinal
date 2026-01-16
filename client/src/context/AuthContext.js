@@ -274,7 +274,7 @@ export const AuthProvider = ({ children }) => {
       }
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [user?._id, fetchUnreadCount]);
+  }, [user, fetchUnreadCount]);
 
   // Storage synchronization
   useEffect(() => {
@@ -395,7 +395,7 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // silent
     }
-  }, [user?._id, createAuthenticatedAxios, broadcastAnnouncementEvent]);
+    }, [user, createAuthenticatedAxios, broadcastAnnouncementEvent]);
 
   // markAnnouncementAsRead with immediate broadcast
   const markAnnouncementAsRead = useCallback((announcementId) => {
@@ -436,7 +436,7 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // silent
     }
-  }, [user?._id, createAuthenticatedAxios, broadcastAnnouncementEvent]);
+    }, [user, createAuthenticatedAxios, broadcastAnnouncementEvent]);
 
   // handleNewAnnouncement with immediate broadcast
   const handleNewAnnouncement = useCallback((newAnnouncementId) => {
@@ -452,7 +452,7 @@ export const AuthProvider = ({ children }) => {
         announcementId: newAnnouncementId
       });
     }
-  }, [user?._id, broadcastAnnouncementEvent]);
+    }, [user, broadcastAnnouncementEvent]);
 
   // Role-based permissions
   const isAdmin = user?.role === 'admin';
@@ -467,7 +467,7 @@ export const AuthProvider = ({ children }) => {
   // Helper: gate protected pages (call inside route components)
   const requireAuth = useCallback(() => {
     return !!user?._id;
-  }, [user?._id]);
+  }, [user]);
 
   const value = useMemo(() => ({
     user,
