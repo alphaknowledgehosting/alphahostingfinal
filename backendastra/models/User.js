@@ -6,7 +6,24 @@ class User {
     this.db = this.client.db(process.env.ASTRA_DB_API_ENDPOINT);
     this.collection = this.db.collection('users');
   }
-
+  // NEW: Track when the user last checked announcements
+  async updateLastAnnouncementCheck(userId) {
+    try {
+      const result = await this.collection.updateOne(
+        { _id: userId },
+        { 
+          $set: { 
+            lastAnnouncementCheck: new Date().toISOString(),
+            updatedAt: new Date().toISOString() 
+          }
+        }
+      );
+      return result;
+    } catch (error) {
+      console.error('Error updating announcement check:', error);
+      throw error;
+    }
+  }
   async createUser(userData) {
     try {
       const user = {

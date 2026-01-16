@@ -451,10 +451,10 @@ const SheetList = ({ onSheetSelect }) => {
             )}
           </div>
           <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 dark:text-white mb-2 md:mb-4 tracking-tight px-4">
-            Choose Your DSA Journey
+            Build Your IT Career
           </h2>
           <p className="text-sm sm:text-base md:text-lg text-gray-600 dark:text-slate-400 max-w-2xl mx-auto px-4">
-            Master data structures and algorithms with carefully curated problem sets
+            Learn CS concepts and practice problems through structured learning paths
           </p>
         </div>
 

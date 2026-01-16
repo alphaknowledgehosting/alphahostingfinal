@@ -58,102 +58,20 @@ class Announcement {
     }
   }
 
-  // FIXED: Enhanced markAsRead method with better error handling and search logic
+  // FIXED: Updates the User's timestamp instead of the Announcement document
   async markAsRead(announcementId, userId) {
     try {
-      // //console.log('🔍 Marking announcement as read:', { announcementId, userId });
+      // We import User here to avoid circular dependency issues at the top
+      const User = require('./User');
+      const userModel = new User();
       
-      if (!announcementId || !userId) {
-        throw new Error('Missing required parameters: announcementId or userId');
-      }
+      // Update the user's "last checked" time to NOW
+      await userModel.updateLastAnnouncementCheck(userId);
 
-      // Step 1: Try to find the announcement by custom 'id' field first
-      let announcement = null;
-      let searchFilter = null;
-
-      try {
-        announcement = await this.collection.findOne({ id: announcementId });
-        if (announcement) {
-          searchFilter = { id: announcementId };
-          // //console.log('📋 Found announcement by custom id field');
-        }
-      } catch (error) {
-        // //console.log('⚠️ Could not search by custom id:', error.message);
-      }
-
-      // Step 2: If not found by custom id, try by _id (ObjectId)
-      if (!announcement && this.isValidObjectId(announcementId)) {
-        try {
-          const objectId = new ObjectId(announcementId);
-          announcement = await this.collection.findOne({ _id: objectId });
-          if (announcement) {
-            searchFilter = { _id: objectId };
-            // //console.log('📋 Found announcement by _id field');
-          }
-        } catch (error) {
-          // //console.log('⚠️ Could not search by _id:', error.message);
-        }
-      }
-
-      // Step 3: If still not found, try finding by _id as string (Astra DB sometimes uses string _id)
-      if (!announcement) {
-        try {
-          announcement = await this.collection.findOne({ _id: announcementId });
-          if (announcement) {
-            searchFilter = { _id: announcementId };
-            // //console.log('📋 Found announcement by _id as string');
-          }
-        } catch (error) {
-          // //console.log('⚠️ Could not search by _id as string:', error.message);
-        }
-      }
-
-      // Step 4: If announcement not found at all, throw error
-      if (!announcement) {
-        // console.error('❌ Announcement not found with ID:', announcementId);
-        // List all announcements for debugging
-        const allAnnouncements = await this.collection.find({}).limit(5).toArray();
-        // //console.log('🔍 Available announcements (first 5):');
-        allAnnouncements.forEach(ann => {
-          // //console.log(`   - ID: ${ann.id}, _id: ${ann._id}, Title: ${ann.title}`);
-        });
-        throw new Error('Announcement not found');
-      }
-
-      // //console.log('📋 Found announcement:', announcement.title);
-
-      // Step 5: Check if user already marked as read
-      if (announcement.readBy && announcement.readBy.includes(userId)) {
-        // //console.log('✅ Announcement already marked as read by this user');
-        return { success: true, message: 'Announcement already marked as read' };
-      }
-
-      // Step 6: Update the announcement to add user to readBy array
-      const updateResult = await this.collection.updateOne(
-        searchFilter,
-        { 
-          $addToSet: { readBy: userId },
-          $set: { updatedAt: new Date().toISOString() }
-        }
-      );
-
-      if (updateResult.matchedCount === 0) {
-        // console.error('❌ Update failed - no documents matched');
-        throw new Error('Announcement not found during update');
-      }
-
-      if (updateResult.modifiedCount === 0) {
-        // //console.log('✅ No update needed - user already in readBy array');
-      } else {
-        // //console.log('✅ Successfully added user to readBy array');
-      }
-
-      // //console.log('✅ Mark as read result:', updateResult);
-      return { success: true, message: 'Announcement marked as read' };
-      
+      return { success: true, message: 'Announcements marked as read' };
     } catch (error) {
-      // console.error('❌ Error marking announcement as read:', error.message);
-      throw new Error('Failed to mark announcement as read: ' + error.message);
+      console.error('Error marking as read:', error);
+      throw new Error('Failed to mark as read');
     }
   }
 
@@ -186,17 +104,23 @@ class Announcement {
     }
   }
 
+  // FIXED: Counts announcements created AFTER the user last checked
   async getUnreadCount(userId) {
     try {
+      const User = require('./User');
+      const userModel = new User();
+      const user = await userModel.findById(userId);
+
+      // If user has never checked, everything active is unread
+      const lastCheck = user?.lastAnnouncementCheck ? new Date(user.lastAnnouncementCheck) : new Date(0);
+
       const unreadCount = await this.collection.countDocuments({
         isActive: true,
-        readBy: { $ne: userId }
+        createdAt: { $gt: lastCheck.toISOString() } // $gt means "Greater Than"
       });
       
-      // //console.log('Unread count for user', userId, ':', unreadCount);
       return unreadCount;
     } catch (error) {
-      // console.error('Error getting unread count:', error);
       return 0;
     }
   }

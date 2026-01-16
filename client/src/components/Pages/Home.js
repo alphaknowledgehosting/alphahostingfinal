@@ -79,7 +79,7 @@ const StatusBadge = memo(() => (
       <div className="relative px-4 py-2 rounded-full bg-blue-50/90 dark:bg-black/40 backdrop-blur-xl border border-blue-200 dark:border-white/10">
         <span className="bg-gradient-to-r from-[#6366f1] to-[#a855f7] text-transparent bg-clip-text text-sm font-medium flex items-center">
           <Sparkles className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400" />
-          Master DSA with AlphaKnowledge
+          Master CS Fundamentals & DSA with AlphaKnowledge
         </span>
       </div>
     </div>
@@ -92,14 +92,14 @@ const MainTitle = memo(() => (
       <span className="relative inline-block">
         <span className="absolute -inset-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] blur-2xl opacity-20"></span>
         <span className="relative bg-gradient-to-r from-gray-900 via-blue-600 to-purple-600 dark:from-white dark:via-blue-100 dark:to-purple-200 bg-clip-text text-transparent">
-          Master Data
+          Master
         </span>
       </span>
       <br />
       <span className="relative inline-block mt-2">
         <span className="absolute -inset-2 bg-gradient-to-r from-[#6366f1] to-[#a855f7] blur-2xl opacity-20"></span>
         <span className="relative bg-gradient-to-r from-[#6366f1] to-[#a855f7] bg-clip-text text-transparent">
-          Structures & Algorithms
+          DSA & CS Fundamentals
         </span>
       </span>
     </h1>
@@ -350,8 +350,8 @@ const Home = () => {
   const features = [
     {
       icon: FaRocket,
-      title: 'Comprehensive DSA Coverage',
-      description: 'Master data structures and algorithms with our carefully curated problem sets covering all important topics.',
+      title: 'Comprehensive DSA & CS Coverage',
+      description: 'Master DSA & CS Fundamentals with our carefully curated problem sets covering all important topics.',
       color: 'from-blue-500 to-blue-600',
       bgColor: 'bg-blue-50 dark:bg-blue-900/20'
     },
@@ -372,7 +372,7 @@ const Home = () => {
     {
       icon: SiInstructure,
       title: 'Structured Learning',
-      description: 'Follow our structured approach to learning DSA with organized sheets and progressive difficulty levels.',
+      description: 'Follow our structured approach to learn DSA & CS Fundamentals with organized sheets and topics.',
       color: 'from-orange-500 to-orange-600',
       bgColor: 'bg-orange-50 dark:bg-orange-900/20'
     }
@@ -476,8 +476,8 @@ const Home = () => {
                   
                   {/* Description */}
                   <p className="text-base md:text-lg text-gray-600 dark:text-gray-400 max-w-xl leading-relaxed font-light mx-auto lg:mx-0" data-aos="fade-up" data-aos-delay="1000">
-                    Your comprehensive platform for learning DSA through structured problem-solving, 
-                    detailed explanations, and progress tracking. Start your journey to coding excellence today.
+                    Your comprehensive platform for learning CS Fundamentals & DSA through structured path, 
+                    detailed explanations, and progress tracking. Start your journey to excel in coding.
                   </p>
                   
                   {/* Minimal CTA Buttons
@@ -525,7 +525,7 @@ const Home = () => {
         Why Choose AlphaKnowledge?
       </h2>
       <p className="text-base sm:text-lg md:text-xl text-gray-600 dark:text-gray-400 max-w-4xl mx-auto px-2 sm:px-0" data-aos="fade-up" data-aos-delay="200">
-        Everything you need to excel in data structures and algorithms
+        Everything you need to excel in DSA & CS Fundamentals, all in one place.
       </p>
     </div>
     
@@ -628,9 +628,9 @@ const Home = () => {
           data-aos="fade-right"
           data-aos-duration="1500"
         >
-          I am a passionate and dedicated in making Data Structures and Algorithms 
-          accessible to everyone. Our platform provides a structured approach to learning DSA through 
-          carefully curated problems, detailed explanations, and comprehensive progress tracking.
+          I am a passionate and dedicated in making Data Structures and Algorithms & CS Fundamentals 
+          accessible to everyone. Our platform provides a structured approach to learn DSA & CS Fundamentals through 
+          carefully curated topics, detailed explanations, and comprehensive progress tracking.
         </p>
 
         {/* Profile Image - Shows after passionate text on mobile */}
@@ -650,7 +650,7 @@ const Home = () => {
             </svg>
           </div>
           <blockquote className="text-gray-700 dark:text-white text-center lg:text-left italic font-medium pl-6">
-            "Making complex algorithms simple through structured learning"
+            "Making complex topics simple through structured learning"
           </blockquote>
         </div>
 

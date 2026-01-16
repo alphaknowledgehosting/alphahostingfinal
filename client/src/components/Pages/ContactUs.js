@@ -164,7 +164,7 @@ const ContactUs = () => {
               Send us a Message
             </h2>
             <p className="text-gray-600 dark:text-gray-400">
-              Got questions about DSA? Need guidance on your learning path? Drop us a message!
+              Got questions about us or any suggestions?Drop us a message!
             </p>
           </div>
           <FaPaperPlane className="w-8 h-8 text-[#6366f1] opacity-50" />
@@ -294,7 +294,7 @@ const ContactUs = () => {
             })}
           </div>
           <p className="text-center text-gray-600 dark:text-gray-400 mt-4 text-sm">
-            Connect with us on social media for the latest updates and DSA tips!
+            Connect with us on social media for the latest updates!
           </p>
         </div>
       </div>

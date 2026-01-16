@@ -90,9 +90,54 @@ async unlinkProblem(sheetId, sectionId, subsectionId, problemId) {
   }
 }
 
+ // FIXED: Fetches sheet, then populates problem details from Problem collection
   async getSheetById(sheetId) {
     try {
       const sheet = await this.collection.findOne({ id: sheetId });
+      if (!sheet) return null;
+
+      // 1. Collect all Problem IDs needed
+      const problemIds = [];
+      sheet.sections?.forEach(section => {
+        section.subsections?.forEach(sub => {
+          if (sub.problemIds) problemIds.push(...sub.problemIds);
+          // Legacy support: if you still have 'problems' array, grab IDs from there too
+          if (sub.problems) sub.problems.forEach(p => problemIds.push(p.id));
+        });
+      });
+
+      // 2. Fetch actual problem data using your Problem model
+      const Problem = require('./Problem');
+      const problemModel = new Problem();
+      // We use the batch fetch method you already have!
+      const problems = await problemModel.getBatch(problemIds);
+      
+      // Create a map for quick lookup: { "id123": {title: "Two Sum"...} }
+      const problemMap = new Map(problems.map(p => [p.id, p]));
+
+      // 3. Stitch data back into the sheet structure
+      sheet.sections = sheet.sections.map(section => ({
+        ...section,
+        subsections: section.subsections.map(sub => {
+          // Get IDs from both new 'problemIds' and legacy 'problems'
+          const idsToFetch = [
+             ...(sub.problemIds || []), 
+             ...(sub.problems?.map(p => p.id) || [])
+          ];
+          
+          // Look up the full object from our fresh database fetch
+          const hydratedProblems = idsToFetch
+            .map(id => problemMap.get(id))
+            .filter(Boolean); // Remove nulls if problem was deleted
+
+          return {
+            ...sub,
+            problems: hydratedProblems, // Frontend sees full objects!
+            problemIds: idsToFetch      // Database keeps IDs
+          };
+        })
+      }));
+
       return sheet;
     } catch (error) {
       console.error('Error fetching sheet:', error);
@@ -455,55 +500,19 @@ async cleanOrphanedProblems(sheetId) {
     }
   }
 
+  // FIXED: Creates problem in Problem Collection, then links ID to Sheet
   async addProblem(sheetId, sectionId, subsectionId, problemData) {
     try {
-      const problem = {
-        id: problemData.id || this.generateId(),
-        title: problemData.title,
-        practiceLink: problemData.practiceLink || '',
-        platform: problemData.platform || '',
-        youtubeLink: problemData.youtubeLink || '',
-        editorialLink: problemData.editorialLink || '',
-        notesLink: problemData.notesLink || '',
-        difficulty: problemData.difficulty || 'Easy',
-        createdAt: new Date().toISOString(),
-        createdBy: problemData.createdBy
-      };
-
-      const currentSheet = await this.collection.findOne({ id: sheetId });
-      if (!currentSheet) {
-        throw new Error('Sheet not found');
-      }
-
-      const updatedSections = currentSheet.sections.map(section => {
-        if (section.id === sectionId) {
-          const updatedSubsections = section.subsections.map(subsection => {
-            if (subsection.id === subsectionId) {
-              return {
-                ...subsection,
-                problems: [...(subsection.problems || []), problem]
-              };
-            }
-            return subsection;
-          });
-          return { ...section, subsections: updatedSubsections };
-        }
-        return section;
-      });
-
-      const result = await this.collection.updateOne(
-        { id: sheetId },
-        { 
-          $set: { 
-            sections: updatedSections,
-            updatedAt: new Date().toISOString() 
-          }
-        }
-      );
+      // 1. Create the problem globally first
+      const Problem = require('./Problem');
+      const problemModel = new Problem();
       
-      if (result.modifiedCount === 0) {
-        throw new Error('Failed to add problem - sheet/section/subsection may not exist');
-      }
+      // Check if problem already exists (optional, but good practice)
+      // For now, we assume it's new
+      const { problem } = await problemModel.createProblem(problemData);
+
+      // 2. Link the ID to the sheet
+      await this.addProblemToSubsection(sheetId, sectionId, subsectionId, problem.id);
       
       return { success: true, problem };
     } catch (error) {

@@ -94,7 +94,7 @@ export default function NotFoundPage() {
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-pink-500 rounded-full" />
-              Browse our DSA sheets
+              Browse our Content
             </div>
           </div>
         </div>

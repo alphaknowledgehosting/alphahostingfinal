@@ -659,11 +659,11 @@ const Header = () => {
                     />
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                        Hello, {user.name.split(' ')[0]}
+                      {user.name.split(' ')[0]}
                       </span>
-                      <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-32">
+                      {/* <span className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-32">
                         {user.email}
-                      </span>
+                      </span> */}
                     </div>
                     <button 
                       onClick={handleLogout}
@@ -803,9 +803,9 @@ const Header = () => {
                           <div className="font-semibold text-gray-900 dark:text-white truncate">
                             {user.name}
                           </div>
-                          <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                          {/* <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
                             {user.email}
-                          </div>
+                          </div> */}
                         </div>
                         {shouldShowBadge && (
                           <div className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold">
