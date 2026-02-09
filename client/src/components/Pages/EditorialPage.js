@@ -700,18 +700,18 @@ const MarkdownComponents = {
 
 
   p: ({ node, ...props }) => (
-  <p
-    className="
-      text-gray-700 dark:text-gray-300
-      text-[15px] sm:text-[15px] lg:text-[16px]
-      leading-7 sm:leading-7
-      mb-4
-      whitespace-pre-wrap
-      break-words
-    "
-  >
-    {props.children}
-  </p>
+  <p
+    className="
+      text-gray-700 dark:text-gray-300
+      text-[15px] sm:text-[15px] lg:text-[16px]
+      leading-7 sm:leading-7
+      mb-4
+      whitespace-pre-wrap
+      break-words
+    "
+  >
+    {props.children}
+  </p>
 ),
 
 
@@ -786,26 +786,19 @@ const MarkdownComponents = {
 
 
   /* 🔥 MINIMALIST BORDER-ONLY TABLES */
-  table: ({ node, ...props }) => (
-    <div className="my-6 w-full overflow-x-auto rounded-lg border border-indigo-200 dark:border-indigo-500/30">
+  table: (props) => (
+    <div className="my-6 w-full overflow-x-auto rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm">
       <table className="w-full text-sm border-collapse text-left" {...props} />
     </div>
   ),
-
-  thead: ({ node, ...props }) => (
-    <thead className="bg-transparent text-indigo-900 dark:text-indigo-300 border-b border-indigo-200 dark:border-indigo-500/30" {...props} />
-  ),
+  thead: (props) => <thead className="bg-gray-100 dark:bg-zinc-900 text-gray-900 dark:text-gray-100" {...props} />,
+  tr: (props) => <tr className="border-t border-gray-300 dark:border-gray-700 even:bg-gray-50 dark:even:bg-zinc-900/30" {...props} />,
 
   tbody: ({ node, ...props }) => (
     <tbody className="bg-transparent" {...props} />
   ),
 
-  tr: ({ node, ...props }) => (
-    <tr 
-      className="border-b border-indigo-100 dark:border-indigo-500/20 last:border-b-0" 
-      {...props} 
-    />
-  ),
+  
 
   th: ({ node, ...props }) => (
     <th 
@@ -986,7 +979,19 @@ const MarkdownComponents = {
                 if (images.length) elements.push({ type: 'carousel', images, id: `${prefix}car-${elements.length}` });
                 i++; continue;
             }
-
+            // 5. TABLE DETECTOR (PEEK NEXT LINE FOR SEPARATOR)
+            const trimmedLine = line.trim();
+            if (trimmedLine.startsWith('|') && i + 1 < blockLines.length && 
+                blockLines[i+1].trim().match(/^\|?[\s-]*:?---+:?[\s-|]*$/)) {
+                flushText();
+                let tableMd = "";
+                while (i < blockLines.length && blockLines[i].trim().startsWith('|')) {
+                    tableMd += blockLines[i] + "\n";
+                    i++;
+                }
+                elements.push({ type: 'text', content: "\n" + tableMd + "\n", id: `${prefix}table-${elements.length}` });
+                continue;
+            }
             const imgM = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
             if (imgM) {
                 flushText();
@@ -1024,48 +1029,51 @@ const MarkdownComponents = {
                     }
                 }
 
+                // --- FIXED OUTPUT CAPTURING ---
+              // --- FIXED OUTPUT CAPTURING ---
                 let k = i;
-                while(k < blockLines.length && blockLines[k].trim() === '') k++;
+                while (k < blockLines.length && blockLines[k].trim() === '') k++;
 
-                if (k < blockLines.length && isOutputHeader(blockLines[k])) {
-                    let outputText = '';
-                    k++; 
-                    while(k < blockLines.length) {
-                        const nl = blockLines[k];
-                        if (
-    nl.startsWith('#') ||
-    nl.startsWith('```') ||
-    nl.match(/^#+\s*(Time|Space) Complexity/i) ||
-    nl === '<carousel>' ||
-    nl === '</carousel>' ||
-    nl.startsWith('<img')
-  ) break;
-                        outputText += nl + '\n';
+                if (k < blockLines.length && (blockLines[k].match(/^### Output/i) || blockLines[k].match(/^Output:/i))) {
+                    let outputLines = [];
+                    k++; // Skip header
+                    while (k < blockLines.length) {
+                        const line = blockLines[k];
+                        const tLine = line.trim();
+                        // Break if we hit a new structural element or an empty line
+                        if (tLine.match(/^#+\s*(Time|Space) Complexity/i) || tLine.match(/^##+\s/) || tLine.startsWith('```') || tLine.startsWith('---') || tLine === '') break;
+                        outputLines.push(line);
                         k++;
                     }
-                    codeGroup.forEach(c => c.output = outputText.trim());
-                    i = k; 
+                    const finalOutput = outputLines.join('\n').trim();
+                    if (finalOutput) {
+                        codeGroup.forEach(c => c.output = finalOutput);
+                        i = k; 
+                    }
                 }
 
-                while(i < blockLines.length) {
-                    const currentLine = blockLines[i];
-                    if (currentLine.match(/^#+\s*Time Complexity/i)) {
-                        i++;
+                // --- FIXED COMPLEXITY PARSING ---
+                while (i < blockLines.length) {
+                    const cl = blockLines[i];
+                    const tCl = cl.trim();
+                    if (tCl.match(/^#+\s*Time Complexity/i)) {
+                        i++; 
                         let t = '';
-                        while(i < blockLines.length && !blockLines[i].startsWith('#')) {
-                            if(blockLines[i].trim()) t += blockLines[i] + '\n';
-                            i++;
+                        // Only collect lines that aren't headers or empty
+                        while (i < blockLines.length && !blockLines[i].trim().startsWith('#') && blockLines[i].trim() !== '') { 
+                            t += blockLines[i] + '\n'; 
+                            i++; 
                         }
                         complexity.time = t.trim();
-                    } else if (currentLine.match(/^#+\s*Space Complexity/i)) {
-                        i++;
+                    } else if (tCl.match(/^#+\s*Space Complexity/i)) {
+                        i++; 
                         let s = '';
-                        while(i < blockLines.length && !blockLines[i].startsWith('#')) {
-                            if(blockLines[i].trim()) s += blockLines[i] + '\n';
-                            i++;
+                        while (i < blockLines.length && !blockLines[i].trim().startsWith('#') && blockLines[i].trim() !== '') { 
+                            s += blockLines[i] + '\n'; 
+                            i++; 
                         }
                         complexity.space = s.trim();
-                    } else if (currentLine.trim() === '') {
+                    } else if (tCl === '') {
                         i++; 
                     } else {
                         break; 

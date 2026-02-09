@@ -658,7 +658,10 @@ const MarkdownComponents = {
   }
 };
 
-// --- UNIVERSAL PARSE LOGIC ---
+/* =========================================================================================
+   FIXED UNIVERSAL PARSE LOGIC
+   ========================================================================================= */
+
 const universalParse = (markdown) => {
   const lines = markdown.split('\n');
   const result = { title: '', sections: [] };
@@ -670,20 +673,25 @@ const universalParse = (markdown) => {
 
     const flushText = () => {
       if (currentText.trim()) {
-        elements.push({ type: 'text', content: currentText.trim(), id: `${prefix}txt-${elements.length}` });
+        elements.push({ 
+          type: 'text', 
+          content: currentText.trim(), 
+          id: `${prefix}txt-${elements.length}` 
+        });
         currentText = '';
       }
     };
 
-    while(i < blockLines.length) {
+    while (i < blockLines.length) {
       const line = blockLines[i];
-      
-      // Carousel
-      if (line.trim() === '<carousel>') {
+      const trimmedLine = line.trim();
+
+      // 1. CAROUSEL DETECTOR
+      if (trimmedLine === '<carousel>') {
         flushText();
         const images = [];
         i++;
-        while(i < blockLines.length && blockLines[i].trim() !== '</carousel>') {
+        while (i < blockLines.length && blockLines[i].trim() !== '</carousel>') {
           const m = blockLines[i].match(/src=["']([^"']+)["']/);
           if (m) images.push(m[1]);
           i++;
@@ -691,79 +699,130 @@ const universalParse = (markdown) => {
         if (images.length) elements.push({ type: 'carousel', images, id: `${prefix}car-${elements.length}` });
         i++; continue;
       }
-      
-      // Image
-      const imgM = line.match(/<img\s+src=["']([^"']+)["'][^>]*(?:style=["']([^"']+)["'])?[^>]*\/?>/i);
-      if (imgM) {
-        flushText();
-        elements.push({ type: 'image', src: imgM[1], style: imgM[2] || '', id: `${prefix}img-${elements.length}` });
-        i++; continue;
-      }
-      
-      // Code Block Group
-      if (line.trim().startsWith('```')) {
+
+      // 2. CODE BLOCK GROUP DETECTOR (Handles Output + Complexity)
+      if (trimmedLine.startsWith('```')) {
         flushText();
         const codeGroup = [];
         const blockId = `${prefix}code-${elements.length}`;
         let complexity = { time: '', space: '' };
-        
-        while(i < blockLines.length) {
-          if (!blockLines[i].trim().startsWith('```')) break; 
+
+        // Collect all consecutive code blocks
+        while (i < blockLines.length && blockLines[i].trim().startsWith('```')) {
           let lang = blockLines[i].substring(3).trim() || 'Code';
           i++;
           let codeContent = '';
-          while(i < blockLines.length && !blockLines[i].trim().startsWith('```')) {
+          while (i < blockLines.length && !blockLines[i].trim().startsWith('```')) {
             codeContent += blockLines[i] + '\n';
             i++;
           }
-          if (i < blockLines.length) i++; 
+          if (i < blockLines.length) i++; // move past closing ```
           codeGroup.push({ language: lang, code: codeContent.trim(), output: null });
           
+          // Peek for immediate next code block
           let peek = i;
-          while(peek < blockLines.length && blockLines[peek].trim() === '') peek++;
+          while (peek < blockLines.length && blockLines[peek].trim() === '') peek++;
           if (peek < blockLines.length && blockLines[peek].trim().startsWith('```')) {
-            i = peek; continue; 
+            i = peek;
           } else { break; }
         }
 
-        // Unified Output Parsing
-        let k = i;
-        while(k < blockLines.length && blockLines[k].trim() === '') k++;
-        if (k < blockLines.length && (blockLines[k].match(/^### Output/i) || blockLines[k].match(/^Output:/i))) {
-          let outputText = '';
-          k++;
-          while(k < blockLines.length) {
-            const nl = blockLines[k];
-            if (nl.startsWith('#') || nl.startsWith('```')) break;
-            outputText += nl + '\n';
-            k++;
-          }
-          codeGroup.forEach(c => c.output = outputText.trim());
-          i = k;
-        }
+        // --- FIXED OUTPUT CAPTURING ---
+let k = i;
+// Skip empty lines to find the Output header
+while (k < blockLines.length && blockLines[k].trim() === '') k++;
 
-        while(i < blockLines.length) {
-          const cl = blockLines[i];
-          if (cl.match(/^#+\s*Time Complexity/i)) {
-            i++; let t = '';
-            while(i < blockLines.length && !blockLines[i].startsWith('#')) { t += blockLines[i] + '\n'; i++; }
-            complexity.time = t.trim();
-          } else if (cl.match(/^#+\s*Space Complexity/i)) {
-            i++; let s = '';
-            while(i < blockLines.length && !blockLines[i].startsWith('#')) { s += blockLines[i] + '\n'; i++; }
-            complexity.space = s.trim();
-          } else if (cl.trim() === '') {
-            i++;
-          } else { break; }
-        }
+if (k < blockLines.length && (blockLines[k].match(/^### Output/i) || blockLines[k].match(/^Output:/i))) {
+    let outputLines = [];
+    k++; // Skip the "Output:" header line
+    
+    while (k < blockLines.length) {
+        const line = blockLines[k];
+        const tLine = line.trim();
         
+        // 1. BREAK if we hit a new structural element
+        if (tLine.match(/^#+\s*(Time|Space) Complexity/i)) break;
+        if (tLine.match(/^##+\s/)) break; 
+        if (tLine.startsWith('```')) break;
+        if (tLine.startsWith('---')) break;
+
+        // 2. BREAK on empty line: This ensures text following a space 
+        // after the output is treated as a normal paragraph.
+        if (tLine === '') break;
+
+        outputLines.push(line);
+        k++;
+    }
+    
+    const finalOutput = outputLines.join('\n').trim();
+    if (finalOutput) {
+        codeGroup.forEach(c => c.output = finalOutput);
+        i = k; // Move global index to where output ended
+    }
+}
+
+        // 4. Complexity Parsing - Consolidated
+      // 4. Complexity Parsing - Consolidated
+        let foundComplexity = false;
+        // 4. Complexity Parsing - Consolidated (STRICT VERSION)
+        while (i < blockLines.length) {
+          const cl = blockLines[i];
+          const tCl = cl.trim();
+          
+          if (tCl.match(/^#+\s*Time Complexity/i)) {
+            i++; 
+            let t = '';
+            // Only collect lines that aren't new headers or structural elements
+            while (i < blockLines.length && !blockLines[i].trim().startsWith('#') && blockLines[i].trim() !== '') { 
+              t += blockLines[i] + '\n'; 
+              i++; 
+            }
+            complexity.time = t.trim();
+          } else if (tCl.match(/^#+\s*Space Complexity/i)) {
+            i++; 
+            let s = '';
+            while (i < blockLines.length && !blockLines[i].trim().startsWith('#') && blockLines[i].trim() !== '') { 
+              s += blockLines[i] + '\n'; 
+              i++; 
+            }
+            complexity.space = s.trim();
+          } else if (tCl === '') {
+            i++; // Skip empty lines
+          } else {
+            // If we hit text that isn't a complexity header, STOP. 
+            // This prevents "Next Matter" from being sucked into SC.
+            break; 
+          }
+        }
         elements.push({ type: 'code', code: codeGroup, complexity, id: blockId });
         continue;
       }
-      
-      if (!line.match(/^#+\s*(Time|Space) Complexity/i) && !line.match(/^### Output/i)) {
-        if (line.startsWith('# ') && !result.title) result.title = line.substring(2);
-        else currentText += line + '\n';
+
+      // 5. TABLE DETECTOR (PEEK NEXT LINE FOR SEPARATOR)
+      if (trimmedLine.startsWith('|') && i + 1 < blockLines.length && 
+          blockLines[i+1].trim().match(/^\|?[\s-]*:?---+:?[\s-|]*$/)) {
+        flushText();
+        let tableMd = "";
+        while (i < blockLines.length && blockLines[i].trim().startsWith('|')) {
+          tableMd += blockLines[i] + "\n";
+          i++;
+        }
+        elements.push({ type: 'text', content: "\n" + tableMd + "\n", id: `${prefix}table-${elements.length}` });
+        continue;
+      }
+
+      // 6. STANDARD LINE (TITLE & TEXT)
+      const tLine = line.trim();
+      const isComplexity = tLine.match(/^#+\s*(Time|Space) Complexity/i);
+      const isOutputHeader = tLine.match(/^### Output/i) || tLine.match(/^Output:/i);
+
+      // Only process as text if it's NOT a special marker we already handled
+      if (!isComplexity && !isOutputHeader) {
+          if (line.startsWith('# ') && !result.title) {
+              result.title = line.substring(2);
+          } else {
+              currentText += line + '\n';
+          }
       }
       i++;
     }
@@ -771,17 +830,18 @@ const universalParse = (markdown) => {
     return elements;
   };
 
+  // MAIN SPLIT logic for <approaches> tags
   const approachesStart = lines.findIndex(l => l.trim() === '<approaches>');
   const approachesEnd = lines.findIndex(l => l.trim() === '</approaches>');
 
   if (approachesStart !== -1 && approachesEnd !== -1) {
-    const preLines = lines.slice(0, approachesStart);
-    result.sections.push({ type: 'standard', content: parseBlockLines(preLines, 'pre-') });
+    result.sections.push({ type: 'standard', content: parseBlockLines(lines.slice(0, approachesStart), 'pre-') });
     
     const approachLines = lines.slice(approachesStart + 1, approachesEnd);
     const approaches = [];
     let currentApp = null;
     let buffer = [];
+
     const saveApproach = () => {
       if (currentApp) {
         currentApp.content = parseBlockLines(buffer, `app-${currentApp.id}-`);
@@ -802,13 +862,14 @@ const universalParse = (markdown) => {
     result.sections.push({ type: 'approaches', items: approaches });
     
     const postLines = lines.slice(approachesEnd + 1);
-    if (postLines.some(l => l.trim())) result.sections.push({ type: 'standard', content: parseBlockLines(postLines, 'post-') });
+    if (postLines.some(l => l.trim())) {
+      result.sections.push({ type: 'standard', content: parseBlockLines(postLines, 'post-') });
+    }
   } else {
     result.sections.push({ type: 'standard', content: parseBlockLines(lines) });
   }
   return result;
 };
-
 
 /* =========================================================================================
    2. REUSABLE EDITOR COMPONENTS
@@ -932,6 +993,7 @@ function EditorialModalPage() {
   const [inlineBlocks, setInlineBlocks] = useState(() => loadState("inlineBlocks", {}));
 
   // --- UI STATE ---
+  
   const [activeTab, setActiveTab] = useState("editor"); 
   
   const [toasts, setToasts] = useState([]);
@@ -953,7 +1015,10 @@ function EditorialModalPage() {
   
   const [markdownOutput, setMarkdownOutput] = useState("");
   const [selectedTableKey, setSelectedTableKey] = useState(null);
-
+  const [collapsedApproaches, setCollapsedApproaches] = useState({});
+const toggleApproachCollapse = (id) => {
+  setCollapsedApproaches(prev => ({ ...prev, [id]: !prev[id] }));
+};
   const ghConfig = useMemo(() => ({
     token: process.env.REACT_APP_GITHUB_TOKEN?.trim(),
     repo: process.env.REACT_APP_GITHUB_REPO?.trim(),
@@ -1089,7 +1154,13 @@ const insertLink = () => {
     const blockId = `ibl-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     setInlineBlocks(prev => ({
         ...prev,
-        [blockId]: { langs: { cpp: "" }, activeLang: "cpp", output: "" }
+        [blockId]: { 
+  langs: { cpp: "" }, 
+  activeLang: "cpp", 
+  output: "", 
+  timeComplexity: "", 
+  spaceComplexity: "" 
+}
     }));
 
     const container = document.createElement("div");
@@ -1329,7 +1400,13 @@ const insertHorizontalRule = () => {
     setApproaches((prev) => [...prev, { id, title: "", explanation: "", langs: { cpp: "" }, output: "", activeLang: "cpp", timeComplexity: "", spaceComplexity: "" }]);
     addToast("Approach added.", "success");
   };
-  const removeApproach = (id) => { setApproaches((prev) => prev.filter((ap) => ap.id !== id)); delete approachExplainRefs.current[id]; addToast("Approach removed", "info"); };
+  const removeApproach = (id) => { 
+  if (window.confirm("Are you sure you want to delete this approach? This cannot be undone.")) {
+    setApproaches((prev) => prev.filter((ap) => ap.id !== id)); 
+    delete approachExplainRefs.current[id]; 
+    addToast("Approach removed", "info"); 
+  }
+};
   const updateApproach = (id, field, value) => { setApproaches((prev) => prev.map((ap) => (ap.id === id ? { ...ap, [field]: value } : ap))); };
   
   const addLangToApproach = (approachId, lang) => {
@@ -1571,9 +1648,16 @@ const insertHorizontalRule = () => {
           }
         });
         if (blockData.output && blockData.output.trim()) {
-          blockMd += `### Output\n${blockData.output.trim()}\n`;
-        }
-        return "\n" + blockMd + "\n";
+  blockMd += `### Output\n${blockData.output.trim()}\n`;
+}
+if (blockData.timeComplexity && blockData.timeComplexity.trim()) {
+  blockMd += `# Time Complexity\n${blockData.timeComplexity.trim()}\n`;
+}
+if (blockData.spaceComplexity && blockData.spaceComplexity.trim()) {
+  // Adding extra newlines after complexity to "seal" the block
+  blockMd += `# Space Complexity\n${blockData.spaceComplexity.trim()}\n\n`;
+}
+return "\n" + blockMd + "\n";
       }
 
       const tag = node.tagName.toLowerCase();
@@ -1601,15 +1685,25 @@ const insertHorizontalRule = () => {
       // 2. Links: Trim content so [ *text* ] becomes [*text*]
       if (tag === 'a') return ` [${children.trim()}](${node.getAttribute('href')}) `;
       if (tag === 'img') return `\n<img src="${node.src}" />\n`;
-      if (tag === 'table') {
-        const rows = Array.from(node.querySelectorAll("tr"));
-        if (!rows.length) return "";
-        const cols = rows[0].cells.length;
-        const header = Array.from(rows[0].cells).map(c => c.textContent).join(" | ");
-        const sep = Array(cols).fill("---").join(" | ");
-        const body = rows.slice(1).map(r => Array.from(r.cells).map(c => c.textContent).join(" | ")).join("\n");
-        return `\n| ${header} |\n| ${sep} |\n${body}\n`;
-      }
+     // Inside htmlToMarkdown function
+if (tag === 'table') {
+    const rows = Array.from(node.querySelectorAll("tr"));
+    if (!rows.length) return "";
+
+    const mdRows = rows.map(r => {
+        // Strip out accidental bullet points or newlines from inside cells
+        const cells = Array.from(r.cells).map(c => 
+            c.textContent.replace(/\n/g, " ").replace(/^\s*[\*\-\+]\s+/, "").trim()
+        );
+        return `| ${cells.join(" | ")} |`;
+    });
+
+    const headerCells = rows[0].cells.length;
+    const separator = `| ${Array(headerCells).fill("---").join(" | ")} |`;
+
+    // Ensure double newlines above and below so it's treated as a distinct block
+    return `\n\n${mdRows[0]}\n${separator}\n${mdRows.slice(1).join("\n")}\n\n`;
+}
       return children;
     };
     return process(temp).replace(/\n{3,}/g, "\n\n").trim();
@@ -1927,6 +2021,32 @@ const insertHorizontalRule = () => {
                         onCodeChange={(c) => updateInlineBlockLang(editingInlineBlockId, inlineBlocks[editingInlineBlockId].activeLang, c)}
                         onOutputChange={(o) => updateInlineBlock(editingInlineBlockId, 'output', o)}
                     />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-300 dark:border-slate-700">
+    <div>
+        <div className="flex items-center gap-2 mb-1.5 text-slate-600 dark:text-slate-400">
+            <Timer className="w-3.5 h-3.5" />
+            <label className="text-xs font-medium">Time Complexity</label>
+        </div>
+        <input 
+    className="w-full p-2.5 text-xs font-mono border border-slate-400 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 ring-indigo-500/20" 
+    value={inlineBlocks[editingInlineBlockId].timeComplexity || ""} 
+    onChange={e => updateInlineBlock(editingInlineBlockId, 'timeComplexity', e.target.value)} 
+    placeholder="e.g. O(N)" 
+/>
+    </div>
+    <div>
+        <div className="flex items-center gap-2 mb-1.5 text-slate-600 dark:text-slate-400">
+            <FaCode className="w-3.5 h-3.5" />
+            <label className="text-xs font-medium">Space Complexity</label>
+        </div>
+       <input 
+    className="w-full p-2.5 text-xs font-mono border border-slate-400 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 ring-indigo-500/20" 
+    value={inlineBlocks[editingInlineBlockId].spaceComplexity || ""} 
+    onChange={e => updateInlineBlock(editingInlineBlockId, 'spaceComplexity', e.target.value)} 
+    placeholder="e.g. O(1)" 
+/>
+    </div>
+</div>
                 </div>
                 <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex justify-end">
                     <button onClick={() => { setEditingInlineBlockId(null); syncEditorsToState(); }} className="px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition">
@@ -2076,55 +2196,128 @@ const insertHorizontalRule = () => {
              </div>
              
              <div className="space-y-6 pb-20">
-               {approaches.map((ap, idx) => (
-                  <div key={ap.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 shadow-sm">
-                    <div className="flex justify-between items-center mb-4 pb-2 border-b border-slate-200">
-                       <div className="flex items-center gap-2 w-full">
-                          <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs font-bold">{idx+1}</span>
-                          <input className="font-bold bg-transparent px-2 py-1 w-full focus:bg-white focus:outline-none rounded" value={ap.title} onChange={e => { updateApproach(ap.id, "title", e.target.value); syncEditorsToState(); }} placeholder="Approach Title (e.g. Hash Map)" />
-                       </div>
-                       <button onClick={() => { removeApproach(ap.id); syncEditorsToState(); }} className="text-red-500 hover:text-red-700 text-xs font-bold px-2">Delete</button>
-                    </div>
-                    
-                    <div className="text-xs font-bold text-slate-400 mb-1">EXPLANATION</div>
-                    <div 
-                      ref={el => approachExplainRefs.current[ap.id] = { current: el }} 
-                      className="content min-h-[120px] p-3 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 ring-indigo-100 mb-4" 
-                      contentEditable 
-                      suppressContentEditableWarning 
-                      dangerouslySetInnerHTML={{ __html: ap.explanation }} 
-                      onFocus={() => setActiveEditor({ type: "approachExplain", approachId: ap.id })} 
-                      onBlur={e => { updateApproach(ap.id, "explanation", e.currentTarget.innerHTML); syncEditorsToState(); }}
-                      onClick={handleEditorClick}
-                      onPaste={handlePaste}
-                      onKeyDown={handleKeyDown} // <--- ADD THIS
-                    />
+               {approaches.map((ap, idx) => {
+  const isCollapsed = collapsedApproaches[ap.id];
+  return (
+    <div key={ap.id} className={cn(
+      "border transition-all duration-300 rounded-2xl overflow-hidden shadow-sm hover:shadow-md",
+      isCollapsed ? "bg-white border-slate-200" : "bg-indigo-50/20 border-indigo-200"
+    )}>
+      {/* MODERNIZED HEADER SECTION */}
+      <div 
+        className={cn(
+          "flex justify-between items-center p-3.5 cursor-pointer select-none transition-all duration-300",
+          isCollapsed ? "bg-white" : "bg-gradient-to-r from-indigo-600 to-violet-600 text-white"
+        )}
+        onClick={() => toggleApproachCollapse(ap.id)}
+      >
+        <div className="flex items-center gap-4 w-full mr-4">
+          <div className={cn(
+            "w-8 h-8 rounded-xl flex items-center justify-center text-sm font-black shrink-0 shadow-sm transition-transform",
+            isCollapsed ? "bg-indigo-600 text-white" : "bg-white/20 text-white backdrop-blur-md border border-white/30"
+          )}>
+            {idx + 1}
+          </div>
+          <input 
+            className={cn(
+              "font-bold bg-transparent px-2 py-1 w-full focus:outline-none rounded transition-colors placeholder:font-medium",
+              isCollapsed ? "text-slate-800" : "text-white placeholder:text-indigo-100"
+            )} 
+            value={ap.title} 
+            onClick={(e) => e.stopPropagation()} 
+            onChange={e => { updateApproach(ap.id, "title", e.target.value); syncEditorsToState(); }} 
+            placeholder="Approach Title (e.g. Optimized Two-Pointer)" 
+          />
+        </div>
 
-                    {/* Unified Code Editor for Approaches */}
-                    <CodeEditorInterface 
-                        langs={ap.langs}
-                        activeLang={ap.activeLang}
-                        output={ap.output}
-                        onLangAdd={() => { setLangModalTarget({ type: 'approach', id: ap.id }); setShowLangModal(true); }}
-                        onLangRemove={(l) => { removeLangFromApproach(ap.id, l); syncEditorsToState(); }}
-                        onLangSelect={(l) => { selectLangApproach(ap.id, l); syncEditorsToState(); }}
-                        onCodeChange={(c) => { updateApproachCode(ap.id, c); syncEditorsToState(); }}
-                        onOutputChange={(o) => { updateApproachOutput(ap.id, o); syncEditorsToState(); }}
-                    />
+        <div className="flex items-center gap-3">
+          {/* STYLISH DELETE BUTTON */}
+          <button 
+            onClick={(e) => { e.stopPropagation(); removeApproach(ap.id); syncEditorsToState(); }} 
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-tighter transition-all active:scale-95",
+              isCollapsed 
+                ? "text-red-500 bg-red-50 hover:bg-red-500 hover:text-white border border-red-100" 
+                : "text-white bg-white/10 hover:bg-red-500 border border-white/20"
+            )}
+            title="Delete Approach"
+          >
+            <FaTrash className="w-2.5 h-2.5" />
+            <span className="hidden sm:inline">Delete</span>
+          </button>
+          
+          <div className={cn(
+            "p-1 rounded-full transition-all",
+            isCollapsed ? "text-slate-400 bg-slate-100" : "text-white bg-white/20"
+          )}>
+            <ChevronDownLucide className={cn("w-4 h-4 transition-transform duration-300", isCollapsed ? "" : "rotate-180")} />
+          </div>
+        </div>
+      </div>
 
-                    {/* Complexity */}
-                    <div className="grid grid-cols-2 gap-3 mt-4">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Time Complexity</label>
-                        <input className="w-full mt-1 p-2 text-xs border rounded-lg bg-slate-50" value={ap.timeComplexity} onChange={e => { updateApproach(ap.id, "timeComplexity", e.target.value); syncEditorsToState(); }} placeholder="O(N)" />
-                      </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase">Space Complexity</label>
-                        <input className="w-full mt-1 p-2 text-xs border rounded-lg bg-slate-50" value={ap.spaceComplexity} onChange={e => { updateApproach(ap.id, "spaceComplexity", e.target.value); syncEditorsToState(); }} placeholder="O(1)" />
-                      </div>
-                    </div>
-                  </div>
-               ))}
+      {/* COLLAPSIBLE CONTENT AREA */}
+      {!isCollapsed && (
+        <div className="p-5 animate-in fade-in slide-in-from-top-2 duration-300">
+          {/* SIMPLE EXPLANATION HEADING */}
+          <div className="text-sm font-medium text-slate-600 mb-2">
+            Explanation
+          </div>
+          
+          <div 
+            ref={el => approachExplainRefs.current[ap.id] = { current: el }} 
+            className="content min-h-[140px] p-4 bg-white border border-slate-400 rounded-xl focus:outline-none focus:ring-4 ring-indigo-500/5 transition-all mb-6 shadow-sm" 
+            contentEditable 
+            suppressContentEditableWarning 
+            dangerouslySetInnerHTML={{ __html: ap.explanation }} 
+            onFocus={() => setActiveEditor({ type: "approachExplain", approachId: ap.id })} 
+            onBlur={e => { updateApproach(ap.id, "explanation", e.currentTarget.innerHTML); syncEditorsToState(); }}
+            onClick={handleEditorClick}
+            onPaste={handlePaste}
+            onKeyDown={handleKeyDown}
+          />
+
+          <CodeEditorInterface 
+            langs={ap.langs}
+            activeLang={ap.activeLang}
+            output={ap.output}
+            onLangAdd={() => { setLangModalTarget({ type: 'approach', id: ap.id }); setShowLangModal(true); }}
+            onLangRemove={(l) => { removeLangFromApproach(ap.id, l); syncEditorsToState(); }}
+            onLangSelect={(l) => { selectLangApproach(ap.id, l); syncEditorsToState(); }}
+            onCodeChange={(c) => { updateApproachCode(ap.id, c); syncEditorsToState(); }}
+            onOutputChange={(o) => { updateApproachOutput(ap.id, o); syncEditorsToState(); }}
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 p-4 bg-slate-50 rounded-xl border border-slate-300">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5 text-slate-600">
+                <Timer className="w-3.5 h-3.5" />
+                <label className="text-xs font-medium">Time Complexity</label>
+              </div>
+              <input 
+                className="w-full p-2.5 text-xs font-mono border border-slate-400 rounded-lg bg-white focus:ring-2 ring-indigo-500/20 outline-none transition-colors" 
+                value={ap.timeComplexity} 
+                onChange={e => { updateApproach(ap.id, "timeComplexity", e.target.value); syncEditorsToState(); }} 
+                placeholder="e.g. O(N)" 
+              />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1.5 text-slate-600">
+                <FaCode className="w-3.5 h-3.5" />
+                <label className="text-xs font-medium">Space Complexity</label>
+              </div>
+              <input 
+                className="w-full p-2.5 text-xs font-mono border border-slate-400 rounded-lg bg-white focus:ring-2 ring-indigo-500/20 outline-none transition-colors" 
+                value={ap.spaceComplexity} 
+                onChange={e => { updateApproach(ap.id, "spaceComplexity", e.target.value); syncEditorsToState(); }} 
+                placeholder="e.g. O(1)" 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+})}
              </div>
              {/* FOOTER SECTION (Summary / Special Thanks) */}
              <div className="mt-8 border-t border-slate-200 pt-6">
