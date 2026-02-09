@@ -613,7 +613,7 @@ const MarkdownComponents = {
     <SecureImage 
       src={src} 
       alt={alt || "Editorial Image"} 
-      className="max-w-full my-6 mx-auto block" 
+      className="max-w-full my-6 mx-auto block rounded-xl shadow-lg border-2 border-indigo-100" 
       {...props}
     />
   ),
@@ -650,26 +650,32 @@ const MarkdownComponents = {
   tr: (props) => <tr className="border-t border-gray-300 dark:border-gray-700 even:bg-gray-50 dark:even:bg-zinc-900/30" {...props} />,
   th: (props) => <th className="px-4 py-3 font-semibold border border-gray-300 dark:border-gray-700 whitespace-nowrap" {...props} />,
   td: (props) => <td className="px-4 py-3 border border-gray-300 dark:border-gray-700 align-top text-gray-700 dark:text-gray-300" {...props} />,
-  code: ({ inline, className, children }) => {
-    const match = /language-(\w+)/.exec(className || '');
-    const content = String(children).replace(/\n$/, '');
-    
-    if (inline || !content.includes('\n')) {
-      return <code className="bg-gray-100 dark:bg-gray-800 text-indigo-600 px-1.5 py-0.5 rounded text-[14px] font-mono">{children}</code>;
+ code: ({ inline, className, children }) => {
+    const content = String(children).trim();
+    const isInline = inline || !content.includes('\n');
+
+    if (isInline) {
+      return (
+        <code className="bg-[#f1f5f9] text-[#4f46e5] px-1.5 py-0.5 rounded text-[14px] font-mono font-bold border border-[#e2e8f0]">
+          {content}
+        </code>
+      );
     }
 
+    const match = /language-(\w+)/.exec(className || '');
     return (
-      <div className="my-4 rounded-lg overflow-hidden border border-zinc-800">
-        <SyntaxHighlighter
-          style={vscDarkPlus}
-          language={match ? match[1] : 'text'}
+      <div className="my-4 rounded-lg overflow-hidden border border-zinc-800 shadow-md">
+        <SyntaxHighlighter 
+          style={vscDarkPlus} 
+          language={match ? match[1] : "text"} 
           PreTag="div"
+          customStyle={{ margin: 0, padding: '1rem' }}
         >
           {content}
         </SyntaxHighlighter>
       </div>
     );
-  }
+  },
 };
 
 /* =========================================================================================
@@ -690,7 +696,7 @@ const universalParse = (markdown) => {
         elements.push({ 
           type: 'text', 
           content: currentText.trim(), 
-          id: `${prefix}txt-${elements.length}` 
+          id: `${prefix}txt-${elements.length}-${Math.random().toString(36).substr(2, 4)}` 
         });
         currentText = '';
       }
@@ -714,14 +720,14 @@ const universalParse = (markdown) => {
         i++; continue;
       }
 
-      // 2. CODE BLOCK GROUP DETECTOR (Handles Output + Complexity)
+      // 2. CODE BLOCK GROUP DETECTOR
       if (trimmedLine.startsWith('```')) {
         flushText();
         const codeGroup = [];
-        const blockId = `${prefix}code-${elements.length}`;
+        const blockId = `${prefix}code-${elements.length}-${Math.random().toString(36).substr(2, 4)}`;
         let complexity = { time: '', space: '' };
 
-        // Collect all consecutive code blocks
+        // Collect code blocks
         while (i < blockLines.length && blockLines[i].trim().startsWith('```')) {
           let lang = blockLines[i].substring(3).trim() || 'Code';
           i++;
@@ -730,89 +736,57 @@ const universalParse = (markdown) => {
             codeContent += blockLines[i] + '\n';
             i++;
           }
-          if (i < blockLines.length) i++; // move past closing ```
+          if (i < blockLines.length) i++; // skip closing ```
           codeGroup.push({ language: lang, code: codeContent.trim(), output: null });
           
-          // Peek for immediate next code block
-          let peek = i;
-          while (peek < blockLines.length && blockLines[peek].trim() === '') peek++;
-          if (peek < blockLines.length && blockLines[peek].trim().startsWith('```')) {
-            i = peek;
-          } else { break; }
-        }
-
-        // --- FIXED OUTPUT CAPTURING ---
-let k = i;
-// Skip empty lines to find the Output header
-while (k < blockLines.length && blockLines[k].trim() === '') k++;
-
-if (k < blockLines.length && (blockLines[k].match(/^### Output/i) || blockLines[k].match(/^Output:/i))) {
-    let outputLines = [];
-    k++; // Skip the "Output:" header line
-    
-    while (k < blockLines.length) {
-        const line = blockLines[k];
-        const tLine = line.trim();
-        
-        // 1. BREAK if we hit a new structural element
-        if (tLine.match(/^#+\s*(Time|Space) Complexity/i)) break;
-        if (tLine.match(/^##+\s/)) break; 
-        if (tLine.startsWith('```')) break;
-        if (tLine.startsWith('---')) break;
-
-        // 2. BREAK on empty line: This ensures text following a space 
-        // after the output is treated as a normal paragraph.
-        if (tLine === '') break;
-
-        outputLines.push(line);
-        k++;
-    }
-    
-    const finalOutput = outputLines.join('\n').trim();
-    if (finalOutput) {
-        codeGroup.forEach(c => c.output = finalOutput);
-        i = k; // Move global index to where output ended
-    }
-}
-
-        // 4. Complexity Parsing - Consolidated
-      // 4. Complexity Parsing - Consolidated
-        let foundComplexity = false;
-        // 4. Complexity Parsing - Consolidated (STRICT VERSION)
-        while (i < blockLines.length) {
-          const cl = blockLines[i];
-          const tCl = cl.trim();
-          
-          if (tCl.match(/^#+\s*Time Complexity/i)) {
-            i++; 
-            let t = '';
-            // Only collect lines that aren't new headers or structural elements
-            while (i < blockLines.length && !blockLines[i].trim().startsWith('#') && blockLines[i].trim() !== '') { 
-              t += blockLines[i] + '\n'; 
-              i++; 
-            }
-            complexity.time = t.trim();
-          } else if (tCl.match(/^#+\s*Space Complexity/i)) {
-            i++; 
-            let s = '';
-            while (i < blockLines.length && !blockLines[i].trim().startsWith('#') && blockLines[i].trim() !== '') { 
-              s += blockLines[i] + '\n'; 
-              i++; 
-            }
-            complexity.space = s.trim();
-          } else if (tCl === '') {
-            i++; // Skip empty lines
+          // STRICT PEERING: Only group if the VERY NEXT line is another code block
+          // If there is an empty line (whitespace), we STOP grouping.
+          if (i < blockLines.length && blockLines[i].trim().startsWith('```')) {
+            continue; 
           } else {
-            // If we hit text that isn't a complexity header, STOP. 
-            // This prevents "Next Matter" from being sucked into SC.
-            break; 
+            break;
           }
         }
+
+        // 3. Output Capturing
+        let k = i;
+        while (k < blockLines.length && blockLines[k].trim() === '') k++;
+        if (k < blockLines.length && (blockLines[k].match(/^### Output/i) || blockLines[k].match(/^Output:/i))) {
+            let outputLines = [];
+            k++;
+            while (k < blockLines.length) {
+                const line = blockLines[k];
+                const tLine = line.trim();
+                if (tLine.match(/^#+\s*(Time|Space) Complexity/i) || tLine.match(/^##+\s/) || tLine.startsWith('```') || tLine === '') break;
+                outputLines.push(line);
+                k++;
+            }
+            const finalOutput = outputLines.join('\n').trim();
+            if (finalOutput) {
+                codeGroup.forEach(c => c.output = finalOutput);
+                i = k;
+            }
+        }
+
+        // 4. Complexity Parsing
+        while (i < blockLines.length) {
+          const tCl = blockLines[i].trim();
+          if (tCl.match(/^#+\s*Time Complexity/i)) {
+            i++; let t = '';
+            while (i < blockLines.length && !blockLines[i].trim().startsWith('#') && blockLines[i].trim() !== '') { t += blockLines[i] + '\n'; i++; }
+            complexity.time = t.trim();
+          } else if (tCl.match(/^#+\s*Space Complexity/i)) {
+            i++; let s = '';
+            while (i < blockLines.length && !blockLines[i].trim().startsWith('#') && blockLines[i].trim() !== '') { s += blockLines[i] + '\n'; i++; }
+            complexity.space = s.trim();
+          } else if (tCl === '') { i++; } else { break; }
+        }
+
         elements.push({ type: 'code', code: codeGroup, complexity, id: blockId });
         continue;
       }
 
-      // 5. TABLE DETECTOR (PEEK NEXT LINE FOR SEPARATOR)
+      // 5. TABLE DETECTOR
       if (trimmedLine.startsWith('|') && i + 1 < blockLines.length && 
           blockLines[i+1].trim().match(/^\|?[\s-]*:?---+:?[\s-|]*$/)) {
         flushText();
@@ -825,18 +799,11 @@ if (k < blockLines.length && (blockLines[k].match(/^### Output/i) || blockLines[
         continue;
       }
 
-      // 6. STANDARD LINE (TITLE & TEXT)
-      const tLine = line.trim();
-      const isComplexity = tLine.match(/^#+\s*(Time|Space) Complexity/i);
-      const isOutputHeader = tLine.match(/^### Output/i) || tLine.match(/^Output:/i);
-
-      // Only process as text if it's NOT a special marker we already handled
-      if (!isComplexity && !isOutputHeader) {
-          if (line.startsWith('# ') && !result.title) {
-              result.title = line.substring(2);
-          } else {
-              currentText += line + '\n';
-          }
+      // 6. STANDARD LINE
+      if (line.startsWith('# ') && !result.title) {
+          result.title = line.substring(2);
+      } else {
+          currentText += line + '\n';
       }
       i++;
     }
@@ -844,13 +811,11 @@ if (k < blockLines.length && (blockLines[k].match(/^### Output/i) || blockLines[
     return elements;
   };
 
-  // MAIN SPLIT logic for <approaches> tags
-  const approachesStart = lines.findIndex(l => l.trim() === '<approaches>');
+  const approachesStart = lines.findIndex(l => l.trim() === '<carousel>' ? false : l.trim() === '<approaches>');
   const approachesEnd = lines.findIndex(l => l.trim() === '</approaches>');
 
   if (approachesStart !== -1 && approachesEnd !== -1) {
     result.sections.push({ type: 'standard', content: parseBlockLines(lines.slice(0, approachesStart), 'pre-') });
-    
     const approachLines = lines.slice(approachesStart + 1, approachesEnd);
     const approaches = [];
     let currentApp = null;
@@ -867,14 +832,15 @@ if (k < blockLines.length && (blockLines[k].match(/^### Output/i) || blockLines[
       if (line.trim().startsWith('## ')) {
         saveApproach();
         buffer = [];
-        currentApp = { name: line.substring(3).trim(), id: `approach-${approaches.length}` };
-      } else {
-        buffer.push(line);
-      }
+        currentApp = { 
+          name: line.substring(3).trim(), 
+          id: `approach-${approaches.length}-${Math.random().toString(36).substr(2,4)}`,
+          explanation: "", langs: {}, output: "", timeComplexity: "", spaceComplexity: "" 
+        };
+      } else { buffer.push(line); }
     }
     saveApproach(); 
     result.sections.push({ type: 'approaches', items: approaches });
-    
     const postLines = lines.slice(approachesEnd + 1);
     if (postLines.some(l => l.trim())) {
       result.sections.push({ type: 'standard', content: parseBlockLines(postLines, 'post-') });
@@ -884,7 +850,6 @@ if (k < blockLines.length && (blockLines[k].match(/^### Output/i) || blockLines[
   }
   return result;
 };
-
 /* =========================================================================================
    2. REUSABLE EDITOR COMPONENTS
    ========================================================================================= */
@@ -985,7 +950,18 @@ const LANGUAGES = [
 ];
 
 const STORAGE_KEY = "alpha_editorial_draft";
-
+const fetchMarkdownFromGithub = async (githubUrl) => {
+  try {
+    const rawUrl = githubUrl
+      .replace("github.com", "raw.githubusercontent.com")
+      .replace("/blob/", "/");
+    const res = await fetch(rawUrl);
+    if (!res.ok) throw new Error("Failed to fetch file");
+    return await res.text();
+  } catch (err) {
+    throw new Error("Invalid URL or network error");
+  }
+};
 function EditorialModalPage() {
   // Helper to load initial state from localStorage safely
   const loadState = (key, defaultVal) => {
@@ -1637,103 +1613,105 @@ const insertHorizontalRule = () => {
     } catch (e) { addToast(e.message, "error"); }
   };
 
-  // --- EXPORT MARKDOWN ---
-  const htmlToMarkdown = (html) => {
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
+/* =========================================================================================
+   FIXED htmlToMarkdown
+   ========================================================================================= */
 
-    const process = (node) => {
-      if (node.nodeType === 3) return node.nodeValue;
-      if (node.nodeType !== 1) return "";
+const htmlToMarkdown = (html, inlineBlocks = {}) => {
+  const temp = document.createElement("div");
+  temp.innerHTML = html;
 
-      if (node.classList.contains("carousel-container")) {
-        return "\n<carousel>\n" + Array.from(node.querySelectorAll("img")).map(i => `<img src="${i.src}" />`).join("\n") + "\n</carousel>\n";
+  const process = (node) => {
+    if (node.nodeType === 3) return node.nodeValue;
+    if (node.nodeType !== 1) return "";
+
+    // DETECT MULTI-LANGUAGE WIDGETS
+    if (node.classList.contains("inline-code-widget") || node.hasAttribute('data-block-id')) {
+      const id = node.dataset.blockId || node.getAttribute('data-block-id');
+      const blockData = inlineBlocks ? inlineBlocks[id] : null;
+
+      if (!blockData) return ""; 
+
+      let blockMd = "\n\n"; 
+      const langKeys = Object.keys(blockData.langs || {});
+      
+      langKeys.forEach((lang, idx) => {
+        const code = blockData.langs[lang];
+        if (code && code.trim()) {
+          blockMd += `\`\`\`${lang}\n${code.trim()}\n\`\`\`\n`;
+          // If there's another language coming, we might group it.
+          // If we want separate blocks ALWAYS, we'd add \n\n here.
+          // But usually, multiple langs in ONE widget = ONE grouped block.
+        }
+      });
+
+      if (blockData.output && blockData.output.trim()) {
+        blockMd += `\n### Output\n${blockData.output.trim()}\n`;
       }
-
-      if (node.classList.contains("inline-code-widget")) {
-        const id = node.dataset.blockId;
-        const blockData = inlineBlocks[id];
-        if (!blockData) return "";
-        let blockMd = "";
-        Object.keys(blockData.langs || {}).forEach(lang => {
-          const code = blockData.langs[lang];
-          if (code && code.trim()) {
-            blockMd += `\`\`\`${lang}\n${code}\n\`\`\`\n`;
-          }
-        });
-        if (blockData.output && blockData.output.trim()) {
-  blockMd += `### Output\n${blockData.output.trim()}\n`;
-}
-if (blockData.timeComplexity && blockData.timeComplexity.trim()) {
-  blockMd += `# Time Complexity\n${blockData.timeComplexity.trim()}\n`;
-}
-if (blockData.spaceComplexity && blockData.spaceComplexity.trim()) {
-  // Adding extra newlines after complexity to "seal" the block
-  blockMd += `# Space Complexity\n${blockData.spaceComplexity.trim()}\n\n`;
-}
-return "\n" + blockMd + "\n";
+      if (blockData.timeComplexity && blockData.timeComplexity.trim()) {
+        blockMd += `\n# Time Complexity\n${blockData.timeComplexity.trim()}\n`;
       }
-
-      const tag = node.tagName.toLowerCase();
-      const children = Array.from(node.childNodes).map(process).join("");
-
-      if (tag === 'h1') return `\n# ${children.trim()}\n`;
-      if (tag === 'h2') return `\n## ${children.trim()}\n`;
-      if (tag === 'h3') return `\n### ${children.trim()}\n`;
-      if (tag === 'p') return `\n${children}\n`; 
-      if (tag === 'hr') return `\n\n---\n\n`;
-      if (tag === 'div') return `\n${children}`;
-      if (tag === 'br') return `\n`;
-      // 1. Bold/Italic: Trim inside to ensure *text* syntax works
-      if (tag === 'strong' || tag === 'b') return ` **${children.trim()}** `;
-      if (tag === 'em' || tag === 'i') return ` *${children.trim()}* `;
+      if (blockData.spaceComplexity && blockData.spaceComplexity.trim()) {
+        blockMd += `\n# Space Complexity\n${blockData.spaceComplexity.trim()}\n`;
+      }
       
-      // Lists
-      if (tag === 'ol') return '\n' + Array.from(node.children).map((li, i) => `${i + 1}. ${li.textContent.trim()}`).join('\n') + '\n';
-      if (tag === 'ul') return '\n' + Array.from(node.children).map(li => `- ${li.textContent.trim()}`).join('\n') + '\n';
-      if (tag === 'li') return `- ${children.trim()}\n`;
-      
-      // Code
-      if (tag === 'code') return ` \`${children.trim()}\` `;
-      
-      // 2. Links: Trim content so [ *text* ] becomes [*text*]
-      if (tag === 'a') return ` [${children.trim()}](${node.getAttribute('href')}) `;
-      if (tag === 'img') return `\n<img src="${node.src}" />\n`;
-     // Inside htmlToMarkdown function
-if (tag === 'table') {
-    const rows = Array.from(node.querySelectorAll("tr"));
-    if (!rows.length) return "";
+      return blockMd + "\n\n"; // Ensure trailing padding
+    }
 
-    const mdRows = rows.map(r => {
-        // Strip out accidental bullet points or newlines from inside cells
-        const cells = Array.from(r.cells).map(c => 
-            c.textContent.replace(/\n/g, " ").replace(/^\s*[\*\-\+]\s+/, "").trim()
-        );
-        return `| ${cells.join(" | ")} |`;
-    });
+    const tag = node.tagName.toLowerCase();
+    const children = Array.from(node.childNodes).map(process).join("");
 
-    const headerCells = rows[0].cells.length;
-    const separator = `| ${Array(headerCells).fill("---").join(" | ")} |`;
+    if (tag === 'code') return ` \`${children.trim()}\` `; 
+    if (tag === 'strong' || tag === 'b') return ` **${children.trim()}** `;
+    if (tag === 'em' || tag === 'i') return ` *${children.trim()}* `;
+    if (tag === 'a') return ` [${children.trim()}](${node.getAttribute('href')}) `;
+    if (tag === 'img') return `\n\n![Editorial Image](${node.src})\n\n`;
+    if (tag === 'h1') return `\n\n# ${children.trim()}\n\n`;
+    if (tag === 'h2') return `\n\n## ${children.trim()}\n\n`;
+    if (tag === 'h3') return `\n\n### ${children.trim()}\n\n`;
+    if (tag === 'p') return `\n\n${children}\n\n`; 
+    if (tag === 'br') return `\n`;
+    if (tag === 'hr') return `\n\n---\n\n`;
+    
+    if (tag === 'table') {
+      const rows = Array.from(node.querySelectorAll("tr"));
+      if (!rows.length) return "";
+      const mdRows = rows.map(r => `| ${Array.from(r.cells).map(c => c.textContent.trim()).join(" | ")} |`);
+      const sep = `| ${Array(rows[0].cells.length).fill("---").join(" | ")} |`;
+      return `\n\n${mdRows[0]}\n${sep}\n${mdRows.slice(1).join("\n")}\n\n`;
+    }
 
-    // Ensure double newlines above and below so it's treated as a distinct block
-    return `\n\n${mdRows[0]}\n${separator}\n${mdRows.slice(1).join("\n")}\n\n`;
-}
-      return children;
-    };
-    return process(temp).replace(/\n{3,}/g, "\n\n").trim();
+    if (node.classList.contains("carousel-container")) {
+        const imgs = Array.from(node.querySelectorAll("img")).map(i => `<img src="${i.src}" />`).join("\n");
+        return `\n\n<carousel>\n${imgs}\n</carousel>\n\n`;
+    }
+
+    return children;
   };
+
+  return process(temp).replace(/\n{3,}/g, "\n\n").trim();
+};
 
   const exportMarkdown = () => {
     let md = `# ${docTitle || "Untitled"}\n\n`;
-    md += htmlToMarkdown(editorialEditorRef.current?.innerHTML || editorialHTML) + "\n\n";
+    
+    md += htmlToMarkdown(editorialEditorRef.current?.innerHTML || editorialHTML, inlineBlocks) + "\n\n";
     
     if (approaches.length) {
       md += `<approaches>\n`;
       approaches.forEach(ap => {
-        md += `## ${ap.title || "Approach"}\n\n${htmlToMarkdown(ap.explanation)}\n\n`;
+        md += `## ${ap.title || "Approach"}\n\n${htmlToMarkdown(ap.explanation, inlineBlocks)}\n\n`;
+        
+        // Group languages: No extra newlines between code blocks
         Object.keys(ap.langs || {}).forEach(l => {
-          if(ap.langs[l]) md += `\`\`\`${l}\n${ap.langs[l]}\n\`\`\`\n\n`;
+          if(ap.langs[l]) {
+            md += `\`\`\`${l}\n${ap.langs[l]}\n\`\`\`\n`; // Only one newline here
+          }
         });
+        
+        // Add padding after the grouped code block
+        md += `\n`; 
+        
         if(ap.output && ap.output.trim()) md += `### Output\n${ap.output.trim()}\n\n`;
         if(ap.timeComplexity) md += `# Time Complexity\n${ap.timeComplexity}\n\n`;
         if(ap.spaceComplexity) md += `# Space Complexity\n${ap.spaceComplexity}\n\n`;
@@ -1741,15 +1719,12 @@ if (tag === 'table') {
       md += `</approaches>\n\n`;
     }
 
-    // Append Footer Content (Summary/Thanks)
-    // We add \n\n to ensure it's treated as a new paragraph block by the Markdown parser
     if (footerHTML || footerEditorRef.current?.innerHTML) {
-        md += "\n\n" + htmlToMarkdown(footerEditorRef.current?.innerHTML || footerHTML) + "\n";
+        md += "\n\n" + htmlToMarkdown(footerEditorRef.current?.innerHTML || footerHTML, inlineBlocks) + "\n";
     }
     
     return md;
   };
-
   const handleExport = () => { setMarkdownOutput(exportMarkdown()); changeTab("export"); };
   const handleDownload = () => {
     const blob = new Blob([exportMarkdown()], { type: "text/markdown" });
@@ -1849,7 +1824,97 @@ if (tag === 'table') {
     }, 100);
   };
 
+/* =========================================================================================
+   FIXED FULL HYDRATION LOGIC (Markdown -> Full Visual Editor State)
+   ========================================================================================= */
 
+const loadExistingEditorial = (markdownText) => {
+  try {
+    const parsed = universalParse(markdownText);
+    
+    const mdToEditorHTML = (md) => {
+      if (!md) return "";
+      return md
+        .replace(/!\[.*?\]\((.*?)\)/g, '<img src="$1" style="max-width:100%; border-radius:12px; margin: 1rem 0; display: block;" />')
+        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>')
+        .replace(/^\s*[\-\*]\s+(.*)$/gim, '<ul><li>$1</li></ul>')
+        .replace(/^\s*\d\.\s+(.*)$/gim, '<ol><li>$1</li></ol>')
+        .replace(/<\/ul>\s*<ul>/g, '')
+        .replace(/<\/ol>\s*<ol>/g, '')
+        .replace(/^\|(.+)\|$/gim, (match, content) => {
+           if (content.includes('---')) return ""; 
+           const cols = content.split('|').filter(c => c.trim() !== "").map(c => `<td>${c.trim()}</td>`).join('');
+           return `<table><tr>${cols}</tr></table>`;
+        })
+        .replace(/<\/table>\s*<table>/g, '')
+        .replace(/^---$/gm, '<hr/>')
+        .replace(/\n/g, '<br/>');
+    };
+
+    const blocksToHTML = (blocks) => {
+      return blocks.map(block => {
+        if (block.type === 'text') return `<div class="mb-4">${mdToEditorHTML(block.content)}</div>`;
+        if (block.type === 'carousel') {
+          const imgs = block.images.map(src => `<img src="${src}" class="block mb-2 rounded border w-full shadow-sm" draggable="false"/>`).join('');
+          return `<div class="carousel-container" contenteditable="false"><div class="carousel-header"><div class="text-xs font-bold text-indigo-600 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>CAROUSEL GROUP (${block.images.length} Slides)</div><svg class="arrow-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></div><div class="carousel-content">${imgs}</div></div>`;
+        }
+        if (block.type === 'code') {
+          const blockId = block.id;
+          const langsObj = {};
+          block.code.forEach(c => { langsObj[c.language] = c.code; });
+          setInlineBlocks(prev => ({ ...prev, [blockId]: { langs: langsObj, activeLang: Object.keys(langsObj)[0] || 'cpp', output: block.code[0]?.output || "", timeComplexity: block.complexity?.time || "", spaceComplexity: block.complexity?.space || "" } }));
+          return `<div class="inline-code-widget my-6" contenteditable="false" data-block-id="${blockId}"><div class="border-2 border-dashed border-indigo-300 bg-indigo-50 rounded-xl p-4 flex items-center justify-between"><div class="flex items-center gap-3"><div class="p-2 bg-indigo-600 text-white rounded-lg"><svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" height="20" width="20" xmlns="http://www.w3.org/2000/svg"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></div><div><div class="text-sm font-bold text-indigo-900">Multi-Language Code Block</div><div class="text-xs text-indigo-600 font-mono">ID: ${blockId.substring(0,8)}...</div></div></div><div class="px-3 py-1.5 bg-white text-indigo-600 text-xs font-bold rounded-lg shadow-sm border border-indigo-100 flex items-center gap-2">Edit Block</div></div></div>`;
+        }
+        return "";
+      }).join("");
+    };
+
+    setDocTitle(parsed.title || "Imported Editorial");
+    const standardSections = parsed.sections.filter(s => s.type === 'standard');
+    if (standardSections.length > 0) {
+      const introHTML = blocksToHTML(standardSections[0].content);
+      setEditorialHTML(introHTML);
+      if (editorialEditorRef.current) editorialEditorRef.current.innerHTML = introHTML;
+      if (standardSections.length > 1) {
+        const footHTML = blocksToHTML(standardSections[standardSections.length - 1].content);
+        setFooterHTML(footHTML);
+        if (footerEditorRef.current) footerEditorRef.current.innerHTML = footHTML;
+      }
+    }
+
+    const approachSection = parsed.sections.find(s => s.type === 'approaches');
+    if (approachSection) {
+      const formattedApproaches = approachSection.items.map(item => {
+        const langsObj = {};
+        const codeBlocks = item.content.filter(b => b.type === 'code');
+        codeBlocks.forEach(cb => {
+          cb.code.forEach(c => { langsObj[c.language] = c.code; });
+        });
+
+        return {
+          id: item.id,
+          title: item.name,
+          explanation: item.content.filter(b => b.type === 'text').map(b => mdToEditorHTML(b.content)).join('<br/>'),
+          langs: langsObj, // This now contains all languages for the approach
+          activeLang: Object.keys(langsObj)[0] || "cpp",
+          output: codeBlocks[0]?.code[0]?.output || "",
+          timeComplexity: codeBlocks[0]?.complexity?.time || "",
+          spaceComplexity: codeBlocks[0]?.complexity?.space || ""
+        };
+      });
+      setApproaches(formattedApproaches);
+    }
+    addToast("Editorial Fetched Successfully!", "success");
+  } catch (err) {
+    console.error("Hydration Error:", err);
+    addToast("Failed to render editorial properly", "error");
+  }
+};
   // --- LIVE PREVIEW COMPONENT ---
   const LivePreview = ({ trigger }) => { 
     const [debouncedContent, setDebouncedContent] = useState("");
@@ -2077,9 +2142,34 @@ if (tag === 'table') {
       {/* 4. Header (RESPONSIVE) */}
       <div className="bg-white border-b border-slate-200 p-3 sm:p-4 flex justify-between items-center shrink-0 sticky top-0 z-50">
          <div>
-            <div className="text-sm sm:text-lg font-black text-slate-900 truncate max-w-[150px] sm:max-w-none">
-                Alpha Editorial
-            </div>
+           <div className="flex items-center gap-4">
+  <div className="text-sm sm:text-lg font-black text-slate-900 truncate max-w-[150px] sm:max-w-none">
+    Alpha Editorial
+  </div>
+  <div className="hidden md:flex items-center bg-slate-100 rounded-lg px-2 py-1 border border-slate-200">
+<input 
+  type="text" 
+  placeholder="Paste GitHub Link & Press Enter..." 
+  className="bg-transparent text-[10px] w-48 outline-none font-mono"
+  onKeyDown={async (e) => {
+    if (e.key === 'Enter' && e.target.value) {
+      const url = e.target.value.trim();
+      try {
+        addToast("Fetching content...", "info");
+        const md = await fetchMarkdownFromGithub(url);
+        if (md) {
+          loadExistingEditorial(md);
+          e.target.value = ""; // Clear input
+        }
+      } catch (err) {
+        addToast("Fetch failed: " + err.message, "error");
+      }
+    }
+  }}
+/>
+    <FaLink className="text-slate-400 w-3 h-3 ml-2" />
+  </div>
+</div>
          </div>
          <div className="flex gap-1.5 sm:gap-2">
              <button 
