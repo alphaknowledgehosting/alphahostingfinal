@@ -6,7 +6,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-
+import rehypeRaw from 'rehype-raw';
 // Icons
 import { 
   FaSpinner, FaImage, FaCopy, FaCheck,
@@ -609,18 +609,19 @@ const CodeBlockViewer = React.memo(({
 
 // --- MARKDOWN COMPONENTS ---
 const MarkdownComponents = {
+  img: ({ src, alt, ...props }) => (
+    <SecureImage 
+      src={src} 
+      alt={alt || "Editorial Image"} 
+      className="max-w-full my-6 mx-auto block" 
+      {...props}
+    />
+  ),
   hr: () => <hr className="my-8 border-t-2 border-gray-200 dark:border-zinc-700" />,
   h1: ({ children }) => <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-8 mb-6 border-b border-gray-200 dark:border-gray-800 pb-2">{children}</h1>,
   h2: ({ children }) => <h2 className="text-2xl font-bold text-gray-900 dark:text-white mt-8 mb-4">{children}</h2>,
   h3: ({ children }) => <h3 className="text-xl font-semibold text-gray-900 dark:text-white mt-6 mb-3">{children}</h3>,
-  p: ({ children }) => (
-    <p 
-      className="text-gray-700 dark:text-gray-300 text-[16px] leading-7 mb-4 whitespace-pre-wrap" 
-      style={{ tabSize: 4 }}
-    >
-      {children}
-    </p>
-  ),
+  p: ({ children }) => <div className="mb-4 leading-7 text-gray-700 dark:text-gray-300">{children}</div>,
   ul: ({ children }) => <ul className="text-gray-700 dark:text-gray-300 text-[16px] list-disc ml-5 mb-4 space-y-1">{children}</ul>,
   ol: ({ children }) => <ol className="text-gray-700 dark:text-gray-300 text-[16px] list-decimal ml-5 mb-4 space-y-1">{children}</ol>,
   li: ({ children }) => (
@@ -1854,7 +1855,7 @@ if (tag === 'table') {
     const toggleSection = (id) => setExpandedSections(prev => ({ ...prev, [id]: !prev[id] }));
     const renderBlock = (block) => {
       switch(block.type) {
-        case 'text': return <div key={block.id} className="prose prose-gray dark:prose-invert prose-lg max-w-none mb-6"><ReactMarkdown remarkPlugins={[remarkGfm]} components={MarkdownComponents}>{block.content}</ReactMarkdown></div>;
+        case 'text': return <div key={block.id} className="prose prose-gray dark:prose-invert prose-lg max-w-none mb-6"><ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]} components={MarkdownComponents}>{block.content}</ReactMarkdown></div>;
         case 'carousel': return <ImageCarousel key={block.id} images={block.images} />;
         case 'image': return <SecureImage key={block.id} src={block.src} className="max-w-full my-6" />;
         case 'code': return <CodeBlockViewer key={block.id} blocks={block.code} id={block.id} complexity={block.complexity} activeTabState={codeTabStates[block.id]} onTabChange={(val) => setCodeTabStates(prev => ({ ...prev, [block.id]: val }))} />;
