@@ -650,12 +650,25 @@ const MarkdownComponents = {
   tr: (props) => <tr className="border-t border-gray-300 dark:border-gray-700 even:bg-gray-50 dark:even:bg-zinc-900/30" {...props} />,
   th: (props) => <th className="px-4 py-3 font-semibold border border-gray-300 dark:border-gray-700 whitespace-nowrap" {...props} />,
   td: (props) => <td className="px-4 py-3 border border-gray-300 dark:border-gray-700 align-top text-gray-700 dark:text-gray-300" {...props} />,
-  code: ({ inline, children }) => {
+  code: ({ inline, className, children }) => {
+    const match = /language-(\w+)/.exec(className || '');
     const content = String(children).replace(/\n$/, '');
+    
     if (inline || !content.includes('\n')) {
-      return <code className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 px-1.5 py-0.5 rounded text-[14px] font-mono border border-gray-200 dark:border-gray-700/50">{children}</code>;
+      return <code className="bg-gray-100 dark:bg-gray-800 text-indigo-600 px-1.5 py-0.5 rounded text-[14px] font-mono">{children}</code>;
     }
-    return <div className="my-4 rounded-lg overflow-hidden bg-gray-100 dark:bg-[#0c0c0e] border border-gray-200 dark:border-zinc-800"><div className="p-4 overflow-x-auto text-[14px] font-mono text-gray-800 dark:text-gray-200">{children}</div></div>;
+
+    return (
+      <div className="my-4 rounded-lg overflow-hidden border border-zinc-800">
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={match ? match[1] : 'text'}
+          PreTag="div"
+        >
+          {content}
+        </SyntaxHighlighter>
+      </div>
+    );
   }
 };
 
@@ -1917,6 +1930,9 @@ if (tag === 'table') {
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       <style>{`
+      .content p:empty::before {
+  pointer-events: none;
+}
         .content { color:#0f172a;white-space: pre-wrap; }
         .content h1 { font-size:1.85rem; font-weight:900; margin: 0.5em 0; }
         .content h2 { font-size:1.5rem; font-weight:700; margin: 0.5em 0; }
@@ -2137,13 +2153,16 @@ if (tag === 'table') {
                  
                  <div className="w-px h-6 bg-slate-300 mx-1 hidden sm:block"></div>
 
-                 {/* Headings */}
-                 <div className="flex gap-1">
-                    <button onClick={() => execBlock('h1')} className="px-2 h-8 rounded hover:bg-slate-100 text-xs font-bold">H1</button>
-                    <button onClick={() => execBlock('h2')} className="px-2 h-8 rounded hover:bg-slate-100 text-xs font-bold">H2</button>
-                    <button onClick={() => execBlock('h3')} className="px-2 h-8 rounded hover:bg-slate-100 text-xs font-bold">H3</button>
-                    <button onClick={insertInlineCode} className="px-2 h-8 rounded hover:bg-slate-100 text-xs font-mono border border-slate-200 ml-1">{'< >'}</button>
-                 </div>
+                  {/* Headings */}
+<div className="flex gap-1">
+  <button onClick={() => execBlock('h1')} className="px-2 h-8 rounded hover:bg-slate-100 text-xs font-bold">H1</button>
+  <button onClick={() => execBlock('h2')} className="px-2 h-8 rounded hover:bg-slate-100 text-xs font-bold">H2</button>
+  <button onClick={() => execBlock('h3')} className="px-2 h-8 rounded hover:bg-slate-100 text-xs font-bold">H3</button>
+  {/* Identical styling for P button */}
+  <button onClick={() => execBlock('p')} className="px-2 h-8 rounded hover:bg-slate-100 text-xs font-bold">P</button>
+  
+  <button onClick={insertInlineCode} className="px-2 h-8 rounded hover:bg-slate-100 text-xs font-mono border border-slate-200 ml-1">{'< >'}</button>
+</div>
 
                  <div className="w-px h-6 bg-slate-300 mx-1 hidden sm:block"></div>
 
